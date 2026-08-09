@@ -1,0 +1,15 @@
+services:
+  api:
+    build:
+      context: .
+      args:
+        VERSION: "1.0.0"
+    image: rust-api:1.0.0
+    ports:
+      - "8080:8080"
+    environment:
+      RUST_LOG: info
+      HEARTBEAT_SECS: "30"
+    restart: unless-stopped
+    # Stateless — no volume, and any number of replicas can run behind a load
+    # balancer with no coordination between them.

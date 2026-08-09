@@ -1,14 +1,12 @@
 //! `POST /debug/logstorm` — deliberately emit a lot of log lines.
 //!
-//! Exists to exercise a log pipeline end to end. Promtail, Loki, and a Grafana
-//! panel all look the same whether they are working correctly on a trickle of
-//! input or broken; the only way to tell is to produce a known number of lines
-//! at known levels and check that exactly that many arrive. Every hop —
-//! stdout capture, the runtime's unwrap stage, label attachment, ingestion,
-//! the dashboard's LogQL — is either proven or falsified in one request.
-//!
-//! Nothing here touches SQLite. These are the service's *own* logs, which go
-//! to stdout and nowhere else.
+//! Exists to exercise a log pipeline end to end. A shipper, an aggregator, and
+//! a dashboard all look the same whether they are working correctly on a
+//! trickle of input or broken; the only way to tell is to produce a known
+//! number of lines at known levels and check that exactly that many arrive.
+//! Every hop — stdout capture, the runtime's unwrap stage, label attachment,
+//! ingestion, the query language on the other end — is either proven or
+//! falsified in one request.
 
 use std::time::Duration;
 
@@ -158,7 +156,7 @@ pub async fn storm(Query(p): Query<StormParams>) -> Json<Value> {
         //    lives in the query string — that over-counts by three and reads
         //    as duplication.
         "verify": format!(
-            "sum(count_over_time({{app=\"rust-sqlite-api\"}} |= \"{tag}\" | json | fields_kind=\"synthetic\" [5m]))"
+            "sum(count_over_time({{app=\"rust-api\"}} |= \"{tag}\" | json | fields_kind=\"synthetic\" [5m]))"
         )
     }))
 }

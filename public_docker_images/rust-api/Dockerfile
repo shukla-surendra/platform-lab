@@ -3,15 +3,11 @@
 # ---------------------------------------------------------------------------
 # Stage 1 — build a statically linked binary against musl.
 #
-# Alpine's Rust image targets musl, which links statically by default. That is
-# what lets the runtime stage be a bare Alpine with no libc, no libgcc, and no
-# libsqlite3 to keep patched — rusqlite's "bundled" feature compiles SQLite
-# from its amalgamated C source straight into the binary.
+# Alpine's Rust image targets musl, which links statically by default. No C
+# toolchain is needed here — every dependency is pure Rust, so there is
+# nothing for a linker like the one SQLite's bundled build used to require.
 # ---------------------------------------------------------------------------
 FROM rust:1.97-alpine AS build
-
-# musl-dev + build-base give the C toolchain that bundled SQLite needs.
-RUN apk add --no-cache musl-dev build-base
 
 WORKDIR /app
 COPY Cargo.toml Cargo.lock ./
@@ -29,7 +25,7 @@ COPY static ./static
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/app/target \
     cargo build --release --locked && \
-    cp /app/target/release/rust-sqlite-api /app/rust-sqlite-api
+    cp /app/target/release/rust-api /app/rust-api
 
 # ---------------------------------------------------------------------------
 # Stage 2 — runtime.
@@ -40,38 +36,30 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry \
 # ---------------------------------------------------------------------------
 FROM alpine:3.22 AS runtime
 
-ARG VERSION=0.1.0
-LABEL org.opencontainers.image.title="rust-sqlite-api" \
-      org.opencontainers.image.description="Minimal Rust (axum) HTTP API with an embedded SQLite database" \
+ARG VERSION=1.0.0
+LABEL org.opencontainers.image.title="rust-api" \
+      org.opencontainers.image.description="Public API-testing sample: health check, on-demand log generation, and stateless httpbin-style test endpoints" \
       org.opencontainers.image.version="${VERSION}" \
       org.opencontainers.image.licenses="MIT" \
       org.opencontainers.image.source="https://github.com/shukla-surendra/platform-lab"
 
-# Run as a non-root user. /data is created and chowned here so a *named* volume
-# inherits this ownership; a bind-mounted host directory does not, and must be
-# chowned on the host to uid 10001 (see README §Persistence).
+# Non-root. No volume: the service is stateless and writes nothing to disk.
 RUN addgroup -g 10001 -S app && \
-    adduser -u 10001 -S app -G app && \
-    mkdir -p /data && chown app:app /data
+    adduser -u 10001 -S app -G app
 
-COPY --from=build /app/rust-sqlite-api /usr/local/bin/rust-sqlite-api
+COPY --from=build /app/rust-api /usr/local/bin/rust-api
 
 USER app
-WORKDIR /data
-VOLUME ["/data"]
 EXPOSE 8080
 
-ENV DATABASE_PATH=/data/app.db \
-    BIND_ADDR=0.0.0.0:8080 \
-    DB_POOL_SIZE=8 \
+ENV BIND_ADDR=0.0.0.0:8080 \
+    HEARTBEAT_SECS=30 \
     RUST_LOG=info
 
-# Hits /healthz, not /readyz — a liveness probe that fails on a busy database
-# would restart the container without unlocking anything. See routes.rs.
 HEALTHCHECK --interval=15s --timeout=3s --start-period=5s --retries=3 \
     CMD wget -qO- http://127.0.0.1:8080/healthz || exit 1
 
 # Exec form, so the binary is PID 1 and receives SIGTERM directly — the shell
 # form would put /bin/sh at PID 1, which does not forward signals, and the
 # graceful shutdown in main.rs would never fire.
-ENTRYPOINT ["/usr/local/bin/rust-sqlite-api"]
+ENTRYPOINT ["/usr/local/bin/rust-api"]

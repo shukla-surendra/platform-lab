@@ -11,7 +11,10 @@ which adds the heartbeat, `/debug/logstorm`, and the API-testing surface, exists
 locally and in minikube but is **not pushed yet**; the chart's `appVersion`
 still points at `0.2.0`, so override with `--set image.tag=0.4.0` to run it.
 It is built in
-[`../../public_docker_images/rust-sqlite-api/`](../../public_docker_images/rust-sqlite-api/) —
+[`../../public_docker_images/rust-api/`](../../public_docker_images/rust-api/)
+(renamed from `rust-sqlite-api`, and rewritten to a stateless design in its own
+`1.0.0` — this chart still deploys the pre-rewrite `0.2.0`/`0.4.0` image and has
+not been updated for the rename or the rewrite; see that image's `CHANGELOG.md`) —
 that directory owns the image, this one owns everything Kubernetes.
 
 ## Install
@@ -89,8 +92,11 @@ node with nothing in front of it, and this API has no authentication.
 Feed it something:
 
 ```bash
+# testdata/send.sh no longer exists — it sent OTLP payloads, and the deployed
+# image's 1.0.0 successor has no OTLP ingest to receive them. Left here as a
+# marker of what needs rewriting alongside the rest of this chart.
 ENDPOINT=http://localhost:8080 \
-  ../../public_docker_images/rust-sqlite-api/testdata/send.sh
+  ../../public_docker_images/rust-api/testdata/send.sh
 
 # prove the log pipeline end to end: emits a known count, tells you the LogQL
 # to compare against Loki

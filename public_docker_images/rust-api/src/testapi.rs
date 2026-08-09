@@ -1,15 +1,14 @@
 //! Endpoints that exist to be called by other people's tools.
 //!
-//! This image doubles as a public API-testing target — the thing you point a
-//! client, a load generator, an ingress rule, or a probe at when you need a
-//! server that responds predictably and is not someone else's production
-//! service. Deliberately httpbin-shaped, because that vocabulary is already
-//! familiar.
+//! This is the whole point of the image: a server you point a client, a load
+//! generator, an ingress rule, or a probe at when you need something that
+//! responds predictably and is not someone else's production service.
+//! Deliberately httpbin-shaped, because that vocabulary is already familiar.
 //!
 //! Two properties every handler here holds to:
 //!
-//! * **Stateless.** Nothing touches SQLite. These can be hammered without
-//!   growing the volume or perturbing the telemetry counters.
+//! * **Stateless.** No database, no file, no memory between requests. These
+//!   can be hammered as hard as you like with no accumulating side effect.
 //! * **Predictable.** The response says exactly what the request was, so a
 //!   failing client can be diagnosed from the response alone rather than from
 //!   server logs the caller cannot see.

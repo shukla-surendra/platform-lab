@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Build and push rust-sqlite-api to a public registry.
+# Build and push rust-api to a public registry.
 #
 # Publishing is one-way: once a tag is pulled by anyone, deleting or moving it
 # breaks them. So this script gates the push behind checks that are cheap to run
@@ -13,7 +13,7 @@
 #
 set -euo pipefail
 
-REPO="surendrashukla29/rust-sqlite-api"
+REPO="surendrashukla29/rust-api"
 PLATFORMS="linux/amd64,linux/arm64"
 TAG=""
 ALSO_LATEST=0
@@ -68,7 +68,7 @@ done
 [ -n "$TAG" ] || die "no tag given. usage: $(basename "$0") <tag>"
 
 # Docker's own grammar for a tag. Catches the common paste error of including
-# the repo ("surendrashukla29/rust-sqlite-api:0.2.0") as the tag.
+# the repo ("surendrashukla29/rust-api:1.0.0") as the tag.
 [[ "$TAG" =~ ^[A-Za-z0-9_][A-Za-z0-9._-]{0,127}$ ]] \
   || die "invalid tag '$TAG' — pass only the tag, not repo:tag"
 
@@ -135,15 +135,14 @@ if [ "$SKIP_VERIFY" -eq 1 ]; then
 else
   info "acceptance run"
   CONTAINER="rsa-publish-check-$$"
-  VOLUME="$CONTAINER-data"
-  cleanup() { docker rm -f "$CONTAINER" >/dev/null 2>&1 || true
-              docker volume rm "$VOLUME" >/dev/null 2>&1 || true; }
+  cleanup() { docker rm -f "$CONTAINER" >/dev/null 2>&1 || true; }
   trap cleanup EXIT
 
   docker build -q --build-arg VERSION="$TAG" -t "rsa-publish-check:$TAG" . >/dev/null
   ok "image built for this host"
 
-  docker run -d --name "$CONTAINER" -p "$TEST_PORT:8080" -v "$VOLUME:/data" \
+  # No volume: the service is stateless.
+  docker run -d --name "$CONTAINER" -p "$TEST_PORT:8080" \
     "rsa-publish-check:$TAG" >/dev/null
 
   for _ in $(seq 1 30); do

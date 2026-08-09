@@ -21,7 +21,7 @@ Anything in this folder is expected to be:
 
 | Image | What it is | Size | Status |
 |---|---|---|---|
-| [`rust-sqlite-api/`](rust-sqlite-api/) | OTLP-compatible collector for logs, metrics, and traces, backed by an embedded SQLite database on a volume. Rust + axum, statically linked. | 23.5 MB<br>(6.7 MB pulled) | **Published** → [`surendrashukla29/rust-sqlite-api:0.2.0`](https://hub.docker.com/r/surendrashukla29/rust-sqlite-api) · `amd64` + `arm64`. Kubernetes deployment, Grafana dashboards and alerts live in [`k8s_explorer/rust-sqlite-api-stack/`](../k8s_explorer/rust-sqlite-api-stack/), not here |
+| [`rust-api/`](rust-api/) | Public API-testing sample: health check, on-demand log generation (exact and random), a self-describing endpoint reference, and stateless httpbin-shaped test endpoints. `1.0.0` — fully stateless, no database. Rust + axum, statically linked. Renamed from `rust-sqlite-api`. | 18.6 MB | `0.2.0` **published under the old name** (OTLP-collector version, retired) → [Docker Hub](https://hub.docker.com/r/surendrashukla29/rust-sqlite-api). `1.0.0` targets `surendrashukla29/rust-api`, not yet pushed — see the image's own [CHANGELOG](rust-api/CHANGELOG.md) |
 
 ## Publishing
 
