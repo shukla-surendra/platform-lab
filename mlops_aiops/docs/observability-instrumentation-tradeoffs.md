@@ -167,3 +167,7 @@ inherent cost of instrumenting.
 - [`observability-on-eks.md`](observability-on-eks.md) — which tools implement this on EKS,
   and its own [Responsibility matrix](observability-on-eks.md#responsibility-matrix) (tool
   → pillar, a different axis from the human responsibility split above)
+- [`observability-otel-collector-and-datadog.md`](observability-otel-collector-and-datadog.md) —
+  OTLP transport mechanics, Collector scaling, and the additional telemetry-specific failure
+  modes (synchronous export, buffer exhaustion, OOMKill from telemetry buffers) that build
+  on the critical-path and fail-open principles above

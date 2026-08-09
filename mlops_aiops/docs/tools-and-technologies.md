@@ -26,6 +26,8 @@ skill (see `../../.claude/skills/tech-log/SKILL.md`, at the repo root).
 - [MinIO](tools/minio/README.md) — object storage (self-hosted, S3-API-compatible)
 - [MLflow](tools/mlflow/README.md) — experiment tracking / model registry / model lifecycle
 - [Instrumentation Tradeoffs](observability-instrumentation-tradeoffs.md) — cross-cutting: platform vs. developer responsibility for telemetry, critical-path/sampling/cardinality cost tradeoffs
+- [OTLP, the OpenTelemetry Collector, and Datadog](observability-otel-collector-and-datadog.md) — cross-cutting: OTLP transport mechanics, Collector scaling, Grafana-stack vs. Datadog, MLflow autologging as instrumentation
+- [Production Logging Guidelines](production-logging-guidelines.md) — cross-cutting: log levels (ERROR/WARN/INFO/DEBUG/TRACE), structured logging, correlation IDs, sampling, retention, anti-patterns
 - [ML & GenAI Lifecycle and Governance](ml-genai-lifecycle-and-governance.md) — cross-cutting: lifecycle stages, data/model governance, SR 11-7, EU AI Act, GDPR Art. 22
 - [MLOps, AIOps, LLMOps (definitions & origins)](mlops-aiops-llmops.md) — cross-cutting: what each discipline is, who defines it, where they overlap
 - [New Relic](tools/new-relic/README.md) — observability / monitoring (commercial, all-in-one)

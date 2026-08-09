@@ -374,3 +374,6 @@ SaaS cost is acceptable relative to engineering time saved.
 - [Instrumentation Tradeoffs](observability-instrumentation-tradeoffs.md) — who's
   responsible for producing telemetry (platform vs. developer), and the performance cost of
   instrumenting an application
+- [OTLP, the OpenTelemetry Collector, and Datadog](observability-otel-collector-and-datadog.md) —
+  the transport mechanics between an app and a backend, Collector scaling, and how a
+  managed platform like Datadog compares to this self-hosted stack

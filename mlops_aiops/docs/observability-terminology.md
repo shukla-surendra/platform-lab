@@ -7,6 +7,10 @@ onto AWS/EKS specifics (CloudWatch above all) — because most confusion in this
 about which product to pick, it's about two people using the same word to mean different
 things. [`observability-instrumentation-tradeoffs.md`](observability-instrumentation-tradeoffs.md)
 covers who's responsible for producing this telemetry and what it costs to do so.
+[`observability-otel-collector-and-datadog.md`](observability-otel-collector-and-datadog.md)
+covers the transport layer (OTLP, the Collector) and how Datadog compares as a managed
+alternative. [`production-logging-guidelines.md`](production-logging-guidelines.md) covers
+what should actually go *inside* a log line — levels, fields, anti-patterns.
 
 ## Telemetry — the umbrella term
 
