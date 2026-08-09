@@ -1,23 +1,18 @@
 # ---------------------------------------------------------------------------
 # The application
 # ---------------------------------------------------------------------------
-nameOverride: rust-sqlite-api      # so resources read <release>-rust-sqlite-api
+nameOverride: rust-api      # so resources read <release>-rust-api
 fullnameOverride: ""
 
 image:
-  repository: surendrashukla29/rust-sqlite-api
-  tag: ""            # defaults to .Chart.AppVersion
+  repository: surendrashukla29/rust-api
+  tag: "1.0.0"        # pinned; also matches .Chart.AppVersion in Chart.yaml
   pullPolicy: IfNotPresent
 
-# ---------------------------------------------------------------------------
-# THIS MUST STAY 1.
-#
-# The database is a file on this pod's own volume. There is no shared state and
-# no coordination between replicas, so scaling out does not distribute load —
-# it partitions telemetry across N disconnected databases, and a query hitting
-# replica 2 silently returns none of the spans that landed on replica 1. The
-# chart refuses to render above 1 rather than let that be found in production.
-# ---------------------------------------------------------------------------
+# rust-api is fully stateless — no database, no volume, no coordination needed
+# between replicas. Unlike the OTLP-collector version this chart used to run,
+# there is no reason to cap this at 1; a Deployment with N replicas behind the
+# Service just works, and is a reasonable thing to demonstrate on this cluster.
 replicaCount: 1
 
 service:
@@ -39,15 +34,14 @@ service:
   annotations: {}
 
 config:
-  # `info` alone makes this service almost silent: it logs two lines at startup
-  # and then nothing until something goes wrong. tower-http's request tracing
-  # emits at DEBUG, so with plain `info` the logs dashboard is permanently empty
-  # and looks broken when it is merely accurate.
-  #
-  # `tower_http=debug` gives one line per HTTP request, which is what makes the
-  # dashboard worth opening. Raise the app's own target to debug
-  # (`rust_sqlite_api=debug`) only when chasing the writer — it logs a line per
-  # committed batch, which at real ingest rates is thousands per second.
+  # `info` alone makes this service almost silent: it logs a couple of lines
+  # at startup and then nothing until something goes wrong. tower-http's
+  # request tracing emits at DEBUG, so with plain `info` the logs dashboard —
+  # and the request-rate/status/latency panels on the main dashboard, which
+  # are computed FROM those request-tracing lines via LogQL — are permanently
+  # empty and look broken when they are merely accurate. See
+  # ../docs/metrics-and-logs-without-instrumentation.md for why those panels
+  # can exist at all without the app exposing a /metrics endpoint.
   rustLog: info,tower_http=debug
 
   # Seconds between "alive" heartbeat log lines. The heartbeat exists so an
@@ -56,64 +50,24 @@ config:
   # working until something goes wrong.
   heartbeatSecs: 30
 
-  # false turns this into a pure OTLP sink — telemetry is parsed, counted, and
-  # discarded instead of written to SQLite. /api/* queries return empty and
-  # telemetry_discarded_total replaces telemetry_written_total. Useful when the
-  # point is the log pipeline rather than the store; set persistence.enabled
-  # false alongside it to drop the PVC too.
-  persistTelemetry: true
-  dbPoolSize: 8
-  ingestQueueCapacity: 10000
-  ingestBatchMax: 500
-  ingestFlushMs: 250
-  retentionHours: 72
-  retentionIntervalSecs: 600
-
-persistence:
-  enabled: true
-  size: 2Gi
-  storageClass: ""
-  # ReadWriteOnce is correct and deliberate: this volume must never be mounted
-  # by two pods. RWX would not help — SQLite over a network filesystem breaks
-  # its locking assumptions and corrupts rather than blocks.
-  accessMode: ReadWriteOnce
-
-  # Runs a tiny root init container that chowns /data to the app's uid.
-  #
-  # On by default because the alternative is a first install that CrashLoopBackOffs
-  # with SQLITE_CANTOPEN on any cluster whose provisioner ignores fsGroup —
-  # notably minikube's default `standard` StorageClass, which is hostPath.
-  # fsGroup works on EBS, GCE PD, and most CSI drivers, and there the chown is a
-  # harmless no-op.
-  #
-  # Turn OFF where a restricted PodSecurity policy forbids running any container
-  # as root; on such clusters the CSI driver almost certainly honours fsGroup
-  # anyway, so it is not needed.
-  fixOwnership:
-    enabled: true
-    image: busybox:1.36
-
 resources:
   requests:
-    cpu: 50m           # minikube is CPU-starved; see ../docs/incidents.md
-    memory: 128Mi
+    cpu: 20m            # a stateless HTTP handler, genuinely light
+    memory: 32Mi
   limits:
-    # No CPU limit on purpose: throttling the writer turns a latency blip into
-    # queue growth and then into dropped telemetry. Memory is capped because
-    # the ingest queue is bounded, so usage is predictable.
-    memory: 512Mi
+    cpu: 200m
+    memory: 128Mi
 
 podSecurityContext:
   runAsNonRoot: true
   runAsUser: 10001
   runAsGroup: 10001
-  fsGroup: 10001        # makes the mounted volume writable by that uid
   seccompProfile:
     type: RuntimeDefault
 
 securityContext:
   allowPrivilegeEscalation: false
-  readOnlyRootFilesystem: true    # everything written lives on /data
+  readOnlyRootFilesystem: true    # the app writes nothing anywhere
   capabilities:
     drop: ["ALL"]
 
@@ -142,16 +96,31 @@ affinity: {}
 # ---------------------------------------------------------------------------
 # Observability wiring owned by this chart
 # ---------------------------------------------------------------------------
+#
+# rust-api has NO /metrics endpoint — see
+# ../docs/metrics-and-logs-without-instrumentation.md for the full reasoning,
+# verified live against this exact deployment. In short:
+#   - logs need nothing from the app: stdout capture is automatic (Promtail)
+#   - pod-level metrics (CPU, memory, restarts) come from cAdvisor and
+#     kube-state-metrics, already scraped by kube-prometheus-stack for every
+#     pod on the cluster — zero setup specific to this app
+#   - request-level metrics (rate, status, latency) are computed from the
+#     existing tower_http access-log lines via LogQL, in Grafana panels, not
+#     from Prometheus at all
+# A ServiceMonitor pointed at this app's :8080/metrics would 404 forever, so
+# it stays off. The template is still here — flip it on if a future version
+# of the app ever adds a real /metrics endpoint.
 serviceMonitor:
-  enabled: true
-  # The writer flushes every 250ms. A 60s scrape averages away the bursts that
-  # matter — a queue spike causing drops can be over before the next sample.
+  enabled: false
   interval: 15s
   scrapeTimeout: 10s
   labels: {}
 
+# Off by default for the same reason: there is no telemetry_* metric left to
+# alert on. What ships when enabled is deliberately small and honest — real
+# signals from kube-state-metrics/cAdvisor, not placeholders.
 prometheusRule:
-  enabled: true
+  enabled: false
   labels: {}
 
 grafanaDashboard:

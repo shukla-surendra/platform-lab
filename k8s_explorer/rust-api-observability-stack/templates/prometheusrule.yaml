@@ -1,0 +1,61 @@
+{{- if .Values.prometheusRule.enabled }}
+{{/*
+rust-api has no /metrics endpoint and no telemetry_* series to alert on — see
+values.yaml. These alerts read real signals that are already scraped for
+every pod on the cluster (cAdvisor, kube-state-metrics), matched to this
+container by name, rather than placeholders left over from the retired
+OTLP-collector app.
+*/}}
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: {{ include "rust-sqlite-api-stack.fullname" . }}
+  labels:
+    {{- include "rust-sqlite-api-stack.labels" . | nindent 4 }}
+    {{- with .Values.prometheusRule.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  groups:
+    - name: rust-api
+      rules:
+        - alert: RustApiDown
+          expr: count(kube_pod_container_status_running{container="rust-api"} == 1) == 0
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "No rust-api pods running"
+            description: >-
+              Every pod carrying the rust-api container is stopped or missing.
+              Check `kubectl get pods` and recent events first — a stateless
+              app with no running pods is almost always a scheduling or image
+              pull problem, not an application bug.
+
+        - alert: RustApiCrashLooping
+          expr: increase(kube_pod_container_status_restarts_total{container="rust-api"}[15m]) > 2
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "rust-api restarting repeatedly"
+            description: >-
+              More than 2 restarts in 15 minutes. The app is stateless and
+              handles SIGTERM in well under a second, so repeated restarts
+              point at a crash (panic, OOMKill) rather than a slow drain —
+              check `kubectl logs --previous` on the affected pod.
+
+        - alert: RustApiMemoryNearLimit
+          expr: |
+            container_memory_working_set_bytes{container="rust-api"}
+              / clamp_min(container_spec_memory_limit_bytes{container="rust-api"}, 1) > 0.9
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "rust-api pod within 10% of its memory limit"
+            description: >-
+              Sustained closeness to limits.memory (128Mi by default) precedes
+              an OOMKill, which shows up as RustApiCrashLooping a few minutes
+              later. Acting here is cheap; waiting for the restart is not.
+{{- end }}

@@ -1,9 +1,9 @@
 {
-  "uid": "rust-sqlite-api-logs",
-  "title": "rust-sqlite-api \u2014 logs",
-  "description": "Container logs for the collector, from Loki. Paired with the collector-health dashboard: that one says a batch failed, this one says why.",
+  "uid": "rust-api-logs",
+  "title": "rust-api — logs",
+  "description": "Container logs for rust-api, from Loki. Paired with the health & requests dashboard: that one is the shape over time, this one is the raw stream and the reason behind a spike.",
   "tags": [
-    "rust-sqlite-api",
+    "rust-api",
     "logs",
     "loki"
   ],
@@ -80,7 +80,7 @@
       "id": 1,
       "type": "stat",
       "title": "Error lines (1h)",
-      "description": "The app logs JSON to stdout, so level is a field rather than a substring. Non-zero here should correspond to something on the collector-health dashboard \u2014 if it does not, one of the two is lying.",
+      "description": "The app logs JSON to stdout, so level is a field rather than a substring. Non-zero here is worth cross-checking on the health & requests dashboard's 5xx panel — if one is non-zero and the other is not, one of the two is lying.",
       "gridPos": {
         "h": 4,
         "w": 6,
@@ -93,7 +93,7 @@
       },
       "targets": [
         {
-          "expr": "sum(count_over_time({namespace=~\"$namespace\", app=\"rust-sqlite-api\"} | json | level=\"ERROR\" [1h]))",
+          "expr": "sum(count_over_time({namespace=~\"$namespace\", app=\"rust-api\"} | json | level=\"ERROR\" [1h]))",
           "refId": "A"
         }
       ],
@@ -131,8 +131,8 @@
     {
       "id": 2,
       "type": "stat",
-      "title": "Shed-warning lines (1h)",
-      "description": "The writer logs one warning per request that hit a full queue. Cross-check against telemetry_dropped_total: the log says which signal and when, the counter says how many.",
+      "title": "Synthetic log-test lines (1h)",
+      "description": "Lines generated on demand by /debug/logstorm and /debug/random-logs, tagged kind=\"synthetic\" or kind=\"random\". Non-zero here is proof the ingest path (app → stdout → Promtail → Loki) is working end to end, independent of real traffic — fire either endpoint and watch this move.",
       "gridPos": {
         "h": 4,
         "w": 6,
@@ -145,7 +145,7 @@
       },
       "targets": [
         {
-          "expr": "sum(count_over_time({namespace=~\"$namespace\", app=\"rust-sqlite-api\"} |= \"queue full\" [1h]))",
+          "expr": "sum(count_over_time({namespace=~\"$namespace\", app=\"rust-api\"} | json | fields_kind=~\"synthetic|random\" [1h]))",
           "refId": "A"
         }
       ],
@@ -157,25 +157,16 @@
           "fields": "",
           "values": false
         },
-        "colorMode": "background",
+        "colorMode": "value",
         "graphMode": "area",
         "textMode": "value"
       },
       "fieldConfig": {
         "defaults": {
           "decimals": 0,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "#3D9A50",
-                "value": null
-              },
-              {
-                "color": "#C77A16",
-                "value": 1
-              }
-            ]
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#3B82F6"
           }
         }
       }
@@ -197,7 +188,7 @@
       },
       "targets": [
         {
-          "expr": "sum by (level) (rate({namespace=~\"$namespace\", app=\"rust-sqlite-api\"} | json [5m]))",
+          "expr": "sum by (level) (rate({namespace=~\"$namespace\", app=\"rust-api\"} | json [5m]))",
           "legendFormat": "{{level}}",
           "refId": "A"
         }
@@ -277,8 +268,8 @@
     {
       "id": 4,
       "type": "stat",
-      "title": "Batch commits (1h)",
-      "description": "Only visible at RUST_LOG=debug. Zero here with traffic arriving usually means the log level, not a stalled writer \u2014 check telemetry_batches_total before concluding anything.",
+      "title": "Heartbeats (1h)",
+      "description": "One `alive` line every HEARTBEAT_SECS (default 30 — up to 120 expected per hour), carrying uptime and a request count. Without it, a quiet-but-healthy pod and a wedged one produce identical log output; with it, absence of the line is evidence rather than ambiguity.",
       "gridPos": {
         "h": 4,
         "w": 12,
@@ -291,7 +282,7 @@
       },
       "targets": [
         {
-          "expr": "sum(count_over_time({namespace=~\"$namespace\", app=\"rust-sqlite-api\"} |= \"batch committed\" [1h]))",
+          "expr": "sum(count_over_time({namespace=~\"$namespace\", app=\"rust-api\"} |= \"alive\" [1h]))",
           "refId": "A"
         }
       ],
@@ -310,9 +301,18 @@
       "fieldConfig": {
         "defaults": {
           "decimals": 0,
-          "color": {
-            "mode": "fixed",
-            "fixedColor": "#3B82F6"
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#D64545",
+                "value": null
+              },
+              {
+                "color": "#3D9A50",
+                "value": 1
+              }
+            ]
           }
         }
       }
@@ -321,7 +321,7 @@
       "id": 5,
       "type": "logs",
       "title": "Live log stream",
-      "description": "Structured JSON on stdout \u2014 no log file, nothing to rotate, and the container runtime plus Promtail handle shipping. Use the Level filter above; it rewrites the query rather than filtering client-side, so it stays fast on a large window.",
+      "description": "Structured JSON on stdout — no log file, nothing to rotate, and the container runtime plus Promtail handle shipping. Use the Level filter above; it rewrites the query rather than filtering client-side, so it stays fast on a large window.",
       "gridPos": {
         "h": 16,
         "w": 24,
@@ -334,7 +334,7 @@
       },
       "targets": [
         {
-          "expr": "{namespace=~\"$namespace\", app=\"rust-sqlite-api\"} | json | level =~ \"$level\"",
+          "expr": "{namespace=~\"$namespace\", app=\"rust-api\"} | json | level =~ \"$level\"",
           "refId": "A"
         }
       ],

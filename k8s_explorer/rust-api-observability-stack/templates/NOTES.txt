@@ -1,0 +1,30 @@
+{{ include "rust-sqlite-api-stack.fullname" . }} deployed — image {{ include "rust-sqlite-api-stack.image" . }}
+
+Look at it locally:
+
+  kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "rust-sqlite-api-stack.fullname" . }} {{ .Values.service.port }}:{{ .Values.service.port }}
+  open http://localhost:{{ .Values.service.port }}/          # landing page, every endpoint, live example
+  curl http://localhost:{{ .Values.service.port }}/healthz
+
+Observability:
+{{- if .Values.serviceMonitor.enabled }}
+  ServiceMonitor  enabled, scraping every {{ .Values.serviceMonitor.interval }} — but rust-api has no
+                  /metrics endpoint, so this target will read as unhealthy. See values.yaml.
+{{- else }}
+  ServiceMonitor  disabled — correct. rust-api has no /metrics endpoint to scrape.
+{{- end }}
+{{- if .Values.prometheusRule.enabled }}
+  Alerts          enabled (pod-level: down, crash-looping, memory near limit)
+{{- else }}
+  Alerts          disabled — set prometheusRule.enabled=true
+{{- end }}
+{{- if .Values.grafanaDashboard.enabled }}
+  Dashboards      shipped as a ConfigMap for the Grafana sidecar:
+                    rust-api — health & requests  (pod metrics + LogQL request rate/status)
+                    rust-api — logs                (Loki log stream)
+{{- else }}
+  Dashboards      not shipped — set grafanaDashboard.enabled=true
+{{- end }}
+
+replicaCount can be anything — rust-api is stateless with no shared volume, so
+a Deployment with N replicas behind the Service just works.

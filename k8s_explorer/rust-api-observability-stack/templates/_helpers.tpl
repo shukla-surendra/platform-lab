@@ -32,16 +32,9 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end -}}
 
 {{/*
-Refuse to render above one replica.
-
-Failing at template time is the point. A silently-accepted replicaCount: 3
-produces three pods, three PersistentVolumeClaims, three unrelated databases,
-and a Service that load-balances queries across them — so roughly two thirds of
-your telemetry appears to vanish, intermittently, with nothing in any log to
-explain it. That is far more expensive to diagnose than this error is to read.
+No replica guard here on purpose — a previous version of this chart deployed a
+SQLite-backed app and refused to render above replicaCount: 1 for that reason.
+rust-api has no database and no shared state, so that constraint no longer
+applies: replicaCount can be anything, and a Deployment (not a StatefulSet)
+handles it with the default rolling-update behaviour.
 */}}
-{{- define "rust-sqlite-api-stack.validateReplicas" -}}
-{{- if gt (int .Values.replicaCount) 1 -}}
-{{- fail (printf "replicaCount is %d, but rust-sqlite-api cannot be scaled horizontally.\n\nThe database is a SQLite file on each pod's own volume. Extra replicas do not share it, so they do not distribute load — they partition your telemetry across %d disconnected databases and queries return whichever fraction happens to be routed to. Keep replicaCount: 1, or move to a store designed for horizontal scale." (int .Values.replicaCount) (int .Values.replicaCount)) -}}
-{{- end -}}
-{{- end -}}

@@ -5,7 +5,8 @@ how they connect. This doc explains the *words* — what "telemetry," "observabi
 "tracing," "span," and "cardinality" actually mean, where they come from, and how they map
 onto AWS/EKS specifics (CloudWatch above all) — because most confusion in this space isn't
 about which product to pick, it's about two people using the same word to mean different
-things.
+things. [`observability-instrumentation-tradeoffs.md`](observability-instrumentation-tradeoffs.md)
+covers who's responsible for producing this telemetry and what it costs to do so.
 
 ## Telemetry — the umbrella term
 

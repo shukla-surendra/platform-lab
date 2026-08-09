@@ -371,3 +371,6 @@ SaaS cost is acceptable relative to engineering time saved.
 - [Datadog](tools/datadog/README.md), [Splunk](tools/splunk/README.md),
   [New Relic](tools/new-relic/README.md) — full write-ups for the commercial platforms
   mentioned above
+- [Instrumentation Tradeoffs](observability-instrumentation-tradeoffs.md) — who's
+  responsible for producing telemetry (platform vs. developer), and the performance cost of
+  instrumenting an application

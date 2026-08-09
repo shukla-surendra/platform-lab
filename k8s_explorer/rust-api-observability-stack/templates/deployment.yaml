@@ -1,0 +1,82 @@
+{{/*
+A Deployment, not a StatefulSet. rust-api is fully stateless — no database, no
+volume, no coordination needed between replicas — so there is no reason to
+pin ordinals or serialize rollout the way the SQLite-backed app this chart
+used to deploy required. See _helpers.tpl: no replica guard here on purpose.
+*/}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "rust-sqlite-api-stack.fullname" . }}
+  labels:
+    {{- include "rust-sqlite-api-stack.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "rust-sqlite-api-stack.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "rust-sqlite-api-stack.labels" . | nindent 8 }}
+        # Plain `app`, in addition to app.kubernetes.io/name.
+        #
+        # loki-stack's Promtail keys its pod discovery off `app` or `name` and
+        # DROPS pods carrying neither — so a pod labelled only with the modern
+        # app.kubernetes.io/* set has its logs silently discarded. Promtail
+        # stays 1/1 Running with nothing in its log to say so; the pod simply
+        # never appears in Loki, and the logs dashboard is empty for a reason
+        # that looks nothing like a labelling problem.
+        app: {{ include "rust-sqlite-api-stack.name" . }}
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: rust-api
+          image: {{ include "rust-sqlite-api-stack.image" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          env:
+            - name: BIND_ADDR
+              value: "0.0.0.0:8080"
+            - name: RUST_LOG
+              value: {{ .Values.config.rustLog | quote }}
+            - name: HEARTBEAT_SECS
+              value: {{ .Values.config.heartbeatSecs | quote }}
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.probes.liveness.path }}
+              port: http
+            initialDelaySeconds: {{ .Values.probes.liveness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.probes.liveness.periodSeconds }}
+            failureThreshold: {{ .Values.probes.liveness.failureThreshold }}
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.probes.readiness.path }}
+              port: http
+            initialDelaySeconds: {{ .Values.probes.readiness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.probes.readiness.periodSeconds }}
+            failureThreshold: {{ .Values.probes.readiness.failureThreshold }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

@@ -25,6 +25,7 @@ skill (see `../../.claude/skills/tech-log/SKILL.md`, at the repo root).
 - [Mimir](tools/mimir/README.md) — observability / monitoring (metrics, long-term storage)
 - [MinIO](tools/minio/README.md) — object storage (self-hosted, S3-API-compatible)
 - [MLflow](tools/mlflow/README.md) — experiment tracking / model registry / model lifecycle
+- [Instrumentation Tradeoffs](observability-instrumentation-tradeoffs.md) — cross-cutting: platform vs. developer responsibility for telemetry, critical-path/sampling/cardinality cost tradeoffs
 - [ML & GenAI Lifecycle and Governance](ml-genai-lifecycle-and-governance.md) — cross-cutting: lifecycle stages, data/model governance, SR 11-7, EU AI Act, GDPR Art. 22
 - [MLOps, AIOps, LLMOps (definitions & origins)](mlops-aiops-llmops.md) — cross-cutting: what each discipline is, who defines it, where they overlap
 - [New Relic](tools/new-relic/README.md) — observability / monitoring (commercial, all-in-one)

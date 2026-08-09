@@ -55,6 +55,11 @@ browsable site (search, dark mode).
   controllers work, with KServe/Kargo/Argo Workflows as real examples already on this cluster.
 - [`helm-vs-kustomize.md`](./helm-vs-kustomize.md) — templating + release tracking vs.
   overlay/patch on plain YAML, and why this repo uses both.
+- [`metrics-and-logs-without-instrumentation.md`](./metrics-and-logs-without-instrumentation.md) —
+  does an app need a `/metrics` or logging endpoint to appear in Grafana? No — worked example
+  against `rust-api`, which has neither: log capture is automatic (stdout), infra metrics come
+  from cAdvisor/kube-state-metrics with zero app changes, and request-level RED metrics can be
+  computed from existing access-log lines via LogQL (with a real `unwrap` gotcha, verified live).
 
 ## Cloud
 
