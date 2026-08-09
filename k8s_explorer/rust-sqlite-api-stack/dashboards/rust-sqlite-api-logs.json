@@ -1,0 +1,184 @@
+{
+  "uid": "rust-sqlite-api-logs",
+  "title": "rust-sqlite-api — logs",
+  "description": "Container logs for the collector, from Loki. Paired with the collector-health dashboard: that one says a batch failed, this one says why.",
+  "tags": ["rust-sqlite-api", "logs", "loki"],
+  "timezone": "browser",
+  "editable": true,
+  "schemaVersion": 39,
+  "refresh": "30s",
+  "time": { "from": "now-1h", "to": "now" },
+  "templating": {
+    "list": [
+      {
+        "name": "namespace",
+        "label": "Namespace",
+        "type": "query",
+        "datasource": { "type": "loki", "uid": "loki" },
+        "query": "label_values(namespace)",
+        "refresh": 1,
+        "includeAll": false,
+        "current": { "text": "default", "value": "default" }
+      },
+      {
+        "name": "level",
+        "label": "Level",
+        "type": "custom",
+        "description": "ALL is the regex .+ rather than a literal, so the same LogQL matcher serves every choice and no panel needs a conditional query.",
+        "query": "ALL : .+,INFO : INFO,WARN : WARN,ERROR : ERROR",
+        "current": { "text": "ALL", "value": ".+" },
+        "options": [
+          { "text": "ALL", "value": ".+", "selected": true },
+          { "text": "INFO", "value": "INFO", "selected": false },
+          { "text": "WARN", "value": "WARN", "selected": false },
+          { "text": "ERROR", "value": "ERROR", "selected": false }
+        ]
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Error lines (1h)",
+      "description": "The app logs JSON to stdout, so level is a field rather than a substring. Non-zero here should correspond to something on the collector-health dashboard — if it does not, one of the two is lying.",
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "targets": [
+        {
+          "expr": "sum(count_over_time({namespace=\"$namespace\", app=\"rust-sqlite-api\"} | json | level=\"ERROR\" [1h]))",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "colorMode": "background",
+        "graphMode": "area",
+        "textMode": "value"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "#3D9A50", "value": null },
+              { "color": "#D64545", "value": 1 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Shed-warning lines (1h)",
+      "description": "The writer logs one warning per request that hit a full queue. Cross-check against telemetry_dropped_total: the log says which signal and when, the counter says how many.",
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "targets": [
+        {
+          "expr": "sum(count_over_time({namespace=\"$namespace\", app=\"rust-sqlite-api\"} |= \"queue full\" [1h]))",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "colorMode": "background",
+        "graphMode": "area",
+        "textMode": "value"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "#3D9A50", "value": null },
+              { "color": "#C77A16", "value": 1 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "Log rate by level",
+      "description": "Shape matters more than volume: a step change in INFO usually means traffic changed, while a step change in ERROR rarely does.",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "targets": [
+        {
+          "expr": "sum by (level) (rate({namespace=\"$namespace\", app=\"rust-sqlite-api\"} | json [5m]))",
+          "legendFormat": "{{level}}",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "min": 0,
+          "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 8, "showPoints": "never", "axisLabel": "lines/sec" }
+        },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "INFO" },
+            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#3B82F6" } }] },
+          { "matcher": { "id": "byName", "options": "WARN" },
+            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#D97706" } }] },
+          { "matcher": { "id": "byName", "options": "ERROR" },
+            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#D64545" } }] }
+        ]
+      }
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Batch commits (1h)",
+      "description": "Only visible at RUST_LOG=debug. Zero here with traffic arriving usually means the log level, not a stalled writer — check telemetry_batches_total before concluding anything.",
+      "gridPos": { "h": 4, "w": 12, "x": 0, "y": 4 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "targets": [
+        {
+          "expr": "sum(count_over_time({namespace=\"$namespace\", app=\"rust-sqlite-api\"} |= \"batch committed\" [1h]))",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "colorMode": "value",
+        "graphMode": "area",
+        "textMode": "value"
+      },
+      "fieldConfig": { "defaults": { "decimals": 0, "color": { "mode": "fixed", "fixedColor": "#3B82F6" } } }
+    },
+    {
+      "id": 5,
+      "type": "logs",
+      "title": "Live log stream",
+      "description": "Structured JSON on stdout — no log file, nothing to rotate, and the container runtime plus Promtail handle shipping. Use the Level filter above; it rewrites the query rather than filtering client-side, so it stays fast on a large window.",
+      "gridPos": { "h": 16, "w": 24, "x": 0, "y": 8 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "targets": [
+        {
+          "expr": "{namespace=\"$namespace\", app=\"rust-sqlite-api\"} | json | level =~ \"$level\"",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "showTime": true,
+        "showLabels": false,
+        "showCommonLabels": false,
+        "wrapLogMessage": true,
+        "prettifyLogMessage": true,
+        "enableLogDetails": true,
+        "dedupStrategy": "none",
+        "sortOrder": "Descending"
+      }
+    }
+  ]
+}

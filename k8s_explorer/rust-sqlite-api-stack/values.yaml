@@ -1,0 +1,259 @@
+# ---------------------------------------------------------------------------
+# The application
+# ---------------------------------------------------------------------------
+nameOverride: rust-sqlite-api      # so resources read <release>-rust-sqlite-api
+fullnameOverride: ""
+
+image:
+  repository: surendrashukla29/rust-sqlite-api
+  tag: ""            # defaults to .Chart.AppVersion
+  pullPolicy: IfNotPresent
+
+# ---------------------------------------------------------------------------
+# THIS MUST STAY 1.
+#
+# The database is a file on this pod's own volume. There is no shared state and
+# no coordination between replicas, so scaling out does not distribute load —
+# it partitions telemetry across N disconnected databases, and a query hitting
+# replica 2 silently returns none of the spans that landed on replica 1. The
+# chart refuses to render above 1 rather than let that be found in production.
+# ---------------------------------------------------------------------------
+replicaCount: 1
+
+service:
+  type: ClusterIP
+  port: 8080
+  annotations: {}
+
+config:
+  rustLog: info
+  dbPoolSize: 8
+  ingestQueueCapacity: 10000
+  ingestBatchMax: 500
+  ingestFlushMs: 250
+  retentionHours: 72
+  retentionIntervalSecs: 600
+
+persistence:
+  enabled: true
+  size: 2Gi
+  storageClass: ""
+  # ReadWriteOnce is correct and deliberate: this volume must never be mounted
+  # by two pods. RWX would not help — SQLite over a network filesystem breaks
+  # its locking assumptions and corrupts rather than blocks.
+  accessMode: ReadWriteOnce
+
+  # Runs a tiny root init container that chowns /data to the app's uid.
+  #
+  # On by default because the alternative is a first install that CrashLoopBackOffs
+  # with SQLITE_CANTOPEN on any cluster whose provisioner ignores fsGroup —
+  # notably minikube's default `standard` StorageClass, which is hostPath.
+  # fsGroup works on EBS, GCE PD, and most CSI drivers, and there the chown is a
+  # harmless no-op.
+  #
+  # Turn OFF where a restricted PodSecurity policy forbids running any container
+  # as root; on such clusters the CSI driver almost certainly honours fsGroup
+  # anyway, so it is not needed.
+  fixOwnership:
+    enabled: true
+    image: busybox:1.36
+
+resources:
+  requests:
+    cpu: 50m           # minikube is CPU-starved; see ../docs/incidents.md
+    memory: 128Mi
+  limits:
+    # No CPU limit on purpose: throttling the writer turns a latency blip into
+    # queue growth and then into dropped telemetry. Memory is capped because
+    # the ingest queue is bounded, so usage is predictable.
+    memory: 512Mi
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 10001
+  runAsGroup: 10001
+  fsGroup: 10001        # makes the mounted volume writable by that uid
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true    # everything written lives on /data
+  capabilities:
+    drop: ["ALL"]
+
+probes:
+  # Liveness deliberately hits /healthz, which does NOT touch the database.
+  # A liveness probe that fails on a busy database restarts the pod, which
+  # unlocks nothing and drops every in-flight request.
+  liveness:
+    path: /healthz
+    initialDelaySeconds: 5
+    periodSeconds: 15
+    failureThreshold: 3
+  # Readiness hits /readyz, which does query the database — an instance that
+  # cannot reach its own storage should leave the Service, not be killed.
+  readiness:
+    path: /readyz
+    initialDelaySeconds: 3
+    periodSeconds: 10
+    failureThreshold: 3
+
+podAnnotations: {}
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+# ---------------------------------------------------------------------------
+# Observability wiring owned by this chart
+# ---------------------------------------------------------------------------
+serviceMonitor:
+  enabled: true
+  # The writer flushes every 250ms. A 60s scrape averages away the bursts that
+  # matter — a queue spike causing drops can be over before the next sample.
+  interval: 15s
+  scrapeTimeout: 10s
+  labels: {}
+
+prometheusRule:
+  enabled: true
+  labels: {}
+
+grafanaDashboard:
+  enabled: true
+  label: grafana_dashboard      # what the kube-prometheus-stack sidecar watches
+  labelValue: "1"
+  folder: ""
+
+# Points Grafana at a Loki that already exists elsewhere in the cluster, so the
+# logs dashboard works without standing up a second one. Default targets the
+# ../grafana-log-viewer release. Set url to "" to omit the datasource entirely.
+externalLoki:
+  enabled: true
+  name: Loki
+  url: http://log-viewer-loki.log-viewer.svc.cluster.local:3100
+
+# ---------------------------------------------------------------------------
+# Subcharts
+# ---------------------------------------------------------------------------
+kube-prometheus-stack:
+  enabled: true
+
+  # Alertmanager off by default: nothing here routes anywhere on a practice
+  # cluster, and it is the second-largest consumer of minikube's CPU budget.
+  alertmanager:
+    enabled: false
+
+  prometheus:
+    prometheusSpec:
+      # WITHOUT THIS, NOTHING IS SCRAPED.
+      #
+      # kube-prometheus-stack defaults to selecting only ServiceMonitors
+      # carrying its own release label. This chart's ServiceMonitor is its own
+      # object, so the default silently ignores it — Prometheus comes up
+      # healthy, the target list is empty, and every dashboard panel reads
+      # "No data" with no error anywhere to explain why.
+      serviceMonitorSelectorNilUsesHelmValues: false
+      ruleSelectorNilUsesHelmValues: false
+      podMonitorSelectorNilUsesHelmValues: false
+      retention: 24h
+      resources:
+        requests:
+          cpu: 100m
+          memory: 512Mi
+      storageSpec: {}      # emptyDir; practice cluster, 24h retention
+
+  grafana:
+    enabled: true
+    adminPassword: admin          # practice cluster only
+    defaultDashboardsEnabled: true
+    service:
+      type: NodePort              # minikube service <release>-grafana
+    sidecar:
+      dashboards:
+        enabled: true
+        label: grafana_dashboard
+        labelValue: "1"
+        # Watch every namespace so the dashboard ConfigMap is found even when
+        # the app and Grafana are installed into different ones.
+        searchNamespace: ALL
+      datasources:
+        enabled: true
+    resources:
+      requests:
+        cpu: 50m
+        memory: 128Mi
+
+  # Trimmed for minikube: these scrape control-plane endpoints that either do
+  # not exist or are not reachable on a single-node local cluster, and each
+  # failing target is noise that makes a real failure harder to spot.
+  kubeEtcd:
+    enabled: false
+  kubeControllerManager:
+    enabled: false
+  kubeScheduler:
+    enabled: false
+  kubeProxy:
+    enabled: false
+
+loki-stack:
+  # Off by default — enable on a cluster with no Loki of its own. When on, the
+  # Grafana datasource auto-targets it (see templates/loki-datasource.yaml).
+  enabled: false
+  grafana:
+    enabled: false      # never a second Grafana
+  prometheus:
+    enabled: false      # kube-prometheus-stack owns Prometheus
+
+  loki:
+    # MUST BE false. This subchart ships its own Grafana datasource ConfigMap
+    # and marks it default — but kube-prometheus-stack's Prometheus datasource
+    # is ALSO default, and Grafana refuses to start with two:
+    #   "Datasource provisioning error: only one datasource per organization
+    #    can be marked as default"
+    # Grafana then CrashLoopBackOffs, taking down the dashboards for a reason
+    # that has nothing to do with them.
+    isDefault: false
+    datasource:
+      # Pinned so it matches the uid the logs dashboard references. Left to
+      # Grafana's own generated uid, every log panel renders empty with no error.
+      uid: loki
+
+  promtail:
+    config:
+      # MUST BE OVERRIDDEN. The upstream loki-stack default is
+      # `http://{{ .Release.Name }}:3100/...`, which assumes the Loki Service is
+      # named exactly the release. It is not — the Loki subchart names it
+      # `<release>-loki`. With the default, Promtail starts healthy (1/1
+      # Running, no errors in its log at default verbosity) and posts every
+      # batch into the void: Loki holds zero streams and every Grafana log
+      # panel is empty with no error shown anywhere.
+      #
+      # This exact failure is on record for this cluster already — see
+      # ../grafana-log-viewer/README.md and ../docs/incidents.md.
+      #
+      # The key is config.clients[0].url (not lokiAddress, which is the newer
+      # standalone promtail chart's spelling and is silently ignored here).
+      # The value is passed through `tpl`, so Release.Name resolves.
+      clients:
+        - url: http://{{ .Release.Name }}-loki:3100/loki/api/v1/push
+
+      snippets:
+        # MUST MATCH THE CLUSTER'S CONTAINER RUNTIME.
+        #
+        # The runtime wraps every stdout line in its own envelope before
+        # Promtail sees it. Docker writes {"log":"…","stream":"stdout","time":…};
+        # containerd/CRI writes `<ts> stdout F <line>`. The pipeline stage
+        # unwraps it, and the wrong one leaves the wrapper in place.
+        #
+        # Consequence if wrong: logs still arrive in Loki and look fine in the
+        # Live stream panel, but `| json` parses the WRAPPER, so `level` is
+        # always empty — the level filter matches nothing and "Error lines"
+        # reads 0 no matter how many errors there are. A dashboard that is
+        # confidently wrong, rather than visibly broken.
+        #
+        # `docker: {}` for the Docker runtime (minikube's default driver here);
+        # `cri: {}` for containerd — the upstream default. Check with:
+        #   kubectl get node -o jsonpath='{.items[0].status.nodeInfo.containerRuntimeVersion}'
+        pipelineStages:
+          - docker: {}

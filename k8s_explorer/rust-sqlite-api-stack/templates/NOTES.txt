@@ -1,0 +1,44 @@
+{{ include "rust-sqlite-api-stack.fullname" . }} deployed — image {{ include "rust-sqlite-api-stack.image" . }}
+
+Point OpenTelemetry exporters at it:
+
+  OTEL_EXPORTER_OTLP_ENDPOINT=http://{{ include "rust-sqlite-api-stack.fullname" . }}.{{ .Release.Namespace }}.svc:{{ .Values.service.port }}
+  OTEL_EXPORTER_OTLP_PROTOCOL=http/json
+
+  Note: http/json, not the gRPC most SDKs default to. This collector speaks
+  OTLP over HTTP with a JSON body only.
+
+Look at it locally:
+
+  kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "rust-sqlite-api-stack.fullname" . }} {{ .Values.service.port }}:{{ .Values.service.port }}
+  curl localhost:{{ .Values.service.port }}/api/summary
+  curl localhost:{{ .Values.service.port }}/metrics
+
+Observability:
+{{- if .Values.serviceMonitor.enabled }}
+  ServiceMonitor  enabled, scraping every {{ .Values.serviceMonitor.interval }}
+{{- else }}
+  ServiceMonitor  disabled — pods carry prometheus.io/scrape annotations instead.
+                  Set serviceMonitor.enabled=true on a Prometheus Operator cluster.
+{{- end }}
+{{- if .Values.prometheusRule.enabled }}
+  Alerts          enabled (6 rules)
+{{- else }}
+  Alerts          disabled — set prometheusRule.enabled=true
+{{- end }}
+{{- if .Values.grafanaDashboard.enabled }}
+  Dashboard       shipped as a ConfigMap for the Grafana sidecar
+{{- else }}
+  Dashboard       not shipped — set grafanaDashboard.enabled=true, or import
+                  deploy/helm/rust-sqlite-api/dashboards/rust-sqlite-api.json by hand
+{{- end }}
+
+{{- if not .Values.persistence.enabled }}
+
+WARNING: persistence.enabled=false. The database is on an emptyDir, so every
+         restart loses all telemetry. Fine for a demo, never otherwise.
+{{- end }}
+
+Remember: replicaCount must stay 1. The database is a file on this pod's own
+volume — extra replicas do not share it, they fragment your telemetry across
+disconnected databases. The chart refuses to render above 1.

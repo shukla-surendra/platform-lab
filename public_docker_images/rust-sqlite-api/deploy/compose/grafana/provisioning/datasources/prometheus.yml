@@ -1,0 +1,14 @@
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    # The dashboard's ${datasource} variable resolves by uid, so this must match
+    # what the dashboard JSON expects. A mismatch shows every panel as "No data"
+    # with no other error, which is a genuinely confusing failure to diagnose.
+    uid: prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    jsonData:
+      timeInterval: 5s

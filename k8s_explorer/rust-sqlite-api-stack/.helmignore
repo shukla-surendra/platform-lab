@@ -1,0 +1,11 @@
+# Files excluded from the chart itself.
+#
+# Do NOT list charts/*.tgz here. That belongs in .gitignore — keeping the
+# tarballs out of git is right, but hiding them from Helm makes it download the
+# dependencies and then fail with "found in Chart.yaml, but missing in charts/
+# directory", which reads like a download failure and is not one.
+.DS_Store
+.git/
+.gitignore
+*.tmp
+*.orig

@@ -1,0 +1,43 @@
+{{/*
+Only when Loki lives OUTSIDE this release.
+
+When loki-stack.enabled is true, that subchart already ships its own datasource
+ConfigMap (with the uid and isDefault pinned in values.yaml), so emitting a
+second one here would define the datasource name "Loki" twice. Grafana does not
+merge them — it provisions both and the later one wins non-deterministically,
+which is a genuinely miserable thing to debug.
+*/}}
+{{- if and .Values.externalLoki.enabled .Values.externalLoki.url (not (index .Values "loki-stack").enabled) }}
+{{- $lokiUrl := .Values.externalLoki.url -}}
+{{/*
+Registers an already-running Loki as a Grafana datasource, rather than
+deploying a second one.
+
+The cluster's Loki lives in the log-viewer namespace (../grafana-log-viewer).
+Grafana's sidecar discovers datasources the same way it discovers dashboards —
+by watching ConfigMaps with a label — so pointing at an existing Loki costs one
+ConfigMap instead of another StatefulSet competing for minikube's CPU.
+
+The uid is fixed ("loki") because the logs dashboard references it by uid. If
+these two disagree, every log panel renders empty with no error shown.
+*/}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "rust-sqlite-api-stack.fullname" . }}-loki-datasource
+  labels:
+    {{- include "rust-sqlite-api-stack.labels" . | nindent 4 }}
+    grafana_datasource: "1"
+data:
+  loki-datasource.yaml: |-
+    apiVersion: 1
+    datasources:
+      - name: {{ .Values.externalLoki.name }}
+        uid: loki
+        type: loki
+        access: proxy
+        url: {{ $lokiUrl }}
+        isDefault: false
+        jsonData:
+          maxLines: 1000
+{{- end }}

@@ -1,0 +1,15 @@
+apiVersion: 1
+
+providers:
+  - name: rust-sqlite-api
+    orgId: 1
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 10
+    allowUiUpdates: true
+    options:
+      # Mounted read-only from ../grafana/dashboards, the same directory the
+      # Helm chart packages into a ConfigMap — one dashboard definition, two
+      # delivery mechanisms, so they cannot drift.
+      path: /var/lib/grafana/dashboards
+      foldersFromFilesStructure: false

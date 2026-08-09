@@ -1,0 +1,496 @@
+{
+  "uid": "rust-sqlite-api",
+  "title": "rust-sqlite-api — collector health",
+  "description": "Health of the collector itself, not the telemetry it holds. Read top-to-bottom: is it up, is it losing data, why.",
+  "tags": ["rust-sqlite-api", "otlp", "sqlite"],
+  "timezone": "browser",
+  "editable": true,
+  "schemaVersion": 39,
+  "refresh": "10s",
+  "time": { "from": "now-30m", "to": "now" },
+  "templating": {
+    "list": [
+      {
+        "name": "job",
+        "label": "Job",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "${datasource}" },
+        "query": "label_values(telemetry_queue_capacity, job)",
+        "refresh": 1,
+        "includeAll": false
+      },
+      {
+        "name": "datasource",
+        "label": "Data source",
+        "type": "datasource",
+        "query": "prometheus",
+        "current": {}
+      }
+    ]
+  },
+  "panels": [
+    {
+      "type": "row",
+      "title": "Is it healthy?",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "collapsed": false
+    },
+
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Up",
+      "description": "Prometheus can reach /metrics. If this is red nothing else on this dashboard means anything.",
+      "gridPos": { "h": 4, "w": 3, "x": 0, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [
+        { "expr": "up{job=\"$job\"}", "legendFormat": "up", "refId": "A" }
+      ],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value_and_name"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            { "type": "value", "options": { "0": { "text": "DOWN", "index": 0 }, "1": { "text": "UP", "index": 1 } } }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "#D64545", "value": null },
+              { "color": "#3D9A50", "value": 1 }
+            ]
+          }
+        }
+      }
+    },
+
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Queue saturation",
+      "description": "queue_depth / queue_capacity. This is the leading indicator — it rises before anything is dropped. Sustained above ~50% means ingest is outrunning the disk and drops are coming.",
+      "gridPos": { "h": 4, "w": 5, "x": 3, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [
+        {
+          "expr": "100 * telemetry_queue_depth{job=\"$job\"} / clamp_min(telemetry_queue_capacity{job=\"$job\"}, 1)",
+          "legendFormat": "saturation",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "colorMode": "background",
+        "graphMode": "area",
+        "textMode": "value"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "decimals": 1,
+          "min": 0,
+          "max": 100,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "#3D9A50", "value": null },
+              { "color": "#C77A16", "value": 50 },
+              { "color": "#D64545", "value": 80 }
+            ]
+          }
+        }
+      }
+    },
+
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Drop ratio (5m)",
+      "description": "Fraction of accepted records that were shed because the queue was full. Anything above zero is real data loss — the service is designed to shed rather than die, but sustained non-zero means it is undersized.",
+      "gridPos": { "h": 4, "w": 5, "x": 8, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [
+        {
+          "expr": "100 * sum(rate(telemetry_dropped_total{job=\"$job\"}[5m])) / clamp_min(sum(rate(telemetry_received_total{job=\"$job\"}[5m])), 0.0001)",
+          "legendFormat": "dropped",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "colorMode": "background",
+        "graphMode": "area",
+        "textMode": "value"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "decimals": 2,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "#3D9A50", "value": null },
+              { "color": "#C77A16", "value": 0.01 },
+              { "color": "#D64545", "value": 1 }
+            ]
+          }
+        }
+      }
+    },
+
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Write errors (5m)",
+      "description": "Batches that failed to commit. Should be exactly zero. Non-zero means the disk is full, the file is corrupt, or the pool is exhausted.",
+      "gridPos": { "h": 4, "w": 5, "x": 13, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [
+        { "expr": "sum(increase(telemetry_write_errors_total{job=\"$job\"}[5m]))", "legendFormat": "errors", "refId": "A" }
+      ],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "#3D9A50", "value": null },
+              { "color": "#D64545", "value": 1 }
+            ]
+          }
+        }
+      }
+    },
+
+    {
+      "id": 5,
+      "type": "stat",
+      "title": "Mean commit time",
+      "description": "write_seconds_total / batches_total over 5m. Rising toward the flush interval means the writer has become the bottleneck.",
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [
+        {
+          "expr": "sum(rate(telemetry_write_seconds_total{job=\"$job\"}[5m])) / clamp_min(sum(rate(telemetry_batches_total{job=\"$job\"}[5m])), 0.0001)",
+          "legendFormat": "per batch",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "colorMode": "value",
+        "graphMode": "area",
+        "textMode": "value"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "decimals": 4,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "#3D9A50", "value": null },
+              { "color": "#C77A16", "value": 0.05 },
+              { "color": "#D64545", "value": 0.25 }
+            ]
+          }
+        }
+      }
+    },
+
+    {
+      "type": "row",
+      "title": "Flow — what is arriving and what is landing",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 5 },
+      "collapsed": false
+    },
+
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "Ingest rate by signal",
+      "description": "Records accepted at the HTTP edge, per second. Fixed colors per signal: logs blue, metrics amber, traces violet — the same three everywhere on this dashboard.",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 6 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [
+        {
+          "expr": "sum by (signal) (rate(telemetry_received_total{job=\"$job\"}[1m]))",
+          "legendFormat": "{{signal}}",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max"], "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "min": 0,
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 8,
+            "showPoints": "never",
+            "pointSize": 8,
+            "axisLabel": "records/sec"
+          }
+        },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "logs" },
+            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#3B82F6" } }] },
+          { "matcher": { "id": "byName", "options": "metrics" },
+            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#D97706" } }] },
+          { "matcher": { "id": "byName", "options": "traces" },
+            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#8B5CF6" } }] }
+        ]
+      }
+    },
+
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "Durable write rate by signal",
+      "description": "Records actually committed to SQLite. Compare against ingest above — a persistent gap is the drop rate, and the shape of the gap tells you whether it is bursty or sustained. Deliberately a separate panel rather than a second axis on the ingest chart.",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 6 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [
+        {
+          "expr": "sum by (signal) (rate(telemetry_written_total{job=\"$job\"}[1m]))",
+          "legendFormat": "{{signal}}",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max"], "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "min": 0,
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 8,
+            "showPoints": "never",
+            "pointSize": 8,
+            "axisLabel": "records/sec"
+          }
+        },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "logs" },
+            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#3B82F6" } }] },
+          { "matcher": { "id": "byName", "options": "metrics" },
+            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#D97706" } }] },
+          { "matcher": { "id": "byName", "options": "traces" },
+            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#8B5CF6" } }] }
+        ]
+      }
+    },
+
+    {
+      "type": "row",
+      "title": "Loss — where records go when they do not land",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 14 },
+      "collapsed": false
+    },
+
+    {
+      "id": 8,
+      "type": "timeseries",
+      "title": "Dropped — queue full",
+      "description": "Real data loss. The service sheds rather than blocking its callers or growing memory without bound; this panel is where that trade becomes visible.",
+      "gridPos": { "h": 7, "w": 8, "x": 0, "y": 15 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [
+        { "expr": "sum by (signal) (rate(telemetry_dropped_total{job=\"$job\"}[1m]))", "legendFormat": "{{signal}}", "refId": "A" }
+      ],
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "min": 0,
+          "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 15, "showPoints": "never", "axisLabel": "records/sec" }
+        },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "logs" },
+            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#3B82F6" } }] },
+          { "matcher": { "id": "byName", "options": "metrics" },
+            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#D97706" } }] },
+          { "matcher": { "id": "byName", "options": "traces" },
+            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#8B5CF6" } }] }
+        ]
+      }
+    },
+
+    {
+      "id": 9,
+      "type": "timeseries",
+      "title": "Deduped — exporter re-deliveries",
+      "description": "Spans rejected by UNIQUE(trace_id, span_id). Not loss — these are retries being correctly absorbed. A rising rate means exporters are timing out and retrying, which is a symptom worth chasing upstream even though nothing is lost here.",
+      "gridPos": { "h": 7, "w": 8, "x": 8, "y": 15 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [
+        { "expr": "sum by (signal) (rate(telemetry_deduped_total{job=\"$job\"}[1m]))", "legendFormat": "{{signal}}", "refId": "A" }
+      ],
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "min": 0,
+          "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 8, "showPoints": "never", "axisLabel": "records/sec" }
+        },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "traces" },
+            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#8B5CF6" } }] }
+        ]
+      }
+    },
+
+    {
+      "id": 10,
+      "type": "timeseries",
+      "title": "Skipped — parsed but unstorable",
+      "description": "Exponential histograms, summaries, spans with no ID. Counted rather than silently discarded, so a mismatch between what you sent and what you can query has an explanation.",
+      "gridPos": { "h": 7, "w": 8, "x": 16, "y": 15 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [
+        { "expr": "sum by (signal) (rate(telemetry_skipped_total{job=\"$job\"}[1m]))", "legendFormat": "{{signal}}", "refId": "A" }
+      ],
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "min": 0,
+          "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 8, "showPoints": "never", "axisLabel": "records/sec" }
+        },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "metrics" },
+            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#D97706" } }] }
+        ]
+      }
+    },
+
+    {
+      "type": "row",
+      "title": "Writer — the single-writer bottleneck",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 22 },
+      "collapsed": false
+    },
+
+    {
+      "id": 11,
+      "type": "timeseries",
+      "title": "Queue depth vs capacity",
+      "description": "Absolute depth against the configured ceiling. Depth touching capacity is the moment drops begin.",
+      "gridPos": { "h": 7, "w": 8, "x": 0, "y": 23 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [
+        { "expr": "telemetry_queue_depth{job=\"$job\"}", "legendFormat": "depth", "refId": "A" },
+        { "expr": "telemetry_queue_capacity{job=\"$job\"}", "legendFormat": "capacity", "refId": "B" }
+      ],
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0,
+          "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 8, "showPoints": "never", "axisLabel": "records" }
+        },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "depth" },
+            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#3B82F6" } }] },
+          { "matcher": { "id": "byName", "options": "capacity" },
+            "properties": [
+              { "id": "color", "value": { "mode": "fixed", "fixedColor": "#8A8A85" } },
+              { "id": "custom.lineStyle", "value": { "fill": "dash", "dash": [8, 6] } },
+              { "id": "custom.fillOpacity", "value": 0 }
+            ] }
+        ]
+      }
+    },
+
+    {
+      "id": 12,
+      "type": "timeseries",
+      "title": "Mean batch size",
+      "description": "batch_rows_total / batches_total. This is the number that tells you whether batching is doing anything: near 1 means every row is paying its own commit and throughput will be roughly a tenth of what it could be. Measured on this service: 14.9k spans/sec at batch=1 vs 142k at batch=500.",
+      "gridPos": { "h": 7, "w": 8, "x": 8, "y": 23 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [
+        {
+          "expr": "sum(rate(telemetry_batch_rows_total{job=\"$job\"}[5m])) / clamp_min(sum(rate(telemetry_batches_total{job=\"$job\"}[5m])), 0.0001)",
+          "legendFormat": "rows per batch",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom", "showLegend": false },
+        "tooltip": { "mode": "single", "sort": "none" }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0,
+          "color": { "mode": "fixed", "fixedColor": "#3B82F6" },
+          "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 8, "showPoints": "never", "axisLabel": "rows" }
+        }
+      }
+    },
+
+    {
+      "id": 13,
+      "type": "timeseries",
+      "title": "Commit time share",
+      "description": "Seconds spent inside commit per second of wall clock. Approaching 1 means the writer task is saturated and is the bottleneck; well below it means the cost is elsewhere — on this service, in JSON parsing.",
+      "gridPos": { "h": 7, "w": 8, "x": 16, "y": 23 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [
+        { "expr": "sum(rate(telemetry_write_seconds_total{job=\"$job\"}[5m]))", "legendFormat": "commit share", "refId": "A" }
+      ],
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom", "showLegend": false },
+        "tooltip": { "mode": "single", "sort": "none" }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1,
+          "color": { "mode": "fixed", "fixedColor": "#3B82F6" },
+          "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 8, "showPoints": "never", "axisLabel": "fraction of wall clock" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "#3B82F6", "value": null },
+              { "color": "#D64545", "value": 0.8 }
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

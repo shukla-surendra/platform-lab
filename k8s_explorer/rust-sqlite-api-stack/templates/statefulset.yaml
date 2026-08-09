@@ -1,0 +1,185 @@
+{{- include "rust-sqlite-api-stack.validateReplicas" . }}
+{{/*
+A StatefulSet, not a Deployment, and the reason is specific.
+
+A Deployment with a PersistentVolumeClaim defaults to RollingUpdate, which
+starts the new pod *before* terminating the old one. Both then mount the same
+ReadWriteOnce volume — and two processes writing one SQLite file is exactly the
+corruption case WAL cannot protect against. You would have to remember to set
+strategy: Recreate, forever, on every edit.
+
+A StatefulSet never runs two instances of the same ordinal, so the safe
+behaviour is the default rather than something a future editor has to preserve.
+*/}}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "rust-sqlite-api-stack.fullname" . }}
+  labels:
+    {{- include "rust-sqlite-api-stack.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  serviceName: {{ include "rust-sqlite-api-stack.fullname" . }}
+  podManagementPolicy: OrderedReady
+  updateStrategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      {{- include "rust-sqlite-api-stack.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "rust-sqlite-api-stack.labels" . | nindent 8 }}
+        # Plain `app`, in addition to app.kubernetes.io/name.
+        #
+        # loki-stack's Promtail keys its pod discovery off `app` or `name` and
+        # DROPS pods carrying neither — so a pod labelled only with the modern
+        # app.kubernetes.io/* set has its logs silently discarded. Promtail
+        # stays 1/1 Running with nothing in its log to say so; the pod simply
+        # never appears in Loki, and the logs dashboard is empty for a reason
+        # that looks nothing like a labelling problem.
+        app: {{ include "rust-sqlite-api-stack.name" . }}
+      annotations:
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- if not .Values.serviceMonitor.enabled }}
+        prometheus.io/scrape: "true"
+        prometheus.io/port: {{ .Values.service.port | quote }}
+        prometheus.io/path: /metrics
+        {{- end }}
+    spec:
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      # The writer flushes on shutdown, so give it room to drain rather than
+      # being SIGKILLed with a full queue. The binary handles SIGTERM in well
+      # under a second; this is headroom, not an expected wait.
+      terminationGracePeriodSeconds: 30
+      {{- if and .Values.persistence.enabled .Values.persistence.fixOwnership.enabled }}
+      initContainers:
+        {{/*
+        Makes the volume writable by the non-root uid the app runs as.
+
+        `fsGroup` in podSecurityContext is supposed to do this, and on EBS, GCE
+        PD, and most CSI drivers it does. It does NOT apply to hostPath volumes,
+        which is what minikube's default `standard` StorageClass provisions — so
+        the directory arrives as root:root 0755 and the app dies with
+        SQLITE_CANTOPEN on a volume that is mounted and apparently fine.
+
+        The failure is misleading enough to be worth a whole init container:
+        nothing in the pod events or the PVC status suggests permissions, and
+        the app's own error names the file rather than the mode.
+
+        Idempotent, so it stays harmless on clusters where fsGroup already
+        worked. Set persistence.fixOwnership.enabled=false where a restricted
+        PodSecurity policy forbids running any container as root.
+        */}}
+        - name: fix-data-ownership
+          image: {{ .Values.persistence.fixOwnership.image }}
+          command:
+            - chown
+            - {{ printf "%v:%v" .Values.podSecurityContext.runAsUser .Values.podSecurityContext.runAsGroup }}
+            - /data
+            # chown only — no chmod. CAP_CHOWN lets root retarget ownership
+            # regardless of who currently owns the directory, so this is
+            # idempotent and succeeds on every restart. Tightening the mode
+            # would need CAP_FOWNER as well, because after the first run root no
+            # longer owns /data and cannot change its mode; a chmod here fails
+            # with "Operation not permitted" on the *second* start, crashlooping
+            # a pod whose volume permissions are in fact already correct.
+            # The default 0755 costs nothing on a volume this pod owns alone.
+          securityContext:
+            # Must override the pod-level runAsNonRoot: chown needs root, and
+            # this container exists only to run it.
+            runAsUser: 0
+            runAsNonRoot: false
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+              add: ["CHOWN"]
+          volumeMounts:
+            - name: data
+              mountPath: /data
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+      {{- end }}
+      containers:
+        - name: rust-sqlite-api
+          image: {{ include "rust-sqlite-api-stack.image" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          env:
+            - name: DATABASE_PATH
+              value: /data/app.db
+            - name: BIND_ADDR
+              value: "0.0.0.0:8080"
+            - name: RUST_LOG
+              value: {{ .Values.config.rustLog | quote }}
+            - name: DB_POOL_SIZE
+              value: {{ .Values.config.dbPoolSize | quote }}
+            - name: INGEST_QUEUE_CAPACITY
+              value: {{ .Values.config.ingestQueueCapacity | quote }}
+            - name: INGEST_BATCH_MAX
+              value: {{ .Values.config.ingestBatchMax | quote }}
+            - name: INGEST_FLUSH_MS
+              value: {{ .Values.config.ingestFlushMs | quote }}
+            - name: RETENTION_HOURS
+              value: {{ .Values.config.retentionHours | quote }}
+            - name: RETENTION_INTERVAL_SECS
+              value: {{ .Values.config.retentionIntervalSecs | quote }}
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.probes.liveness.path }}
+              port: http
+            initialDelaySeconds: {{ .Values.probes.liveness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.probes.liveness.periodSeconds }}
+            failureThreshold: {{ .Values.probes.liveness.failureThreshold }}
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.probes.readiness.path }}
+              port: http
+            initialDelaySeconds: {{ .Values.probes.readiness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.probes.readiness.periodSeconds }}
+            failureThreshold: {{ .Values.probes.readiness.failureThreshold }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - name: data
+              mountPath: /data
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if not .Values.persistence.enabled }}
+      volumes:
+        - name: data
+          emptyDir: {}
+      {{- end }}
+  {{- if .Values.persistence.enabled }}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: [{{ .Values.persistence.accessMode }}]
+        {{- if .Values.persistence.storageClass }}
+        storageClassName: {{ .Values.persistence.storageClass }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.persistence.size }}
+  {{- end }}

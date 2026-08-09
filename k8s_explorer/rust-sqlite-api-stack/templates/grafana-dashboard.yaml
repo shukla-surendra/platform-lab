@@ -1,0 +1,26 @@
+{{- if .Values.grafanaDashboard.enabled }}
+{{/*
+Ships every dashboard in dashboards/ as a ConfigMap carrying the label the
+Grafana sidecar watches, so they appear without anyone importing JSON by hand.
+
+.Files.Glob rather than one .Files.Get per file: adding a dashboard means
+dropping a .json into the directory, with no template edit and therefore no
+chance of adding a file that silently never gets shipped.
+*/}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "rust-sqlite-api-stack.fullname" . }}-dashboards
+  labels:
+    {{- include "rust-sqlite-api-stack.labels" . | nindent 4 }}
+    {{ .Values.grafanaDashboard.label }}: {{ .Values.grafanaDashboard.labelValue | quote }}
+  {{- if .Values.grafanaDashboard.folder }}
+  annotations:
+    k8s-sidecar-target-directory: {{ .Values.grafanaDashboard.folder | quote }}
+  {{- end }}
+data:
+  {{- range $path, $bytes := .Files.Glob "dashboards/*.json" }}
+  {{ base $path }}: |-
+    {{- $.Files.Get $path | nindent 4 }}
+  {{- end }}
+{{- end }}

@@ -1,0 +1,3 @@
+# Dependency tarballs are reproducible from Chart.lock via `helm dependency build`.
+# Committing 1 MB of vendored subchart on every version bump is not worth it.
+charts/*.tgz

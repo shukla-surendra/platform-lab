@@ -1,0 +1,36 @@
+apiVersion: v2
+name: rust-sqlite-api-stack
+description: rust-sqlite-api (OTLP collector on embedded SQLite) plus its own Prometheus, Grafana, and dashboards
+type: application
+
+# Chart version moves independently of the app; appVersion tracks the image tag.
+version: 0.1.0
+appVersion: "0.2.0"
+
+home: https://hub.docker.com/r/surendrashukla29/rust-sqlite-api
+keywords:
+  - opentelemetry
+  - otlp
+  - observability
+  - grafana
+  - prometheus
+  - loki
+  - sqlite
+  - rust
+
+dependencies:
+  # Brings Prometheus, Grafana, Alertmanager, and the CRDs (ServiceMonitor,
+  # PrometheusRule) that this chart's own templates depend on. Without it those
+  # templates would render objects the API server rejects as unknown kinds.
+  - name: kube-prometheus-stack
+    version: "88.2.0"
+    repository: "https://prometheus-community.github.io/helm-charts"
+    condition: kube-prometheus-stack.enabled
+
+  # Optional. The cluster already runs Loki via ../grafana-log-viewer, so this
+  # defaults OFF — a second Loki on minikube competes for the same scarce CPU
+  # that made the first one sit Pending. Turn on only for a fresh cluster.
+  - name: loki-stack
+    version: "2.10.3"
+    repository: "https://grafana.github.io/helm-charts"
+    condition: loki-stack.enabled

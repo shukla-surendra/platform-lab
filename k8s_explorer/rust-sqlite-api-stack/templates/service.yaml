@@ -1,0 +1,40 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "rust-sqlite-api-stack.fullname" . }}
+  labels:
+    {{- include "rust-sqlite-api-stack.labels" . | nindent 4 }}
+  {{- with .Values.service.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - name: http
+      port: {{ .Values.service.port }}
+      targetPort: http
+      protocol: TCP
+  selector:
+    {{- include "rust-sqlite-api-stack.selectorLabels" . | nindent 4 }}
+---
+{{/*
+Headless service, required by the StatefulSet for stable per-pod DNS. Also the
+address you want for OTLP exporters that keep a long-lived connection: hitting
+the pod directly avoids the Service re-resolving to a different endpoint mid
+stream.
+*/}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "rust-sqlite-api-stack.fullname" . }}-headless
+  labels:
+    {{- include "rust-sqlite-api-stack.labels" . | nindent 4 }}
+spec:
+  clusterIP: None
+  ports:
+    - name: http
+      port: {{ .Values.service.port }}
+      targetPort: http
+  selector:
+    {{- include "rust-sqlite-api-stack.selectorLabels" . | nindent 4 }}
