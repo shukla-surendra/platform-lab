@@ -22,6 +22,7 @@ pub struct SignalCounters {
     pub dropped: AtomicU64,
     pub skipped: AtomicU64,
     pub deduped: AtomicU64,
+    pub discarded: AtomicU64,
 }
 
 #[derive(Default)]
@@ -88,6 +89,12 @@ impl Metrics {
             "telemetry_deduped_total",
             "Records rejected by the uniqueness constraint, i.e. exporter re-deliveries. A healthy non-zero value; a rising one means exporters are timing out.",
             by(|c| c.deduped.load(Relaxed)),
+        );
+        counter(
+            &mut out,
+            "telemetry_discarded_total",
+            "Records dropped on purpose because PERSIST_TELEMETRY=false. Not loss — the service was told not to store. Non-zero alongside a zero written_total is the signature of no-persist mode.",
+            by(|c| c.discarded.load(Relaxed)),
         );
         counter(
             &mut out,

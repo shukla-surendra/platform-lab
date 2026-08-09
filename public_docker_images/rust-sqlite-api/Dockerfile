@@ -16,6 +16,11 @@ RUN apk add --no-cache musl-dev build-base
 WORKDIR /app
 COPY Cargo.toml Cargo.lock ./
 COPY src ./src
+# static/ holds the landing page, which routes.rs pulls in with include_str!.
+# It is a COMPILE-time dependency, not a runtime asset — omit it and the build
+# fails inside the container with "couldn't read src/../static/index.html"
+# while `cargo build` on the host keeps working, because the host has the file.
+COPY static ./static
 
 # Cache mounts keep the registry and target dir out of the image entirely, so
 # a rebuild reuses compiled deps without a fat layer carrying them. They are

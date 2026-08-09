@@ -134,6 +134,10 @@ spec:
               value: {{ .Values.config.retentionHours | quote }}
             - name: RETENTION_INTERVAL_SECS
               value: {{ .Values.config.retentionIntervalSecs | quote }}
+            - name: HEARTBEAT_SECS
+              value: {{ .Values.config.heartbeatSecs | quote }}
+            - name: PERSIST_TELEMETRY
+              value: {{ .Values.config.persistTelemetry | quote }}
           livenessProbe:
             httpGet:
               path: {{ .Values.probes.liveness.path }}

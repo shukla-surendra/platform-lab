@@ -589,7 +589,7 @@ dependencies = [
 
 [[package]]
 name = "rust-sqlite-api"
-version = "0.2.0"
+version = "0.4.0"
 dependencies = [
  "anyhow",
  "axum",
@@ -602,6 +602,7 @@ dependencies = [
  "tower-http",
  "tracing",
  "tracing-subscriber",
+ "uuid",
 ]
 
 [[package]]

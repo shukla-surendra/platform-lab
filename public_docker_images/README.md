@@ -21,7 +21,7 @@ Anything in this folder is expected to be:
 
 | Image | What it is | Size | Status |
 |---|---|---|---|
-| [`rust-sqlite-api/`](rust-sqlite-api/) | OTLP-compatible collector for logs, metrics, and traces, backed by an embedded SQLite database on a volume. Rust + axum, statically linked. | 23.5 MB<br>(6.7 MB pulled) | **Published** → [`surendrashukla29/rust-sqlite-api:0.2.0`](https://hub.docker.com/r/surendrashukla29/rust-sqlite-api) · `amd64` + `arm64` · Helm chart and Grafana dashboard in [`deploy/`](rust-sqlite-api/deploy/) |
+| [`rust-sqlite-api/`](rust-sqlite-api/) | OTLP-compatible collector for logs, metrics, and traces, backed by an embedded SQLite database on a volume. Rust + axum, statically linked. | 23.5 MB<br>(6.7 MB pulled) | **Published** → [`surendrashukla29/rust-sqlite-api:0.2.0`](https://hub.docker.com/r/surendrashukla29/rust-sqlite-api) · `amd64` + `arm64`. Kubernetes deployment, Grafana dashboards and alerts live in [`k8s_explorer/rust-sqlite-api-stack/`](../k8s_explorer/rust-sqlite-api-stack/), not here |
 
 ## Publishing
 

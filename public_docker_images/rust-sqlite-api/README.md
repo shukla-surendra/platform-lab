@@ -5,12 +5,22 @@ entire backing store is a SQLite file on a volume inside the container. No
 database server, no second container, no network hop. One static binary with
 SQLite compiled into it.
 
-**Published:** [`surendrashukla29/rust-sqlite-api:0.2.0`](https://hub.docker.com/r/surendrashukla29/rust-sqlite-api)
-— multi-arch (`linux/amd64` + `linux/arm64`), 6.7 MB compressed / 23.5 MB on disk,
-statically linked against musl, runs as uid 10001.
+It doubles as a **public API-testing target** — a landing page at `/` plus a set
+of stateless httpbin-shaped endpoints, so it is useful even to someone who never
+sends it a single span.
+
+Statically linked against musl, runs as uid 10001, ~23.5 MB on disk.
+
+| Tag | Where | Contains |
+|---|---|---|
+| **`0.2.0`** | [published on Docker Hub](https://hub.docker.com/r/surendrashukla29/rust-sqlite-api), multi-arch `amd64`+`arm64` | OTLP ingest, query API, notes CRUD |
+| **`0.4.0`** | **local + minikube only — not pushed** | adds heartbeat, `/debug/logstorm`, `PERSIST_TELEMETRY`, the API-testing surface, and `/` |
+
+See [`CHANGELOG.md`](CHANGELOG.md). Publish `0.4.0` with `make push TAG=0.4.0`.
 
 ```bash
 docker run -d -p 8080:8080 -v api-data:/data surendrashukla29/rust-sqlite-api:0.2.0
+open http://localhost:8080          # 0.4.0 only — landing page
 ```
 
 Point any OpenTelemetry SDK or `otel-collector` exporter at it:
@@ -21,18 +31,10 @@ OTEL_EXPORTER_OTLP_PROTOCOL=http/json
 ```
 
 **Kubernetes → [`k8s_explorer/rust-sqlite-api-stack/`](../../k8s_explorer/rust-sqlite-api-stack/)**
-— a Helm chart deploying this image with its own Prometheus, Grafana, dashboards
-and alerts. All k8s work for this image lives there, not here.
-
-**Locally → [`deploy/compose/`](deploy/compose/)** — Prometheus + Grafana with the
-same dashboards, for seeing the thing work without a cluster:
-
-```bash
-cd deploy/compose && docker compose up -d && open http://localhost:3000
-```
-
-The dashboards are mounted from the Helm chart, so there is one definition
-rather than two that drift.
+— a Helm chart deploying this image with its own Prometheus, Grafana, Loki,
+dashboards and alerts. All Kubernetes work for this image lives there, not here,
+including the Grafana dashboards and the write-up of how logs actually reach
+Grafana.
 
 ## The local loop
 
@@ -109,6 +111,63 @@ is pulled, changing it breaks whoever pinned it:
 | `fmt` + `clippy -D warnings` + `build --locked` | |
 | **Acceptance run against the actual built image** | Publishing an image whose own tests fail is the failure this script exists to prevent |
 | Published manifest re-inspected | A push that "succeeds" with a single-arch manifest is a real and quiet failure |
+
+## API-testing surface
+
+This image doubles as a target you can point tools at — a server that responds
+predictably and is not someone else's production service.
+
+`GET /` serves a landing page listing every endpoint, with a live try-it button.
+Self-contained: no CDN, no external font, no runtime file read, because the
+image runs `readOnlyRootFilesystem` and frequently with no egress. The HTML is
+compiled into the binary with `include_str!`.
+
+| Method | Path | Notes |
+|---|---|---|
+| `GET` | `/` | Landing page — every endpoint, live example |
+| `GET` | `/version` | name, version, os, arch. First call when a deploy "didn't take" |
+| `GET`/`POST`/`PUT` | `/api/test/echo` | Echoes method, path, query, headers, body. Answers what was *actually* sent |
+| `GET` | `/api/test/status/{code}` | Returns that status — for retry logic and alert rules against real codes |
+| `GET` | `/api/test/delay/{ms}` | Sleeps, then responds. **Capped at 30s** |
+| `GET` | `/api/test/uuid` | A v4 UUID |
+| `GET` | `/api/test/headers` | Request headers as received |
+| `GET` | `/api/test/ip` | Peer address + forwarding headers |
+| `GET` | `/api/test/bytes/{n}` | Deterministic payload, **capped at 10 MB** |
+| `GET` | `/api/test/json?count=` | Fixed-shape document for deserialisation tests |
+
+Everything under `/api/test/` is **stateless** — no SQLite access, no effect on
+the telemetry counters — so it can be hammered without growing the volume or
+polluting the metrics you are trying to read.
+
+Both caps exist because the uncapped versions fail in a way that does not look
+like this service's fault: `/delay/600000` holds a connection for ten minutes
+and reads as a hung server, and `/bytes/1000000000` is a memory-exhaustion
+request. `/api/test/ip` reports the peer, which behind a proxy *is* the proxy —
+that gap is the point, and it makes `X-Forwarded-For` misconfiguration visible.
+
+## Log pipeline testing
+
+**`POST /debug/logstorm?count=N&tag=X&level=mixed&delay_ms=0`**
+
+Emits a known number of lines at known levels, then reports exactly how many
+were emitted versus suppressed, plus the LogQL to verify against a log store:
+
+```json
+{ "requested": 500, "emitted": 300, "suppressed_by_log_level": 200,
+  "by_level": { "debug": 0, "error": 50, "info": 150, "warn": 100 },
+  "verify": "sum(count_over_time({app=\"rust-sqlite-api\"} |= \"X\" | json | fields_kind=\"synthetic\" [5m]))" }
+```
+
+Compare Loki against **`emitted`**, never `requested` — `RUST_LOG` discards
+lines before they are written, and counting those as lost sends you chasing a
+pipeline problem that does not exist. Expect `emitted + 1`; the extra is the
+completion line. Measured on a real cluster: **301 emitted, 301 in Loki.**
+
+**Heartbeat** — an `alive` line every `HEARTBEAT_SECS` (default 30) at INFO,
+carrying uptime and counters. Without it, a quiet healthy service and a wedged
+one produce identical output, so an empty log panel proves nothing. With it,
+absence of the line is evidence. It is INFO on purpose: at DEBUG it would be
+invisible under the default `RUST_LOG`, which is exactly when it matters.
 
 ## Ingest — OTLP/HTTP JSON
 
@@ -188,7 +247,27 @@ tell a quiet system from a broken ingest path.
 | `INGEST_FLUSH_MS` | `250` | Latency floor for data becoming queryable |
 | `RETENTION_HOURS` | `72` | Older rows deleted in chunks |
 | `RETENTION_INTERVAL_SECS` | `600` | How often retention runs |
-| `RUST_LOG` | `info` | e.g. `info,rust_sqlite_api::writer=debug` |
+| `HEARTBEAT_SECS` | `30` | Seconds between `alive` log lines |
+| `PERSIST_TELEMETRY` | `true` | `false` turns this into a pure OTLP sink — see below |
+| `RUST_LOG` | `info` | `info,tower_http=debug` for one line per request |
+
+### `PERSIST_TELEMETRY=false`
+
+Ingested telemetry is parsed, queued, counted, then **discarded instead of
+written**. `/api/*` queries return empty and the database stays at its schema
+size; set the deployment's volume to an `emptyDir` and there is nothing to
+persist at all.
+
+The discard happens at the **writer**, not at the HTTP edge. That is deliberate:
+parsing, flattening, queueing, and backpressure all still run, so every counter
+except `written` keeps its normal meaning and the numbers stay comparable to a
+persisting deployment. Short-circuiting at the edge would stop exercising the
+code path this mode is meant to stand in for.
+
+`telemetry_discarded_total{signal}` carries the volume. A non-zero
+`discarded_total` alongside a zero `written_total` is the signature of this mode
+— it is not loss, and it is not the same as `dropped_total`, which means the
+queue was full.
 
 ## Architecture
 

@@ -1,5 +1,5 @@
 IMAGE   ?= rust-sqlite-api
-VERSION ?= 0.2.0
+VERSION ?= 0.4.0
 PORT    ?= 8080
 
 .PHONY: build build-amd64 check dev dev-release dev-reset verify run run-amd64 stop stop-amd64 logs shell smoke otlp size clean push push-dry

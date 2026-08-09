@@ -60,6 +60,15 @@ pub struct WriterConfig {
     pub queue_capacity: usize,
     pub batch_max: usize,
     pub flush_interval: Duration,
+    /// When false, batches are counted and discarded instead of committed.
+    ///
+    /// The drop happens *here*, at the writer, not at the HTTP edge — so
+    /// parsing, flattening, queueing, and backpressure all still run and every
+    /// counter except `written` keeps its normal meaning. A no-persist mode
+    /// that short-circuits earlier would quietly stop exercising the code path
+    /// it is meant to stand in for, and the metrics would stop being
+    /// comparable to a persisting deployment.
+    pub persist: bool,
 }
 
 impl Default for WriterConfig {
@@ -70,6 +79,7 @@ impl Default for WriterConfig {
             // The latency floor for data becoming queryable. Longer means
             // bigger batches and less disk work; shorter means fresher reads.
             flush_interval: Duration::from_millis(250),
+            persist: true,
         }
     }
 }
@@ -98,18 +108,18 @@ pub fn spawn(
                     if n == 0 {
                         // All senders dropped: shutdown. Flush what is left so a
                         // clean stop never loses acknowledged records.
-                        flush(&pool, &metrics, &mut buf).await;
+                        flush(&pool, &metrics, &mut buf, cfg.persist).await;
                         break;
                     }
                     if buf.len() >= cfg.batch_max {
-                        flush(&pool, &metrics, &mut buf).await;
+                        flush(&pool, &metrics, &mut buf, cfg.persist).await;
                     }
                 }
                 _ = ticker.tick() => {
                     // Time-based flush bounds staleness when traffic is light —
                     // without it, three log lines an hour would sit in memory.
                     if !buf.is_empty() {
-                        flush(&pool, &metrics, &mut buf).await;
+                        flush(&pool, &metrics, &mut buf, cfg.persist).await;
                     }
                 }
             }
@@ -122,11 +132,29 @@ pub fn spawn(
     (tx, handle)
 }
 
-async fn flush(pool: &Pool, metrics: &Arc<Metrics>, buf: &mut Vec<Record>) {
+async fn flush(pool: &Pool, metrics: &Arc<Metrics>, buf: &mut Vec<Record>, persist: bool) {
     if buf.is_empty() {
         return;
     }
     let batch = std::mem::take(buf);
+
+    if !persist {
+        // Discard mode. Counted as a batch so batch-size and rate panels stay
+        // meaningful, but `written` is deliberately NOT incremented: nothing
+        // was made durable, and a metric that claims otherwise is worse than
+        // no metric. `telemetry_discarded_total` carries the volume instead.
+        metrics.batches.fetch_add(1, Relaxed);
+        metrics.batch_rows.fetch_add(batch.len() as u64, Relaxed);
+        for rec in &batch {
+            match rec {
+                Record::Log(_) => metrics.logs.discarded.fetch_add(1, Relaxed),
+                Record::Metric(_) => metrics.metrics.discarded.fetch_add(1, Relaxed),
+                Record::Span(_) => metrics.traces.discarded.fetch_add(1, Relaxed),
+            };
+        }
+        return;
+    }
+
     let pool = pool.clone();
     let task_metrics = metrics.clone();
 

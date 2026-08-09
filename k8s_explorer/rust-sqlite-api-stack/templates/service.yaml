@@ -15,6 +15,12 @@ spec:
       port: {{ .Values.service.port }}
       targetPort: http
       protocol: TCP
+      {{- if and (eq .Values.service.type "NodePort") .Values.service.nodePort }}
+      {{- if or (lt (int .Values.service.nodePort) 30000) (gt (int .Values.service.nodePort) 32767) }}
+      {{- fail (printf "service.nodePort is %v, outside the default Kubernetes range 30000-32767. Either pick a port in range, set it to null to let the API server choose, or widen --service-node-port-range on the apiserver." .Values.service.nodePort) }}
+      {{- end }}
+      nodePort: {{ .Values.service.nodePort }}
+      {{- end }}
   selector:
     {{- include "rust-sqlite-api-stack.selectorLabels" . | nindent 4 }}
 ---

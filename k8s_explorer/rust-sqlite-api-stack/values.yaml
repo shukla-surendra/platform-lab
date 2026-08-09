@@ -21,12 +21,47 @@ image:
 replicaCount: 1
 
 service:
-  type: ClusterIP
+  # NodePort so the API is reachable without a port-forward, matching how
+  # Grafana is exposed in this chart. Use ClusterIP on any real cluster —
+  # NodePort opens the port on every node, with no auth in front of it.
+  type: NodePort
   port: 8080
+
+  # Pinned rather than auto-assigned, so the URL survives a reinstall and can
+  # be written down. Kubernetes restricts node ports to 30000-32767 by default
+  # (--service-node-port-range), which is why this cannot literally be 8080:
+  # the SERVICE port is 8080, the NODE port is 30080.
+  #
+  # Set to null to let the API server pick a free one — do that if 30080 is
+  # already taken, since a collision fails the install rather than falling back.
+  nodePort: 30080
+
   annotations: {}
 
 config:
-  rustLog: info
+  # `info` alone makes this service almost silent: it logs two lines at startup
+  # and then nothing until something goes wrong. tower-http's request tracing
+  # emits at DEBUG, so with plain `info` the logs dashboard is permanently empty
+  # and looks broken when it is merely accurate.
+  #
+  # `tower_http=debug` gives one line per HTTP request, which is what makes the
+  # dashboard worth opening. Raise the app's own target to debug
+  # (`rust_sqlite_api=debug`) only when chasing the writer — it logs a line per
+  # committed batch, which at real ingest rates is thousands per second.
+  rustLog: info,tower_http=debug
+
+  # Seconds between "alive" heartbeat log lines. The heartbeat exists so an
+  # empty log panel means something: without it, "healthy and quiet" and
+  # "wedged" produce identical output, and you cannot tell the log pipeline is
+  # working until something goes wrong.
+  heartbeatSecs: 30
+
+  # false turns this into a pure OTLP sink — telemetry is parsed, counted, and
+  # discarded instead of written to SQLite. /api/* queries return empty and
+  # telemetry_discarded_total replaces telemetry_written_total. Useful when the
+  # point is the log pipeline rather than the store; set persistence.enabled
+  # false alongside it to drop the PVC too.
+  persistTelemetry: true
   dbPoolSize: 8
   ingestQueueCapacity: 10000
   ingestBatchMax: 500
@@ -125,13 +160,19 @@ grafanaDashboard:
   labelValue: "1"
   folder: ""
 
-# Points Grafana at a Loki that already exists elsewhere in the cluster, so the
-# logs dashboard works without standing up a second one. Default targets the
-# ../grafana-log-viewer release. Set url to "" to omit the datasource entirely.
+# Only for pointing Grafana at a Loki that this chart did NOT deploy.
+#
+# Off by default because loki-stack.enabled is on, and that subchart ships its
+# own datasource. Turn this on (and loki-stack off) to reuse a Loki that already
+# exists elsewhere in the cluster — e.g. ../grafana-log-viewer, which installs
+# one into the log-viewer namespace:
+#   --set loki-stack.enabled=false \
+#   --set externalLoki.enabled=true \
+#   --set externalLoki.url=http://log-viewer-loki.log-viewer.svc.cluster.local:3100
 externalLoki:
-  enabled: true
+  enabled: false
   name: Loki
-  url: http://log-viewer-loki.log-viewer.svc.cluster.local:3100
+  url: ""
 
 # ---------------------------------------------------------------------------
 # Subcharts
@@ -197,9 +238,15 @@ kube-prometheus-stack:
     enabled: false
 
 loki-stack:
-  # Off by default — enable on a cluster with no Loki of its own. When on, the
-  # Grafana datasource auto-targets it (see templates/loki-datasource.yaml).
-  enabled: false
+  # ON by default. This chart's whole point is that one `helm install` produces
+  # a collector you can see — and half of "see" is logs, which need Loki and
+  # Promtail. Defaulting this off means the logs dashboard is empty on a fresh
+  # install with nothing to say why, and `helm upgrade -f values.yaml` silently
+  # UNINSTALLS Loki for anyone who enabled it with --set.
+  #
+  # Turn off only when the cluster already runs Loki, and pair it with
+  # externalLoki.enabled=true so Grafana still gets a datasource.
+  enabled: true
   grafana:
     enabled: false      # never a second Grafana
   prometheus:

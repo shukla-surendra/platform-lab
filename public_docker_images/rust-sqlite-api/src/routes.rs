@@ -12,10 +12,30 @@ use serde::{Deserialize, Serialize};
 use tower_http::trace::TraceLayer;
 
 use crate::error::AppError;
-use crate::{ingest, query, state::AppState};
+use crate::{ingest, query, state::AppState, testapi};
+
+/// The landing page is baked into the binary. The image runs with
+/// readOnlyRootFilesystem and often with no egress, so a file read at runtime
+/// or a CDN asset would simply fail.
+const INDEX_HTML: &str = include_str!("../static/index.html");
 
 pub fn router(state: AppState) -> Router {
     Router::new()
+        // Landing page: what this image is and every endpoint it serves.
+        .route("/", get(index))
+        .route("/version", get(testapi::version))
+        // Stateless API-testing surface — httpbin-shaped, touches no storage.
+        .route(
+            "/api/test/echo",
+            get(testapi::echo).post(testapi::echo).put(testapi::echo),
+        )
+        .route("/api/test/status/{code}", get(testapi::status))
+        .route("/api/test/delay/{ms}", get(testapi::delay))
+        .route("/api/test/uuid", get(testapi::uuid))
+        .route("/api/test/headers", get(testapi::headers))
+        .route("/api/test/ip", get(testapi::ip))
+        .route("/api/test/bytes/{n}", get(testapi::bytes))
+        .route("/api/test/json", get(testapi::sample))
         // Probes
         .route("/healthz", get(healthz))
         .route("/readyz", get(readyz))
@@ -28,6 +48,12 @@ pub fn router(state: AppState) -> Router {
         .route("/v1/metrics", axum::routing::post(ingest::metrics))
         .route("/v1/traces", axum::routing::post(ingest::traces))
         // Query
+        // Emits a burst of log lines on demand — for proving a log pipeline
+        // end to end. Writes nothing to SQLite.
+        .route(
+            "/debug/logstorm",
+            axum::routing::post(crate::logstorm::storm),
+        )
         .route("/api/summary", get(query::summary))
         .route("/api/logs", get(query::logs))
         .route("/api/metrics", get(query::metrics))
@@ -43,6 +69,10 @@ pub fn router(state: AppState) -> Router {
 /// Liveness: is the process up? Deliberately does **not** touch the database —
 /// a liveness probe that fails on a locked DB gets the container killed and
 /// restarted, which does nothing to unlock the DB and drops in-flight requests.
+async fn index() -> impl IntoResponse {
+    ([("content-type", "text/html; charset=utf-8")], INDEX_HTML)
+}
+
 async fn healthz() -> &'static str {
     "ok"
 }
