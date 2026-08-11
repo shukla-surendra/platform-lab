@@ -2,7 +2,7 @@
 
 A flat, checkable list of all problems in suggested working order (same order as the topic folders). Check items off as you complete them.
 
-**Total: 88 problems**
+**Total: 89 problems**
 
 
 ## Arrays & Hashing
@@ -14,6 +14,7 @@ A flat, checkable list of all problems in suggested working order (same order as
 - [ ] **5. Top K Frequent Elements** (Medium) — `arrays_hashing/05_top_k_frequent_elements/`
 - [ ] **6. Product of Array Except Self** (Medium) — `arrays_hashing/06_product_of_array_except_self/`
 - [ ] **7. Longest Consecutive Sequence** (Medium) — `arrays_hashing/07_longest_consecutive_sequence/`
+- [ ] **8. Valid Sudoku** (Medium) — `arrays_hashing/08_valid_sudoku/`
 
 ## Two Pointers
 

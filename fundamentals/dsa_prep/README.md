@@ -74,7 +74,7 @@ everywhere, but rarely the "hard" question in a loop.
 | 9 | `sliding_window/` | 1/3/1 | Min Window Substring is hard; extremely common pattern. |
 | 10 | `linked_list/` | 3/2/1 | Merge K Sorted Lists is hard; rest skews easy/medium. |
 | 11 | `intervals/` | 1/4/0 | All medium, no hard — asked at nearly every company. |
-| 12 | `arrays_hashing/` | 3/4/0 | Foundational, medium-heavy, asked in round 1 everywhere. |
+| 12 | `arrays_hashing/` | 3/5/0 | Foundational, medium-heavy, asked in round 1 everywhere. |
 | 13 | `binary_search/` | 1/3/0 | "Search on the answer" variants trip people up, capped at medium. |
 | 14 | `stack/` | 1/3/0 | Medium-heavy, universal (valid parens, daily temps). |
 | 15 | `greedy/` | 0/4/0 | All medium — proving correctness is the hard part, no Hard-tagged problems. |
@@ -83,10 +83,10 @@ everywhere, but rarely the "hard" question in a loop.
 
 ## Status
 
-**Complete — 89 problems across all 17 topics.** Every `solution.py` has been run and its
-sample tests pass (`89/89` green as of the last full sweep).
+**Complete — 90 problems across all 17 topics.** Every `solution.py` has been run and its
+sample tests pass (`90/90` green as of the last full sweep).
 
-- [x] arrays_hashing (7)
+- [x] arrays_hashing (8)
 - [x] two_pointers (4)
 - [x] sliding_window (5)
 - [x] stack (4)

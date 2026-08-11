@@ -130,4 +130,4 @@ same-machine IPC call implicitly assumes it can be.
 
 ---
 
-**Previous:** [Part 5: Context Switching & the Kernel/User Boundary](05_context_switching_and_kernel_boundary.md)  |  **Next:** [System Design Foundation, Part 3: Communication and Resilience](../system_design_foundation/00_prerequisite_concepts/03_communication_and_resilience.md)
+**Previous:** [Part 5: Context Switching & the Kernel/User Boundary](05_context_switching_and_kernel_boundary.md)  |  **Next:** [Part 7: The Boot Process — Power-On to Kernel](07_boot_process_power_on_to_kernel.md)

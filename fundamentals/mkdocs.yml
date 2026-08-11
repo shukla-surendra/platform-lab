@@ -69,6 +69,7 @@ nav:
               - "5. Top K Frequent Elements": dsa_prep/arrays_hashing/05_top_k_frequent_elements/problem.md
               - "6. Product of Array Except Self": dsa_prep/arrays_hashing/06_product_of_array_except_self/problem.md
               - "7. Longest Consecutive Sequence": dsa_prep/arrays_hashing/07_longest_consecutive_sequence/problem.md
+              - "8. Valid Sudoku": dsa_prep/arrays_hashing/08_valid_sudoku/problem.md
           - Two Pointers:
               - Pattern: dsa_prep/two_pointers/PATTERN.md
               - "1. Valid Palindrome": dsa_prep/two_pointers/01_valid_palindrome/problem.md
@@ -192,6 +193,8 @@ nav:
       - "4. Concurrency: Race Conditions, Locks & Deadlock": os_concepts/04_concurrency_locks_and_deadlock.md
       - "5. Context Switching & the Kernel/User Boundary": os_concepts/05_context_switching_and_kernel_boundary.md
       - "6. Inter-Process Communication (IPC)": os_concepts/06_interprocess_communication.md
+      - "7. The Boot Process: Power-On to Kernel": os_concepts/07_boot_process_power_on_to_kernel.md
+      - "8. Disk Layout: GPT, the ESP & Boot Entries": os_concepts/08_disk_layout_gpt_and_boot_entries.md
 
   - System Design Foundation:
       - Overview: system_design_foundation/README.md

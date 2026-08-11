@@ -37,8 +37,13 @@ loud in an interview.
 | 4 | [`04_concurrency_locks_and_deadlock.md`](04_concurrency_locks_and_deadlock.md) | Concurrency: Race Conditions, Locks & Deadlock |
 | 5 | [`05_context_switching_and_kernel_boundary.md`](05_context_switching_and_kernel_boundary.md) | Context Switching & the Kernel/User Boundary |
 | 6 | [`06_interprocess_communication.md`](06_interprocess_communication.md) | Inter-Process Communication (IPC) |
+| 7 | [`07_boot_process_power_on_to_kernel.md`](07_boot_process_power_on_to_kernel.md) | The Boot Process: Power-On to Kernel |
+| 8 | [`08_disk_layout_gpt_and_boot_entries.md`](08_disk_layout_gpt_and_boot_entries.md) | Disk Layout: GPT, the ESP & Boot Entries |
 
-## Why these six
+Parts 7-8 are a pair — 7 is the boot *sequence*, 8 is the disk *structures* that
+sequence depends on. Read 7 first.
+
+## Why these topics
 
 This is the set that actually recurs across FAANG-style loops, not an
 exhaustive undergrad-OS syllabus:
@@ -57,7 +62,15 @@ exhaustive undergrad-OS syllabus:
   talk to each other" — and bridges naturally into the distributed-systems
   material in [`system_design_foundation/`](../system_design_foundation/README.md).
 
-Boot sequence, device drivers, and filesystem internals are intentionally
-out of scope — they're asked far less frequently in general SWE loops and
-are closer to a systems/kernel-specialist track than a general fundamentals
-round.
+- **Boot sequence and disk layout** (Parts 7-8) are the odd pair out, and worth
+  being honest about: they're rarely asked directly in a general SWE loop. They
+  earn their place for two other reasons. First, they're the mechanical
+  explanation for questions that *are* asked constantly in infra rounds — why a
+  container starts in milliseconds and a VM in tens of seconds, what a machine
+  image actually contains, where cold-start latency goes. Second, they're the
+  concrete instance of bootstrapping and chain-of-trust, which recur well
+  beyond boot. Treat them as supporting material for infra-flavoured loops
+  (VMware, Adobe, cloud-platform teams), not as core fundamentals-round prep.
+
+Device drivers and filesystem internals remain out of scope — closer to a
+systems/kernel-specialist track than a general fundamentals round.

@@ -4,7 +4,9 @@ Running notes on Rust language features encountered while solving problems
 in this crate, for reference. (See also
 [binary-search-tree-rust-syntax-notes.md](binary-search-tree-rust-syntax-notes.md)
 and
-[dynamic-programming-rust-syntax-notes.md](dynamic-programming-rust-syntax-notes.md).)
+[dynamic-programming-rust-syntax-notes.md](dynamic-programming-rust-syntax-notes.md),
+and
+[arrays-hashing-rust-syntax-notes.md](arrays-hashing-rust-syntax-notes.md).)
 
 ## `todo!()`
 

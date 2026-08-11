@@ -4,6 +4,8 @@ Running notes on Rust language features encountered while solving problems
 in this crate, for reference. (See also
 [recursion-rust-syntax-notes.md](recursion-rust-syntax-notes.md) and
 [binary-search-tree-rust-syntax-notes.md](binary-search-tree-rust-syntax-notes.md)
+and
+[arrays-hashing-rust-syntax-notes.md](arrays-hashing-rust-syntax-notes.md)
 for more.)
 
 ## `&` in a pattern (dereferencing pattern) vs. `&` in an expression
