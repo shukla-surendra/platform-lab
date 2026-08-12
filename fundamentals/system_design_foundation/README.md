@@ -70,6 +70,16 @@ core six, since a real interview follow-up on any of them deserves more than a n
 | [9. GitOps & CI/CD for ML](ml_system_design/09_gitops_ml_cicd.md) | ArgoCD reconciliation, DVC vs. Delta Lake/Unity Catalog, ML-specific CI gates |
 | [10. Cost, Security & Multi-Region Governance](ml_system_design/10_cost_security_multiregion.md) | Cost attribution, PII/compliance, RTO/RPO and active-active vs. active-passive DR |
 | [11. LLMOps: Prompting, Fine-Tuning, Evals & Guardrails](ml_system_design/11_llmops.md) | Fine-tuning vs. RAG vs. prompting, LoRA/QLoRA, eval gates, prompt injection, LLM gateway/cost routing |
+| [13. Running a ~1TB LLM: Multi-GPU, Multi-Node Inference](01_ml_system_design/13_large_model_multi_gpu_inference/README.md) | Why a huge model forces multi-*node* serving, tensor/pipeline parallelism, KV-cache memory math, vLLM/TensorRT-LLM/TGI/SGLang compared, a concrete AWS (EFA/FSx/SageMaker LMI vs. EKS) reference architecture |
+
+## Going deeper: the hardware/systems layer underneath all of this
+
+**[GPU Fleet / AI Infrastructure](../gpu_infrastructure/README.md)** is a separate,
+undated track covering what this section treats as a black box: GPU architecture (SMs,
+Tensor Cores, HBM bandwidth), NCCL/RDMA/InfiniBand networking, Kubernetes GPU scheduling,
+quantization internals, and fleet-scale production operations. Worth reaching for when a
+question here ("why not just add more GPUs," "what's actually inside an H100") deserves
+an answer grounded in hardware, not just architecture-diagram vocabulary.
 
 ## Tricky MLOps Scenarios: debugging, not designing
 

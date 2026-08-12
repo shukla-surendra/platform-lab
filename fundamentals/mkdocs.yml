@@ -244,6 +244,11 @@ nav:
               - "Deep-Dive: Data Governance in Practice": system_design_foundation/ml_system_design/10_cost_security_multiregion_data_governance_deep_dive.md
               - "Deep-Dive: Network / Data-Transfer Costs (AWS/GCP/Azure)": system_design_foundation/ml_system_design/10_cost_security_multiregion_network_data_transfer_costs_deep_dive.md
           - 11. LLMOps (Prompting, Fine-Tuning, Evals & Guardrails): system_design_foundation/ml_system_design/11_llmops.md
+          - "13. Running a ~1TB LLM: Multi-GPU, Multi-Node Inference":
+              - Overview: system_design_foundation/01_ml_system_design/13_large_model_multi_gpu_inference/README.md
+              - Tutorial: system_design_foundation/01_ml_system_design/13_large_model_multi_gpu_inference/tutorial.md
+              - "Tools & Frameworks": system_design_foundation/01_ml_system_design/13_large_model_multi_gpu_inference/tools-and-frameworks.md
+              - "AWS Production Architecture": system_design_foundation/01_ml_system_design/13_large_model_multi_gpu_inference/aws-production-architecture.md
       - Tricky MLOps Scenarios:
           - Overview: system_design_foundation/ml_system_design/12_tricky_scenarios_readme.md
           - "1. Regional Feature Staleness": system_design_foundation/ml_system_design/12_tricky_scenarios_01_regional_feature_staleness.md
@@ -260,6 +265,44 @@ nav:
           - "12. DR Failover Took 8x Longer Than Planned": system_design_foundation/ml_system_design/12_tricky_scenarios_12_dr_failover_slow.md
           - "13. Eval Passed, Guardrail Bypassed in Production": system_design_foundation/ml_system_design/12_tricky_scenarios_13_eval_passed_guardrail_bypassed.md
           - "14. GPU Sitting Idle 75% of the Time": system_design_foundation/ml_system_design/12_tricky_scenarios_14_gpu_underutilized_sequential_pipeline.md
+
+  - GPU Fleet / AI Infrastructure:
+      - Overview: gpu_infrastructure/README.md
+      - Tools Reference: gpu_infrastructure/TOOLS_REFERENCE.md
+      - "0. Mental Model & Roadmap": gpu_infrastructure/00_mental_model_and_roadmap.md
+      - "Phase 1: Systems Foundations":
+          - "1. Linux Internals for GPU Workloads": gpu_infrastructure/phase1_systems/01_linux_internals_for_gpu_workloads.md
+          - "2. Computer Architecture: PCIe, NUMA": gpu_infrastructure/phase1_systems/02_computer_architecture_pcie_numa.md
+      - "Phase 2: GPU Fundamentals":
+          - "3. GPU Architecture: SMs, Cores, HBM": gpu_infrastructure/phase2_gpu_fundamentals/03_gpu_architecture.md
+          - "4. CUDA Ecosystem": gpu_infrastructure/phase2_gpu_fundamentals/04_cuda_ecosystem.md
+          - "5. NVLink / NVSwitch Topology": gpu_infrastructure/phase2_gpu_fundamentals/05_nvlink_nvswitch_topology.md
+      - "Phase 3: GPU Networking":
+          - "6. NCCL & Collective Communication": gpu_infrastructure/phase3_gpu_networking/06_nccl_and_collective_communication.md
+          - "7. RDMA, RoCE, InfiniBand, GPUDirect": gpu_infrastructure/phase3_gpu_networking/07_rdma_roce_infiniband.md
+          - "8. NCCL Testing": gpu_infrastructure/phase3_gpu_networking/08_nccl_testing.md
+      - "Phase 4: Kubernetes GPU Infrastructure":
+          - "9. GPU Operator & Device Plugin": gpu_infrastructure/phase4_kubernetes_gpu/09_gpu_operator_and_device_plugin.md
+          - "10. GPU Scheduling: MIG, Sharing, Gang Scheduling": gpu_infrastructure/phase4_kubernetes_gpu/10_gpu_scheduling_mig_sharing.md
+          - "11. Slurm vs. Kubernetes": gpu_infrastructure/phase4_kubernetes_gpu/11_slurm_vs_kubernetes.md
+      - "Phase 5: LLM Serving":
+          - "12. LLM Performance Engineering": gpu_infrastructure/phase5_llm_serving/12_llm_performance_engineering.md
+          - "13. Quantization: FP32 to FP8 to INT4": gpu_infrastructure/phase5_llm_serving/13_quantization.md
+          - "14. Model Memory Estimation": gpu_infrastructure/phase5_llm_serving/14_model_memory_estimation.md
+      - "Phase 6: Production Operations":
+          - "15. GPU Fleet Lifecycle Management": gpu_infrastructure/phase6_production_operations/15_gpu_fleet_lifecycle.md
+          - "16. Reliability & Failure Management": gpu_infrastructure/phase6_production_operations/16_reliability_and_failure_management.md
+          - "17. Observability for GPU Fleets": gpu_infrastructure/phase6_production_operations/17_observability_for_gpu_fleets.md
+          - "18. Capacity Planning & FinOps": gpu_infrastructure/phase6_production_operations/18_capacity_planning_and_finops.md
+          - "19. Storage for GPU Clusters": gpu_infrastructure/phase6_production_operations/19_storage_for_gpu_clusters.md
+          - "20. Security & Multi-Tenant GPU Isolation": gpu_infrastructure/phase6_production_operations/20_security_and_multi_tenancy.md
+          - "24. Multi-Cloud GPU Landscape": gpu_infrastructure/phase6_production_operations/24_multi_cloud_gpu_landscape.md
+          - "25. Single-GPU Instance Selection (g5/g6)": gpu_infrastructure/phase6_production_operations/25_single_gpu_instance_selection_g5_g6.md
+      - "Phase 7: Advanced Distributed Training Infra":
+          - "21. FSDP, DeepSpeed, ZeRO": gpu_infrastructure/phase7_advanced_training_infra/21_fsdp_deepspeed_zero.md
+          - "22. MoE & Expert Parallelism": gpu_infrastructure/phase7_advanced_training_infra/22_moe_expert_parallelism.md
+      - "Local & Prototyping":
+          - "23. LM Studio & Local Inference": gpu_infrastructure/local_and_prototyping/23_lmstudio_and_local_inference.md
 
   - System Design Practice:
       - Overview: system_design_practice/README.md
