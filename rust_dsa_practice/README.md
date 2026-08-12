@@ -43,6 +43,27 @@ cargo run --bin 001_grid_tour   # every primitive, with output
 
 Notes and the pick-your-traversal table: [grid-traversal-scaffold.md](docs/grid-traversal-scaffold.md).
 
+## Linked-list crate: two node types, on purpose
+
+`linked_list/` exposes a **library** (like `grids/`) with two node types
+used across its `src/bin/` problems:
+
+- `ListNode` (`Option<Box<ListNode>>`) - LeetCode's own representation,
+  used for problems where the list is genuinely tree-shaped: reverse,
+  merge, palindrome check, middle-finding, add-two-numbers, remove-nth.
+- `RawNode` (raw pointers) - for the three problems where it isn't:
+  cycle detection (141, 142) and intersection of two lists (160) both
+  need either a cycle or a shared tail, neither of which `Box`'s
+  unique-ownership model can represent at all. `src/lib.rs` documents
+  the reasoning; each affected problem file repeats the specific "why"
+  for its own case.
+
+```
+cd linked_list
+cargo test                                  # 49 tests across 10 problems
+cargo run --bin 004_linked_list_cycle_ii    # any problem, with output
+```
+
 ## Ad-hoc single-file scripts
 
 For standalone `.rs` files that aren't part of a crate:
