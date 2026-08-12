@@ -119,7 +119,9 @@ on the slow path).
 
 **Redis** is the near-universal default distributed cache in production systems today —
 in-memory, supports write-through/write-behind patterns, TTL-based expiration natively, and
-doubles as more than a cache (pub/sub, rate-limiting counters, leaderboards). **Memcached**
+doubles as more than a cache (pub/sub, rate-limiting counters, leaderboards) — [Part 25 covers
+exactly which Redis data structure backs each of those non-caching uses, and
+why](25_redis_as_a_system_design_primitive.md). **Memcached**
 is the simpler, purely-cache-shaped alternative, still common where Redis's extra features
 aren't needed. At the CDN/edge layer: **Cloudflare, Akamai, Fastly, CloudFront**. At the
 application/in-process layer: **Caffeine** (JVM), Python's `functools.lru_cache`. In this

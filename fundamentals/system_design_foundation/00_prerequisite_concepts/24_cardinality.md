@@ -409,4 +409,4 @@ whenever a system's behavior seems to hinge on "how many different X are there."
 
 ---
 
-**Previous:** [Part 23: Long-Polling, WebSockets, and Server-Sent Events — Getting the Server to Talk First](23_realtime_communication_long_polling_websockets_sse.md)  |  **Next:** [0. The Interview Framework](../01_ml_system_design/00_interview_framework.md)
+**Previous:** [Part 23: Long-Polling, WebSockets, and Server-Sent Events — Getting the Server to Talk First](23_realtime_communication_long_polling_websockets_sse.md)  |  **Next:** [Part 25: Redis — Data Structures as System Design Primitives](25_redis_as_a_system_design_primitive.md)

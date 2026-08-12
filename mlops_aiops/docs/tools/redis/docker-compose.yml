@@ -1,0 +1,19 @@
+services:
+  redis-primary:
+    image: redis:7-alpine
+    container_name: redis-lab-primary
+    ports:
+      - "16379:6379"
+    command: redis-server --save 60 1 --appendonly yes
+    volumes:
+      - redis-primary-data:/data
+
+  redis-replica:
+    image: redis:7-alpine
+    container_name: redis-lab-replica
+    depends_on:
+      - redis-primary
+    command: redis-server --replicaof redis-primary 6379
+
+volumes:
+  redis-primary-data:

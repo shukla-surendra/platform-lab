@@ -213,6 +213,7 @@ nav:
           - "22. Proxies — Forward, Reverse, and the Load-Balancer Trap": system_design_foundation/00_prerequisite_concepts/22_proxies_forward_and_reverse.md
           - "23. Long-Polling, WebSockets, and Server-Sent Events": system_design_foundation/00_prerequisite_concepts/23_realtime_communication_long_polling_websockets_sse.md
           - "24. Cardinality": system_design_foundation/00_prerequisite_concepts/24_cardinality.md
+          - "25. Redis — Data Structures as System Design Primitives": system_design_foundation/00_prerequisite_concepts/25_redis_as_a_system_design_primitive.md
       - Staff-Level Foundations:
           - 0. The Staff-Level Signal: system_design_practice/00_staff_level_signal/tutorial.md
           - 1. Distributed Systems Foundations: system_design_practice/01_distributed_systems_foundations/tutorial.md

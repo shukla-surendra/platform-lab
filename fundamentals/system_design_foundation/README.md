@@ -11,7 +11,7 @@ original plan — plus a bank of scenario-debugging problems.
 If terms like **p99 latency**, **the nines**, **sharding vs. replication**, or
 **idempotency** aren't things you could explain from first principles yet, start with the
 **[Prerequisite Concepts](00_prerequisite_concepts/01_performance_and_scale.md)** primer
-(twenty short parts: [Performance & Scale](00_prerequisite_concepts/01_performance_and_scale.md),
+(twenty-five short parts: [Performance & Scale](00_prerequisite_concepts/01_performance_and_scale.md),
 [Data & Consistency](00_prerequisite_concepts/02_data_and_consistency.md),
 [Communication & Resilience](00_prerequisite_concepts/03_communication_and_resilience.md),
 [CPU vs. GPU](00_prerequisite_concepts/04_cpu_vs_gpu.md),
@@ -34,7 +34,8 @@ If terms like **p99 latency**, **the nines**, **sharding vs. replication**, or
 [The FR/NFR Framework and a Real-Tools Quick Reference](00_prerequisite_concepts/21_fr_nfr_framework_and_architecture_tools.md),
 [Proxies — Forward, Reverse, and Why "Reverse Proxy vs. Load Balancer" Is a Trick Question](00_prerequisite_concepts/22_proxies_forward_and_reverse.md),
 [Long-Polling, WebSockets, and Server-Sent Events](00_prerequisite_concepts/23_realtime_communication_long_polling_websockets_sse.md),
-[Cardinality — One Word, Five Meanings, One Underlying Idea](00_prerequisite_concepts/24_cardinality.md))
+[Cardinality — One Word, Five Meanings, One Underlying Idea](00_prerequisite_concepts/24_cardinality.md),
+[Redis — Data Structures as System Design Primitives](00_prerequisite_concepts/25_redis_as_a_system_design_primitive.md))
 before the Interview Framework below. It's the shared vocabulary every tutorial in this
 section — and in the [Distributed Systems Design track](../system_design_practice/README.md) — assumes
 without re-explaining.
