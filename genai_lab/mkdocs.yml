@@ -88,6 +88,18 @@ nav:
       - "6. RAG Architecture": RAG_Knowledge_Base_Starter/06_RAG_Architecture.md
       - "7. Vector Search: Tools and Technology": RAG_Knowledge_Base_Starter/07_Vector_Search_Tools_and_Technology.md
       - "8. Interview Questions (100, with Answers)": RAG_Knowledge_Base_Starter/08_Interview_Questions.md
+  - Databricks AI Architect:
+      - Overview: Databricks_AI_Architect/index.md
+      - "0. Platform Map & Naming": Databricks_AI_Architect/00-platform-map-and-naming.md
+      - "1. Genie Agents & Genie One": Databricks_AI_Architect/01-genie-agents-and-genie-one.md
+      - "2. Genie Ontology": Databricks_AI_Architect/02-genie-ontology.md
+      - "3. Agent Framework & Agent Bricks": Databricks_AI_Architect/03-agent-framework-and-agent-bricks.md
+      - "4. Knowledge Bases & Unstructured Doc Q&A": Databricks_AI_Architect/04-knowledge-bases-unstructured-doc-qa.md
+      - "5. Knowledge Graphs on Databricks": Databricks_AI_Architect/05-knowledge-graphs-on-databricks.md
+      - "6. MLOps on Databricks": Databricks_AI_Architect/06-mlops-on-databricks.md
+      - "7. Use Case: NL2SQL Agent": Databricks_AI_Architect/07-usecase-nl2sql-agent.md
+      - "8. Use Case: Unstructured Doc Q&A": Databricks_AI_Architect/08-usecase-unstructured-doc-qa.md
+      - "9. Putting It Together": Databricks_AI_Architect/09-putting-it-together.md
   - Similarity Search Methods:
       - Overview: Similarity_Search_Methods/index.md
       - "1. Vector-Based Methods for Similarity Search": Similarity_Search_Methods/01_Vector_Based_Methods_for_Similarity_Search.md

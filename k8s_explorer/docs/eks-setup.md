@@ -246,6 +246,94 @@ Need a volume multiple Pods can write to concurrently (RWX,
 that; use the **EFS CSI driver** instead (`efs.csi.aws.com`), backed by a pre-created EFS
 filesystem.
 
+### S3 as a volume — Mountpoint CSI driver
+
+A third option, for a different problem than EBS/EFS solve: the data already lives in S3
+(training datasets, model weights) and you want Pods to read it as a path instead of writing
+download/sync logic. `s3.csi.aws.com`, backed by AWS's `mountpoint-s3`, reuses the same IRSA
+mechanism from step 4 — a ServiceAccount scoped to just that bucket, no static keys:
+
+```bash
+eksctl create iamserviceaccount \
+  --cluster my-cluster \
+  --namespace ml-workloads \
+  --name s3-csi-driver-sa \
+  --attach-policy-arn arn:aws:iam::<account-id>:policy/AmazonS3CSIDriverPolicy \
+  --approve
+```
+
+Unlike EBS's `WaitForFirstConsumer` dynamic provisioning above, S3 CSI is normally used
+**statically** — the bucket already exists, so there's nothing to provision, only to bind:
+
+```yaml
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: model-weights-pv
+spec:
+  capacity:
+    storage: 1200Gi                 # required field; S3 has no real capacity to check against
+  accessModes: ["ReadWriteMany"]
+  mountOptions:
+    - allow-delete
+    - region us-east-1
+  csi:
+    driver: s3.csi.aws.com
+    volumeHandle: model-weights-bucket
+    volumeAttributes:
+      bucketName: my-model-weights-bucket
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: model-weights-pvc
+  namespace: ml-workloads
+spec:
+  accessModes: ["ReadWriteMany"]
+  storageClassName: ""              # empty — skip dynamic provisioning, bind to the PV below
+  volumeName: model-weights-pv
+  resources:
+    requests:
+      storage: 1200Gi
+```
+
+**Where this breaks, concretely:** a training job that checkpoints the usual safe way — write
+to `checkpoint.tmp`, then `os.rename("checkpoint.tmp", "checkpoint.pt")` for an atomic
+swap — fails on this mount. Mountpoint has no `rename()`; the file has to be written once,
+sequentially, under its final name. Same story for a job that opens a checkpoint in append mode
+to resume mid-write. Neither is a misconfiguration — it's the object-store-underneath showing
+through the POSIX-shaped API. The fix isn't a mount option, it's changing the write pattern:
+write each checkpoint as a new, fully-formed key (`checkpoint-step-1000.pt`,
+`checkpoint-step-2000.pt`) and let the training loop pick the latest, instead of relying on
+in-place atomic replace.
+
+**The rest of Mountpoint's limitations, same root cause (object API pretending to be a
+filesystem):**
+
+- **No `rename()`, no partial/random writes** — the checkpoint case above. A file is written
+  once, sequentially, start to finish, then closed; no seeking back into an already-written
+  file, no append.
+- **No symlinks, no hard links** — a chart/tool that expects to symlink into shared data
+  (common in dataset-versioning setups) will fail silently or error, not degrade gracefully.
+- **Weak POSIX permission enforcement** — `chmod`/`chown` on the mount don't map to real S3
+  ACLs the way they would on a real filesystem; don't rely on file permissions inside the mount
+  for access control — that control has to live in the IAM policy on the IRSA role instead.
+- **No file locking (`flock`)** — two Pods writing to what looks like the same path have no
+  mutual exclusion; concurrent writers to the same key just race, last write wins.
+- **Directory operations are synthetic** — S3 has no real directories, only key prefixes.
+  `mkdir` on an empty "directory" doesn't durably persist the way it would on ext4 — an empty
+  prefix with nothing under it can effectively disappear, which breaks code that does
+  `mkdir` then `readdir` to confirm it exists.
+- **Higher, less predictable per-op latency than EBS/EFS** — every `open`/`stat`/`read` is an
+  HTTP call to S3 under the hood; fine for large sequential reads (streaming a dataset shard),
+  bad for workloads doing lots of small metadata-heavy operations (e.g. a tool that `stat`s
+  thousands of small files).
+
+Good default: treat the S3 mount as **read-heavy input data** (datasets, published weights) and
+keep anything write-heavy, lock-dependent, or metadata-heavy (active checkpoints, logs, a real
+directory tree) on the EBS/EFS volume from the sections above, syncing to S3 explicitly (SDK,
+not the mount) once a checkpoint is actually finalized.
+
 ## 7. Autoscaling
 
 Two layers, easy to conflate:
