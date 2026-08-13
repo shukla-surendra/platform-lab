@@ -39,5 +39,6 @@ skill (see `../../.claude/skills/tech-log/SKILL.md`, at the repo root).
 - [Splunk](tools/splunk/README.md) — observability / monitoring (commercial, logs/SIEM roots)
 - [Tempo](tools/tempo/README.md) — observability / monitoring (tracing)
 - [vLLM](tools/vllm/README.md) — LLM inference / serving
+- [XGBoost](tools/xgboost/README.md) — ML modeling (gradient-boosted decision trees)
 - [Zookeeper / ClickHouse Keeper](tools/zookeeper/README.md) — distributed coordination service
 <!-- INDEX_END -->

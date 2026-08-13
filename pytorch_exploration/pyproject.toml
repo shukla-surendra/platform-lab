@@ -1,0 +1,22 @@
+[project]
+name = "pytorch-exploration"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "Surendra Shukla", email = "surendra.shukla29@gmail.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "jupyterlab>=4.6.3",
+    "torch>=2.13.0",
+    "numpy>=1.26",
+    "matplotlib>=3.9",
+]
+
+[project.scripts]
+pytorch-exploration = "pytorch_exploration:main"
+
+[build-system]
+requires = ["uv_build>=0.12.1,<0.13.0"]
+build-backend = "uv_build"

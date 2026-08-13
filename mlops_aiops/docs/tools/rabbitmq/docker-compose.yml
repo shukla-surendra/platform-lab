@@ -1,0 +1,36 @@
+x-rabbitmq-common: &rabbitmq-common
+  image: rabbitmq:4.0-management
+  environment:
+    # Shared secret every node needs to authenticate to each other as part of the same
+    # cluster — real clusters generate this randomly and distribute it out of band; a
+    # fixed value here is fine since this network isn't exposed beyond localhost.
+    RABBITMQ_ERLANG_COOKIE: "kafka-lab-shared-cookie-do-not-use-in-prod"
+
+services:
+  rabbit-1:
+    <<: *rabbitmq-common
+    hostname: rabbit1
+    container_name: rabbitmq-lab-1
+    ports:
+      - "5672:5672"     # AMQP
+      - "15672:15672"   # management UI / HTTP API
+
+  rabbit-2:
+    <<: *rabbitmq-common
+    hostname: rabbit2
+    container_name: rabbitmq-lab-2
+    depends_on:
+      - rabbit-1
+    ports:
+      - "5673:5672"
+      - "15673:15672"
+
+  rabbit-3:
+    <<: *rabbitmq-common
+    hostname: rabbit3
+    container_name: rabbitmq-lab-3
+    depends_on:
+      - rabbit-1
+    ports:
+      - "5674:5672"
+      - "15674:15672"

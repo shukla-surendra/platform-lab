@@ -1,0 +1,55 @@
+x-kafka-common: &kafka-common
+  image: apache/kafka:3.8.0
+  environment: &kafka-common-env
+    # KRaft mode — no ZooKeeper (see README.md). All three nodes are both broker AND
+    # controller (a combined-mode cluster) — the controller quorum below is what elects a
+    # cluster metadata leader among themselves via Kafka's own Raft implementation, fully
+    # independent of which node is leader for any particular topic partition.
+    KAFKA_PROCESS_ROLES: broker,controller
+    KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka-1:9093,2@kafka-2:9093,3@kafka-3:9093
+    KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+    KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+    KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+    # Real replication settings — this is the whole point of moving from 1 broker to 3:
+    # a replication factor of 3 with min.insync.replicas=2 is what actually makes
+    # acks="all" mean something (see production-scenarios.md's broker-failure scenario).
+    KAFKA_DEFAULT_REPLICATION_FACTOR: 3
+    KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 3
+    KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 3
+    KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 2
+    KAFKA_MIN_INSYNC_REPLICAS: 2
+    KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+
+services:
+  kafka-1:
+    <<: *kafka-common
+    container_name: kafka-lab-1
+    ports:
+      - "19092:19092"
+    environment:
+      <<: *kafka-common-env
+      KAFKA_NODE_ID: 1
+      KAFKA_LISTENERS: PLAINTEXT://kafka-1:9092,CONTROLLER://kafka-1:9093,PLAINTEXT_HOST://0.0.0.0:19092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-1:9092,PLAINTEXT_HOST://localhost:19092
+
+  kafka-2:
+    <<: *kafka-common
+    container_name: kafka-lab-2
+    ports:
+      - "19093:19093"
+    environment:
+      <<: *kafka-common-env
+      KAFKA_NODE_ID: 2
+      KAFKA_LISTENERS: PLAINTEXT://kafka-2:9092,CONTROLLER://kafka-2:9093,PLAINTEXT_HOST://0.0.0.0:19093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-2:9092,PLAINTEXT_HOST://localhost:19093
+
+  kafka-3:
+    <<: *kafka-common
+    container_name: kafka-lab-3
+    ports:
+      - "19094:19094"
+    environment:
+      <<: *kafka-common-env
+      KAFKA_NODE_ID: 3
+      KAFKA_LISTENERS: PLAINTEXT://kafka-3:9092,CONTROLLER://kafka-3:9093,PLAINTEXT_HOST://0.0.0.0:19094
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-3:9092,PLAINTEXT_HOST://localhost:19094
