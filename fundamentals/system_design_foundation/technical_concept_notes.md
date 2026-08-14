@@ -19,6 +19,18 @@ small/one-off topics stay here until they do.
   `.h5`, `.onnx`, `.gguf`, `.msgpack`), splitting a model across files (storage sharding vs.
   tensor/pipeline parallelism), what fine-tuning does to the file on disk, and the anatomy of a
   real downloaded HuggingFace model folder.
+- **PostgreSQL, principal-engineer depth** — lives in `platform-lab/mlops_aiops/docs/tools/postgresql/`
+  (not this folder, since it's paired with runnable query examples rather than being pure
+  reference prose): joins and physical join/distributed-join algorithms, the query optimizer
+  and planner cost model, indexing, window functions and recursive CTEs
+  (`README.md`); physical storage — pages, tuples, TOAST, visibility/freeze maps, WAL,
+  checkpoints (`storage-internals.md`); MVCC, isolation levels, write skew, locking, deadlocks,
+  `VACUUM`/bloat, XID wraparound (`concurrency-and-locking.md`); logical vs. physical backups,
+  PITR, streaming replication, replication slots, `synchronous_commit`, Patroni/repmgr/pgpool
+  HA orchestration (`backup-recovery-and-replication.md`); roles/RBAC, row-level security,
+  `pg_hba.conf`, encryption boundaries, auditing (`security-and-access-control.md`); a
+  40-scenario query-pattern library (`query-patterns.md`); and RDS vs. Aurora, connection
+  pooling, schema lifecycle at scale, zero-downtime migrations (`production-and-scaling.md`).
 
 ## Everything else
 
