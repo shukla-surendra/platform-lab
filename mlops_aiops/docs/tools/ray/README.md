@@ -3,6 +3,10 @@
 **Category:** distributed compute framework (general-purpose Python parallelism — tasks and
 stateful actors — not a data-processing-specific engine)
 
+**New to Ray?** Start with [`getting-started.md`](getting-started.md) — short sections, one
+idea at a time, complete runnable scripts. This file goes deeper: real benchmarks, object-store
+mechanics, and when Ray makes things *slower*.
+
 ## What it is, and the problem it actually solves
 
 Python's standard parallelism tools stop at one machine: `multiprocessing` and
