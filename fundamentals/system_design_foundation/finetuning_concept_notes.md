@@ -107,6 +107,35 @@ A senior-level answer opens with this, not with LoRA hyperparameters:
   format silently produces a model that performs worse than the base at inference, even though
   training loss looked fine.
 
+## Catastrophic forgetting across multiple instruction datasets, not just pretrain→fine-tune
+
+The layman version: think of someone learning to give directions. Train them for a week using
+only highway-driving examples and they get sharp at highway directions — but if you then
+spend the next week training them only on subway-navigation examples, by the end of that
+second week their highway skill has quietly eroded, even though nobody told them to forget it.
+Nothing in week 2 rewards keeping week-1 behavior, so it just drifts away.
+
+Mechanically this is the same mechanism as pretrain→fine-tune forgetting above, but sharper
+for sequential *instruction* datasets specifically, because what erodes isn't just factual
+recall — it's the model's learned response-format/behavior prior (tone, verbosity, when to
+refuse, answer structure). Dataset2's gradients only ever see dataset2's shape; nothing in the
+loss penalizes drifting off dataset1's behavior, so held-out dataset1 loss rises again by the
+end of the dataset2 phase even though dataset1's data still physically exists on disk —
+training *order*, not data availability, is the cause. Worked through with a concrete
+tiny-GPT project in
+`mini-llms-playground/from_scratch/custom-gpt-10m/docs/LLM_DEV_GUIDE.md` section 18.
+
+Detecting it early: keep a held-out validation split *per source dataset*, not one combined
+split — eval against each independently every N steps, so a rising dataset1 loss during the
+dataset2 phase shows up immediately instead of being averaged away by the combined number.
+
+Mitigations, same menu as fine-tuning forgetting: shuffle both datasets into one joint stream
+instead of phase-by-phase training (removes the forgetting phase entirely, at the cost of
+never getting a clean "task-1-only" checkpoint); low LR + few epochs per phase if sequential
+is required by the workflow; replay a slice of dataset1 into dataset2's batches; LoRA/adapters
+per task if both behaviors need to stay independently swappable rather than merged into one
+set of weights.
+
 ## The follow-up an interviewer goes to next
 
 - *"70B model, one GPU budget — what do you do?"* → QLoRA: 4-bit NF4 quantized frozen base +

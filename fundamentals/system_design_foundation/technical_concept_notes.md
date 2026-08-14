@@ -77,4 +77,43 @@ small/one-off topics stay here until they do.
 
 ## Everything else
 
-New standalone topics get added here directly. Nothing currently sits in the catch-all.
+New standalone topics get added here directly.
+
+### tiktoken (OpenAI's BPE tokenizer)
+
+LLMs don't read text as words or characters — they read a sequence of integers called
+tokens. tiktoken is OpenAI's library that turns text into that exact integer sequence (and
+back again), so you know precisely what a model like GPT-4o will see, and precisely how
+many units you're billed on. It matters because "1 token ≈ 4 characters" is only an
+estimate — exact counts matter for context-window budgeting, RAG chunking, and pre-call
+cost estimation.
+
+Mechanism: it implements byte-pair encoding (BPE). The vocabulary — a fixed table mapping
+token strings to integer IDs, built by repeatedly merging the most frequent adjacent symbol
+pair — was learned once, offline, from a large corpus. tiktoken doesn't learn anything at
+runtime; `.encode()` just replays that fixed merge table against new text (core is written
+in Rust, wrapped for Python), which is why it's deterministic and fast.
+
+Encodings, matched to model family: `o200k_base` (GPT-4o and newer), `cl100k_base`
+(GPT-3.5-turbo, GPT-4 pre-4o), `p50k_base` (older GPT-3: text-davinci-003, Codex),
+`r50k_base`/`gpt2` (original GPT-2/GPT-3).
+
+```python
+import tiktoken
+
+enc = tiktoken.encoding_for_model("gpt-4o")   # or tiktoken.get_encoding("o200k_base")
+
+tokens = enc.encode("Tokenization is fun!")
+print(tokens)          # e.g. [3404, 2065, 374, 2523, 0]
+print(len(tokens))     # exact token count — what you'd actually be billed for
+
+print(enc.decode(tokens))              # "Tokenization is fun!" — round-trips exactly
+for t in tokens:
+    print(t, repr(enc.decode([t])))    # inspect each token's text
+```
+
+Gotchas: token boundaries don't follow word boundaries — a leading space usually fuses into
+the next token (`" is"` is one token, not `" "` + `"is"`); non-English text tokenizes less
+efficiently (more tokens per character), especially languages without spaces or with heavy
+Unicode; and this is OpenAI-specific — Claude uses a different vocabulary, so a tiktoken
+count is not a Claude token count and shouldn't be reused for Claude context/cost math.
