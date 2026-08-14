@@ -1,6 +1,9 @@
 # PyTorch Fundamentals: Companion Docs
 
-Four chapters, each paired with a section of [`../torch_hands_on.ipynb`](../torch_hands_on.ipynb).
+Four chapters, each paired with a section of
+[`../torch_hands_on_reference.ipynb`](../torch_hands_on_reference.ipynb) — and, where the
+same topic comes up, cross-linked from [`../pytorch_notes.ipynb`](../pytorch_notes.ipynb),
+the personal working-notes notebook.
 Same house style as
 [`mini-llms-playground/docs/llm-engineering/`](../../../mini-llms-playground/docs/llm-engineering/00_roadmap.md):
 **In Plain English** (a jargon-free first pass) → **The First-Principles Explanation**
@@ -24,10 +27,11 @@ backward → step) that trains every model in this workspace, from the tiny exam
 the from-scratch GPTs in
 [`mini-llms-playground/from_scratch/`](../../../mini-llms-playground/from_scratch/).
 
-## How to use this alongside the notebook
+## How to use this alongside the notebooks
 
-Work through `torch_hands_on.ipynb` top to bottom. Each notebook section has a short
+Work through `torch_hands_on_reference.ipynb` top to bottom. Each section has a short
 markdown intro and runnable cells; when a concept needs the full mechanism explanation
-(the math, the "why," the common misconceptions), the notebook links to the matching
-chapter here rather than repeating it inline — keeping the notebook itself lean and
-exploratory, and the deep explanation in one place you can return to later.
+(the math, the "why," the common misconceptions), it links to the matching chapter here
+rather than repeating it inline — keeping the notebook itself lean and exploratory, and
+the deep explanation in one place you can return to later. `pytorch_notes.ipynb` links
+here too, at the same points, since it covers largely the same ground in your own words.

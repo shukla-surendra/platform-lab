@@ -34,8 +34,10 @@ skill (see `../../.claude/skills/tech-log/SKILL.md`, at the repo root).
 - [Observability on EKS (overview)](observability-on-eks.md) — cross-cutting: Prometheus, Grafana, Loki, ELK/EFK, tracing, alerting, alternatives
 - [Observability Terminology (telemetry, tracing, cardinality)](observability-terminology.md) — cross-cutting: term definitions, origins, analogies, CloudWatch vocabulary mapping
 - [OpenTelemetry](tools/opentelemetry/README.md) — observability / monitoring (tracing, instrumentation standard)
+- [pandas](tools/pandas/README.md) — data manipulation / analysis (single-machine, in-memory)
 - [Prometheus](tools/prometheus/README.md) — observability / monitoring (Kubernetes/EKS)
 - [SigNoz](tools/signoz/README.md) — observability / monitoring (open-source, unified metrics+logs+traces)
+- [Apache Spark](tools/spark/README.md) — distributed data processing (batch + streaming)
 - [Splunk](tools/splunk/README.md) — observability / monitoring (commercial, logs/SIEM roots)
 - [Tempo](tools/tempo/README.md) — observability / monitoring (tracing)
 - [vLLM](tools/vllm/README.md) — LLM inference / serving

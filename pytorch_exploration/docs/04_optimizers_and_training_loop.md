@@ -2,7 +2,7 @@
 
 Part of the [PyTorch Fundamentals companion docs](README.md). Paired with the
 `# Optimizers and the Training Loop` section of
-[`../torch_hands_on.ipynb`](../torch_hands_on.ipynb). Builds on
+[`../torch_hands_on_reference.ipynb`](../torch_hands_on_reference.ipynb). Builds on
 [Chapters 2](02_autograd.md) and [3](03_nn_module_and_losses.md) — gradients
 (`.backward()`) plus a structured set of learnable parameters (`nn.Module`) are the two
 ingredients this chapter finally assembles into an actual training loop.

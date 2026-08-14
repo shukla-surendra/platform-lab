@@ -1,7 +1,7 @@
 # Autograd
 
 Part of the [PyTorch Fundamentals companion docs](README.md). Paired with the `# Autograd`
-section of [`../torch_hands_on.ipynb`](../torch_hands_on.ipynb). Builds on
+section of [`../torch_hands_on_reference.ipynb`](../torch_hands_on_reference.ipynb). Builds on
 [Chapter 1](01_tensors.md) — everything below is about what PyTorch does *with* tensors
 that have `requires_grad=True`.
 
@@ -109,7 +109,7 @@ forward (e.g., logging a loss value without keeping its graph alive in memory).
 
 ## Grounded in the Notebook
 
-The `# Autograd` section of `torch_hands_on.ipynb` runs every example above for real,
+The `# Autograd` section of `torch_hands_on_reference.ipynb` runs every example above for real,
 including deliberately triggering the leaf-in-place `RuntimeError` so it's seen once,
 directly, rather than only described.
 

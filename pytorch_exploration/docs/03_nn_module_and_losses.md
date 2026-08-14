@@ -2,7 +2,7 @@
 
 Part of the [PyTorch Fundamentals companion docs](README.md). Paired with the
 `# nn.Module and Losses` section of
-[`../torch_hands_on.ipynb`](../torch_hands_on.ipynb). Builds on
+[`../torch_hands_on_reference.ipynb`](../torch_hands_on_reference.ipynb). Builds on
 [Chapter 2](02_autograd.md) — a model's weights are exactly the leaf tensors autograd
 tracks; `nn.Module` is the organizing structure around them.
 

@@ -1,7 +1,7 @@
 # Tensors
 
 Part of the [PyTorch Fundamentals companion docs](README.md). Paired with the `# Tensors`
-section of [`../torch_hands_on.ipynb`](../torch_hands_on.ipynb).
+section of [`../torch_hands_on_reference.ipynb`](../torch_hands_on_reference.ipynb).
 
 ## In Plain English
 
@@ -100,7 +100,7 @@ all, since NumPy has no concept of GPU memory.
 
 ## Grounded in the Notebook
 
-The `# Tensors` section of `torch_hands_on.ipynb` runs every example above for real —
+The `# Tensors` section of `torch_hands_on_reference.ipynb` runs every example above for real —
 creation, the `view`-vs-`reshape` contiguity error (deliberately triggered, not just
 described), broadcasting shapes, and the shared-memory NumPy interop demo.
 
