@@ -11,6 +11,7 @@ skill (see `../../.claude/skills/tech-log/SKILL.md`, at the repo root).
 <!-- INDEX_START -->
 - [Airflow](tools/airflow/README.md) — workflow orchestrator (DAG scheduler and executor)
 - [Amazon CloudWatch](tools/cloudwatch/README.md) — observability / monitoring (AWS-native)
+- [Calculus for Engineers](calculus-for-engineers.md) — cross-cutting: differentiation (rate of change) and integration (accumulation) mapped onto monitoring (`rate()`/`increase()`), gradient descent, AUC metrics, cost/SLA burn
 - [ClickHouse](tools/clickhouse/README.md) — database (column-oriented OLAP)
 - [Databricks Lakehouse Monitoring](tools/databricks-lakehouse-monitoring/README.md) — ML monitoring / observability (Databricks-native)
 - [Datadog](tools/datadog/README.md) — observability / monitoring (commercial, all-in-one)
