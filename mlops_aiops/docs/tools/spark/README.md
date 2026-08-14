@@ -401,6 +401,15 @@ important detail — filtering after conversion would mean pulling the
 entire table onto the driver first and defeating the point of using Spark
 at all for that read.
 
+## Machine learning on Spark
+
+[`distributed-ml-with-mllib.md`](distributed-ml-with-mllib.md) covers `spark.ml`
+(MLlib) — the DataFrame-based ML API built on everything above: the `Pipeline`/`Transformer`/
+`Estimator` object model, how training actually distributes per-algorithm (linear models via
+distributed gradient sums, trees via distributed histogram split-finding, why exact k-NN and
+non-linear SVMs don't distribute well at all), and when Spark ML is the right call versus
+scikit-learn/XGBoost on a single machine.
+
 ## Relationship to other tools in this repo
 
 - **[pandas](../pandas/README.md)**: `.toPandas()` is the standard bridge
