@@ -88,6 +88,9 @@ nav:
       - "6. RAG Architecture": RAG_Knowledge_Base_Starter/06_RAG_Architecture.md
       - "7. Vector Search: Tools and Technology": RAG_Knowledge_Base_Starter/07_Vector_Search_Tools_and_Technology.md
       - "8. Interview Questions (100, with Answers)": RAG_Knowledge_Base_Starter/08_Interview_Questions.md
+  - Azure AI Search:
+      - Overview: Azure_AI_Search/index.md
+      - "1. Setup: Indexing PDFs from Blob Storage": Azure_AI_Search/01_setup_pdf_index_from_blob_storage.md
   - Databricks AI Architect:
       - Overview: Databricks_AI_Architect/index.md
       - "0. Platform Map & Naming": Databricks_AI_Architect/00-platform-map-and-naming.md

@@ -2,8 +2,9 @@
 
 Four chapters, each paired with a section of
 [`../torch_hands_on_reference.ipynb`](../torch_hands_on_reference.ipynb) — and, where the
-same topic comes up, cross-linked from [`../pytorch_notes.ipynb`](../pytorch_notes.ipynb),
-the personal working-notes notebook.
+same topic comes up, cross-linked from [`../pytorch_notes.ipynb`](../pytorch_notes.ipynb) /
+[`../pytorch_notes_part2.ipynb`](../pytorch_notes_part2.ipynb), the personal working-notes
+notebooks.
 Same house style as
 [`mini-llms-playground/docs/llm-engineering/`](../../../mini-llms-playground/docs/llm-engineering/00_roadmap.md):
 **In Plain English** (a jargon-free first pass) → **The First-Principles Explanation**
@@ -17,6 +18,10 @@ Misconceptions** → **Practice Questions** → **Key Terms**.
 | 2 | [Autograd](02_autograd.md) | `# Autograd` |
 | 3 | [`nn.Module` and Losses](03_nn_module_and_losses.md) | `# nn.Module and Losses` |
 | 4 | [Optimizers and the Training Loop](04_optimizers_and_training_loop.md) | `# Optimizers and the Training Loop` |
+
+**Supplemental notes** (not chapter-numbered, informal): [`softmax_argmax_max_logits_notes.md`](softmax_argmax_max_logits_notes.md) —
+`max` vs `argmax`, logits, and softmax, closest to chapter 3's territory
+(`CrossEntropyLoss` takes raw logits, not softmax output).
 
 ## Reading order
 
@@ -33,5 +38,6 @@ Work through `torch_hands_on_reference.ipynb` top to bottom. Each section has a 
 markdown intro and runnable cells; when a concept needs the full mechanism explanation
 (the math, the "why," the common misconceptions), it links to the matching chapter here
 rather than repeating it inline — keeping the notebook itself lean and exploratory, and
-the deep explanation in one place you can return to later. `pytorch_notes.ipynb` links
-here too, at the same points, since it covers largely the same ground in your own words.
+the deep explanation in one place you can return to later. `pytorch_notes.ipynb` /
+`pytorch_notes_part2.ipynb` link here too, at the same points, since together they cover
+largely the same ground in your own words.

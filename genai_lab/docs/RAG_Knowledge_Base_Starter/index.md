@@ -20,6 +20,11 @@ or jump straight to whichever concept you need.
 | 7 | [Vector Search: Tools and Technology](07_Vector_Search_Tools_and_Technology.md) | A reference map of embedding models, ANN algorithms, vector databases, and orchestration layers |
 | 8 | [Interview Questions (101, with Answers)](08_Interview_Questions.md) | Senior/staff-level Q&A on embeddings, similarity metrics, ANN algorithms, vector DB design, and RAG — with example code |
 
+Azure AI Search (Microsoft's managed search service — Index/Indexer/Skillset,
+why skillsets exist, and a full step-by-step PDF-from-Blob-Storage setup)
+outgrew a single chapter here and now has its own folder:
+[`Azure_AI_Search/`](../Azure_AI_Search/index.md).
+
 ## How this relates to the agent tutorial
 
 The [main tutorial](../index.md) covers agents that call **tools** ([Chapter 4](../04-tools-and-agents.md))

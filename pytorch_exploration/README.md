@@ -3,9 +3,11 @@
 A from-first-principles PyTorch tutorial: tensors → autograd → `nn.Module` → losses →
 optimizers → a full, minimal, real training loop. Three parts that stay in sync:
 
-- **[`pytorch_notes.ipynb`](pytorch_notes.ipynb)** — personal working notes: built up
-  live, in your own words, at your own pace — the primary place to actually learn by
-  doing.
+- **[`pytorch_notes.ipynb`](pytorch_notes.ipynb)** (Part 1: Tensors, Autograd, core tensor
+  ops) and **[`pytorch_notes_part2.ipynb`](pytorch_notes_part2.ipynb)** (Part 2: assembling
+  a batch with `cat`/`stack`, `nn.Module`, `Dataset`/`DataLoader`, the training loop, device
+  placement, saving/loading) — personal working notes: built up live, in your own words, at
+  your own pace — the primary place to actually learn by doing.
 - **[`torch_hands_on_reference.ipynb`](torch_hands_on_reference.ipynb)** — a complete
   reference run-through (Tensors → Autograd → `nn.Module`/Losses → Optimizers/Training
   Loop), companion to `docs/`, useful to compare against or pull from when extending your
@@ -38,12 +40,14 @@ uv run jupyter lab   # opens pytorch_notes.ipynb
 ```
 
 Read [`docs/README.md`](docs/README.md) for the reading order, then work through
-`pytorch_notes.ipynb` — each section links to its docs chapter (and, where useful, to
-`torch_hands_on_reference.ipynb`) at the point where a concept needs the full explanation.
+`pytorch_notes.ipynb` followed by `pytorch_notes_part2.ipynb` — each section links to its
+docs chapter (and, where useful, to `torch_hands_on_reference.ipynb`) at the point where a
+concept needs the full explanation.
 
 ## What's here
 
-- `pytorch_notes.ipynb` — personal working notes, actively evolving.
+- `pytorch_notes.ipynb` / `pytorch_notes_part2.ipynb` — personal working notes, actively
+  evolving, split in two so each notebook stays a manageable size.
 - `torch_hands_on_reference.ipynb` — a complete, executed reference notebook (Tensors →
   Autograd → `nn.Module`/Losses → Optimizers/Training Loop).
 - `docs/` — first-principles companion chapters, one per topic.

@@ -22,6 +22,7 @@ skill (see `../../.claude/skills/tech-log/SKILL.md`, at the repo root).
 - [Jaeger](tools/jaeger/README.md) — observability / monitoring (tracing)
 - [Kafka](tools/kafka/README.md) — distributed event streaming platform (partitioned commit log)
 - [LGTM Stack](tools/lgtm-stack/README.md) — observability / monitoring (open-source stack, unified metrics+logs+traces)
+- [Linux & Shell Scripting](tools/linux-shell-scripting/README.md) — operating system / command-line automation (Bash)
 - [LocalStack](tools/localstack/README.md) — local cloud emulator (AWS, self-hosted/CI)
 - [Loki](tools/loki/README.md) — observability / monitoring (Kubernetes/EKS)
 - [Microservices](tools/microservices/README.md) — distributed systems architecture pattern (production failure modes and operations, not a single tool)
