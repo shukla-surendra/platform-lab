@@ -117,3 +117,95 @@ the next token (`" is"` is one token, not `" "` + `"is"`); non-English text toke
 efficiently (more tokens per character), especially languages without spaces or with heavy
 Unicode; and this is OpenAI-specific — Claude uses a different vocabulary, so a tiktoken
 count is not a Claude token count and shouldn't be reused for Claude context/cost math.
+
+### Chinchilla-optimal training budget
+
+Think of it like a student and a textbook: a huge textbook (lots of parameters) is wasted on
+someone who only skims a few pages (few training tokens) before the exam — but re-reading a
+thin pamphlet a thousand times also caps how much they can actually learn. For a fixed amount
+of study effort, there's a sweet spot between "book size" and "how much you actually read,"
+and it's not automatically at either extreme.
+
+Mechanism: DeepMind's 2022 Chinchilla paper (Hoffmann et al., *"Training Compute-Optimal Large
+Language Models"*) trained hundreds of models at different (parameter count, token count)
+pairs under matched compute budgets and fit power-law curves to how loss falls as each scales.
+The finding: earlier LLMs (GPT-3, Gopher, ...) were **over-parameterized and under-trained** —
+for a fixed compute budget, loss drops further by training a *smaller* model on *more* tokens
+than by training a bigger model on the same fixed data. The empirical optimum lands close to
+**~20 training tokens per parameter** (this falls out of the compute identity
+`FLOPs ≈ 6 × params × tokens` for one forward+backward pass per token).
+
+`tokens_optimal ≈ 20 × params`
+
+Concrete check, `mini-llms-playground/from_scratch/custom-gpt-50m`: 51,475,968 params →
+~1.03B tokens optimal. That project's `TrainConfig.steps=1_000_000` × `context_length=1024` ×
+`batch_size=1` = 1.024B tokens processed over a full run — landing almost exactly on the
+Chinchilla number, which is why that step count is a deliberate, well-sized default rather
+than an arbitrary round number.
+
+Production reality / failure modes:
+- The token count is assumed **unique/fresh**. Hitting the target by repeating a small corpus
+  for many epochs is a weaker substitute — fine for a few epochs while the model is still
+  data-underfit (small model, comparatively large corpus), but the Chinchilla math itself
+  doesn't hold once repetition dominates and overfitting risk climbs.
+- The ~20:1 ratio was fit on one corpus (MassiveText) and one architecture family — it's a
+  strong prior, not a physical law. Production labs deviate from it on purpose: Chinchilla
+  optimizes for lowest loss per unit of *training* compute, and says nothing about *inference*
+  cost. A smaller model deliberately **overtrained** well past its Chinchilla-optimal point
+  (more tokens per parameter than 20:1) costs more to train but is cheaper to serve at scale —
+  exactly the trade Llama and most later open-weight model families made once inference volume,
+  not training FLOPs, became the dominant cost.
+
+### Distributed data-parallel training (splitting one training run across machines)
+
+Two people cramming for the same exam by splitting the flashcard deck between them, each
+going through their own half independently, then meeting up periodically to compare notes and
+make sure they both end up knowing the same material — instead of one person going through the
+whole deck alone.
+
+Mechanism: **data parallelism** copies the identical model onto every worker, gives each worker
+a different slice of the batch to compute gradients on, then **all-reduces** (averages) those
+gradients across all workers before anyone applies an optimizer step — so every replica stays
+bit-identical after each update, but the gradient-computation work was split. (This is a
+different technique from *model/tensor* parallelism — splitting one model's layers or weights
+across machines because it doesn't fit on one device — which solves a memory problem, not a
+throughput one.) PyTorch's implementation is `torch.distributed` +
+`DistributedDataParallel`(DDP), over one of three backends: `nccl` (NVIDIA GPUs only), `gloo`
+(CPU, plain TCP, cross-platform), or `mpi`. Two Macs, no NVIDIA GPU anywhere → `gloo` is the
+only real option, and MPS tensors have to be moved to CPU for the collective `all_reduce` call
+and back, since gloo doesn't operate on MPS tensors directly.
+
+Grounding example — `mini-llms-playground/from_scratch/custom-gpt-50m`, asked in a real session
+whether its ~2-day single-Mac training run could be split across two MacBooks:
+`TrainConfig.grad_accum_steps=32` already accumulates gradients over 32 micro-batches before
+`optimizer.step()` fires once (`src/gpt/training/trainer.py`'s `is_accum_boundary` check) —
+that existing accumulation boundary is exactly where an all-reduce belongs if this were made
+distributed: each machine processes its own share of the 32 micro-batches with zero
+communication, then one `all_reduce` averages the accumulated gradients right before the shared
+optimizer step. Communication amortizes over 32 steps, not every single step — the reason this
+particular codebase's structure is a reasonably good fit for it, network-overhead-wise, even
+though it has zero distributed code today.
+
+What building it would actually take (checklist, not yet implemented anywhere in that repo):
+1. `torch.distributed.init_process_group(backend="gloo", ...)` on both machines, one designated
+   rank 0, both reachable on the same LAN/Wi-Fi with a shared rendezvous address:port.
+2. At the existing `is_accum_boundary` check, replace the direct `optimizer.step()` with a
+   `dist.all_reduce` on each parameter's `.grad` (divided by world_size) before stepping.
+3. Only rank 0 should run `estimate_loss`/eval, write checkpoints, and print progress — otherwise
+   both machines duplicate all of it redundantly.
+4. A **live single-process run can't be split mid-flight** — it has to stop and resume from a
+   checkpoint (e.g. `checkpoints/50m/latest.pt`) on both machines under the new distributed
+   launch, not be migrated in place.
+5. No dataset sharding is actually needed: `get_batch()` already samples random windows
+   independently per call, so each rank just samples its own random windows from an identical
+   local copy of `train.txt`/`test.txt`.
+
+Production reality / gotchas:
+- Realistic speedup for 2 workers is well under the naive 2x — sync overhead, plus mismatched
+  machines (different M-series generations/speeds) mean every all-reduce waits for the slowest
+  worker.
+- gloo's collective calls block/hang by default if one machine drops off the network mid-sync —
+  needs an explicit timeout configured, or a stalled worker silently stalls the whole run.
+- This buys wall-clock speed, not a better model — total tokens processed is unchanged either
+  way, so it doesn't move the Chinchilla-optimal token math above at all, just splits the same
+  budget across two machines instead of running it serially on one.
