@@ -11,7 +11,8 @@ that first introduced it. Each entry links back to the chapter with the full exp
 
 | Command | What it shows | Chapter |
 |---|---|---|
-| `nvidia-smi` | Coarse GPU utilization %, memory used, power, temperature | [`03_gpu_architecture.md`](phase2_gpu_fundamentals/03_gpu_architecture.md#reading-nvidia-smi-and-nvidia-smi-topo-m-against-this-model) |
+| `nvidia-smi` | Coarse GPU utilization %, memory used, power, temperature — single point-in-time snapshot | [`03_gpu_architecture.md`](phase2_gpu_fundamentals/03_gpu_architecture.md#reading-nvidia-smi-and-nvidia-smi-topo-m-against-this-model) |
+| `nvidia-smi dmon -s pucvmet` | Same metrics as `nvidia-smi`, but streamed continuously — watch behavior over the life of a job instead of one instant | [`25_single_gpu_instance_selection_g5_g6.md`](phase6_production_operations/25_single_gpu_instance_selection_g5_g6.md#nvidia-smi-dmon--the-streaming-monitor-not-just-a-snapshot) |
 | `nvidia-smi topo -m` | Interconnect matrix — NVLink vs. PCIe vs. NUMA-crossing, per GPU pair | [`03`](phase2_gpu_fundamentals/03_gpu_architecture.md), [`05_nvlink_nvswitch_topology.md`](phase2_gpu_fundamentals/05_nvlink_nvswitch_topology.md#reading-real-topology-nvidia-smi-topo-m-in-detail) |
 | DCGM `DCGM_FI_DEV_GPU_UTIL` / `DCGM_FI_PROF_SM_ACTIVE` | SM utilization, more precisely than `nvidia-smi` alone | [`17_observability_for_gpu_fleets.md`](phase6_production_operations/17_observability_for_gpu_fleets.md#the-metric-catalog-organized-by-what-it-catches) |
 | DCGM `DCGM_FI_PROF_DRAM_ACTIVE` | HBM bandwidth utilization — **must be read alongside SM utilization**, never alone, to distinguish compute-bound from memory-bound | [`17`](phase6_production_operations/17_observability_for_gpu_fleets.md) |
@@ -40,6 +41,7 @@ that first introduced it. Each entry links back to the chapter with the full exp
 
 | Command | What it shows | Chapter |
 |---|---|---|
+| `nvidia-smi` ("command not found"?) | Whether a driver is installed **at all** — depends on AMI choice (DLAMI/Marketplace ship one pre-installed, a stock OS AMI doesn't), not the instance type | [`25_single_gpu_instance_selection_g5_g6.md`](phase6_production_operations/25_single_gpu_instance_selection_g5_g6.md#ami-choice-determines-whether-nvidia-smi-works-at-boot--not-the-instance-type) |
 | `nvidia-smi` (top-right corner) | Maximum CUDA version the installed **driver** supports | [`04_cuda_ecosystem.md`](phase2_gpu_fundamentals/04_cuda_ecosystem.md#driver-vs-toolkit-the-version-rule-that-prevents-the-most-common-failure) |
 | `nvcc --version` | Actually-installed CUDA **toolkit** version — a separate number from the driver's ceiling | [`04`](phase2_gpu_fundamentals/04_cuda_ecosystem.md) |
 

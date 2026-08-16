@@ -79,6 +79,106 @@ small/one-off topics stay here until they do.
 
 New standalone topics get added here directly.
 
+### RAG chunking strategies and knowledge staleness
+
+Chunking exists because an embedding model compresses a block of text into one fixed-size
+vector — too big a chunk and the vector blurs several ideas together (fuzzy retrieval); too
+small and a chunk loses the context it needs to make sense on its own (a pronoun or referent
+with nothing to point to). Every chunking strategy is a tradeoff knob between those two
+failure modes.
+
+In roughly increasing sophistication: fixed-size/sliding-window splitting with ~10-20%
+overlap (cheap, ignores structure); recursive splitting that tries paragraph breaks, then
+sentences, then words until a size target is hit; semantic chunking, walking sentence by
+sentence and starting a new chunk when embedding similarity to the running chunk drops below
+a threshold, which keeps topically coherent text together; structure-aware chunking that
+splits on document structure itself (headers, tables, code blocks) so a table row or function
+body never gets cut across two chunks; parent-child (small-to-big) retrieval, where small
+chunks are indexed for precise vector matching but each points to a larger parent section
+that's what actually gets sent to the LLM, solving "small chunk retrieves precisely but lacks
+context" vs. "big chunk has context but retrieves imprecisely"; and late chunking (2024/2025),
+which embeds the *whole document* first with a long-context embedding model and only slices
+the resulting token embeddings afterward — because attention ran over the full document before
+slicing, a chunk keeps context for pronouns/referents that plain pre-chunking would lose.
+Production default most teams converge on: structure-aware recursive splitting at ~256-512
+tokens with ~10-15% overlap, each chunk metadata-tagged with source/section/timestamp/version,
+plus parent-document retrieval when answers need broader context.
+
+Knowledge staleness is two separate mechanisms with different fixes, and the model itself
+solves neither on its own. Parametric knowledge (baked into weights at training time) has no
+internal clock or versioning — whatever the model saw during training is just "true" to it,
+with no flag for "this may have changed since." The mild "as of my last update..." hedge in
+newer models is a learned RLHF response pattern, not the model actually knowing what changed.
+Retrieved knowledge (RAG context injected at inference) is where staleness is actually
+solvable, but entirely in the pipeline, not the model: metadata at ingestion (created_at/
+updated_at/version/status stored alongside the vector, not inside it), retrieval-time
+filtering (the vector DB query excludes or downranks deprecated/superseded chunks before the
+LLM ever sees them), recency-weighted ranking (blending semantic similarity with a time-decay
+factor), superseding logic (a re-ingested doc marks the old chunk `replaced_by` the new one, so
+retrieval never serves both and hands the model contradictory context), explicit "as of"
+prompting (system prompt states today's date and which source wins on conflict — this only
+works because the pipeline handed that fact to the model in-context), and freshness pipelines
+(scheduled re-crawl or change-data-capture from the source system so the index doesn't rot).
+The mental model: staleness detection is a retrieval-pipeline responsibility, not a model
+capability — RAG exists to convert "hope the frozen weights are still right" into "look up
+current truth every time."
+
+### Pretraining/fine-tuning data chunking (packing) — distinct from RAG chunking above
+
+This is a different problem from RAG chunking despite the shared word: not preserving
+semantic coherence per chunk, but packing variable-length documents into fixed-length
+training sequences for GPU efficiency. Training batches need uniform tensor shapes, but real
+documents range from a 20-token tweet to a 200k-token book. Padding every document to the
+context length wastes enormous compute (a 50-token doc padded to 4096 wastes ~98% of that
+sequence). The standard fix, used by GPT-3, LLaMA, Pythia, OLMo and effectively every
+production pretraining pipeline, is packing: concatenate many documents back-to-back into
+one long token stream with a special `<EOS>`/`<|endoftext|>` token between them, then slice
+the stream into fixed-length chunks with no regard for document boundaries. A single
+training sequence can legitimately contain the tail of one document, an EOS token, then the
+start of an unrelated one — the model isn't asked to reason coherently across the window,
+it's doing next-token prediction everywhere, and EOS itself is a training signal for "content
+changed here."
+
+Nuance that's a real architecture decision, not a detail: naive packing lets a token attend
+backward across the EOS boundary into the previous unrelated document (attention leakage).
+More careful pipelines (LLaMA and most modern ones) apply document-level attention masking
+inside the packed sequence so a token can only attend to earlier tokens from its own
+document.
+
+Pipeline order: exact/near-duplicate deduplication at the document level (MinHash/LSH,
+suffix-array methods — skipping this causes memorization and wastes compute) happens before
+tokenization (BPE/SentencePiece/tiktoken — chunking operates on token counts, not
+characters), which happens before packing. Different sources (web, code, books, Wikipedia)
+get different sampling/repetition weights at the dataset level (the data mixture), not the
+chunk level. Many runs also use a sequence-length curriculum — shorter sequences early for
+cheaper/faster training, then a dedicated later-stage long-context extension phase on longer
+documents to reach the advertised 32k-128k context window, rather than that being baked in
+from the start. Fine-tuning/SFT packing adds one more wrinkle: instruction examples packed
+together are usually loss-masked, so the loss for one example's tokens isn't computed over
+an unrelated example sharing the same packed sequence.
+
+**Training-time knowledge staleness is a genuinely unsolved gap, not a handled case.**
+Pretraining is next-token prediction over a mixture of text from many time periods with old
+and new versions of facts co-mingled — there is no conflict-resolution step. What the model
+ends up confidently predicting is driven by frequency in the training distribution, not
+recency: if an old API was documented on 50,000 pages and the new one on 500 recent ones, the
+old pattern wins by sheer statistical weight even though it's wrong now — this is the actual
+mechanism behind confidently-outdated answers, not a reasoning failure the model could
+correct. Some research pipelines experiment with prepending temporal metadata (source date,
+"as of" tags) to documents so the model can weakly associate facts with a timeframe, but this
+isn't universal across major labs. The corpus itself has a natural snapshot date (e.g. a
+Common Crawl cutoff) which becomes the model's training cutoff — a hard dataset-level
+boundary, not a per-fact recency signal the model reasons over. Fixing staleness at the
+weights level is what continual/incremental pretraining (continue training on a fresher
+snapshot so new patterns statistically overwhelm old ones) and research-stage knowledge
+editing (ROME, MEMIT — surgically editing specific weight subsets for one fact) attempt;
+continual pretraining risks catastrophic forgetting of still-valid older knowledge, and
+direct weight editing is too fragile at production scale today. This is exactly why RAG and
+tool-use/web-search grounding exist as a separate layer: pretraining has no mechanism to
+*know* recency, only to reflect how heavily something was documented, so the practical fix
+isn't making the model understand time — it's not relying on frozen weights for
+time-sensitive facts at all.
+
 ### tiktoken (OpenAI's BPE tokenizer)
 
 LLMs don't read text as words or characters — they read a sequence of integers called
@@ -209,3 +309,125 @@ Production reality / gotchas:
 - This buys wall-clock speed, not a better model — total tokens processed is unchanged either
   way, so it doesn't move the Chinchilla-optimal token math above at all, just splits the same
   budget across two machines instead of running it serially on one.
+
+### Q/K/V projection (turning a token embedding into something attention can use)
+
+A token's raw embedding is one vector — using it directly for attention would mean "what I'm
+looking for" and "what I contain" are forced to be the same thing, so a token could only ever
+attend to things identical to itself. Q/K/V splits that single vector into three separately
+**learned** views: a **Query** ("what am I looking for"), a **Key** ("what do I offer, for
+matching purposes"), and a **Value** ("what do I actually hand over once matched"). Letting the
+model learn these independently is what makes "how a token gets matched" different from "what
+it contributes" — the actual point of having three vectors instead of one.
+
+Mechanism, once Q/K/V exist: `scores = Q · Kᵀ / √head_dim` (every query compared against every
+key) → softmax (scores become weights summing to 1) → weighted sum of `V`. That weighted sum
+*is* attention's output — nothing more mysterious underneath it.
+
+"Projection" is just the mechanism for getting from embedding to Q/K/V: a learned linear layer
+(matrix multiply), not a metaphor.
+
+Grounding example — `mini-llms-playground/from_scratch/custom-gpt-50m/src/gpt/model.py:51-89`,
+the `sdpa` attention path:
+
+```python
+self.in_proj = nn.Linear(embed_size, 3 * embed_size, bias=True)   # ONE fused matmul
+...
+qkv = self.in_proj(x)                                              # (batch, seq_len, 3*embed_size)
+q, k, v = qkv.chunk(3, dim=-1)                                      # split back into three
+q = q.view(batch, seq_len, num_heads, head_dim).transpose(1, 2)    # ...and k, v identically
+```
+
+Two things this file's own comments call out that are worth remembering:
+
+- **One `Linear(embed_size, 3*embed_size)`, not three separate `Linear(embed_size, embed_size)`
+  layers.** Mathematically identical to projecting Q, K, V separately — one bigger matmul is
+  just faster on a GPU than three smaller ones. Same trick `nn.MultiheadAttention` uses
+  internally under the hood (this codebase's `naive` attn_impl path uses that module directly,
+  so the projection is hidden inside it rather than written out by hand).
+- **The reshape to `(batch, num_heads, seq_len, head_dim)`** is what makes this *multi-head*
+  attention: `embed_size` gets split into `num_heads` independent, smaller Q/K/V subspaces
+  (`head_dim = embed_size // num_heads` each), each running its own attention computation in
+  parallel — letting different heads specialize in attending to different kinds of relationships
+  between tokens.
+- `F.scaled_dot_product_attention` (PyTorch's fused/flash-eligible kernel) is a pure *attention
+  kernel*, not a layer — it expects already-projected per-head Q/K/V tensors as input, which is
+  exactly why this codebase's `sdpa` path has to do the projection manually before calling it,
+  unlike the `naive` path where `nn.MultiheadAttention` bundles projection and attention
+  together into one module call.
+
+### SLM training cost/hardware tiers (what rig a given model size actually needs)
+
+Picking hardware to train a small model is like picking transport for a trip by distance: a
+short hop is free (walk/bus), a longer one needs a car you pay for by the hour, and crossing a
+continent needs a rented truck — the "vehicle" here is GPU VRAM and throughput, and the "trip
+length" is params × tokens.
+
+Mechanism — two separate things scale with param count, and both drive the table below:
+- **Memory (does it fit at all):** VRAM has to hold weights + gradients + optimizer state +
+  activations. Adam keeps two extra fp32 moment buffers per parameter, so full fp32 training
+  needs roughly ~16 bytes/param (4 for weights, 4 for grads, 8 for Adam's two moments) before
+  activations are even counted — mixed precision (fp16/bf16) roughly halves the weights/grads
+  portion. This is why a 10M-param model runs on whatever Colab Free hands out, but a 1B-param
+  model needs a GPU with tens of GB of VRAM just to hold the optimizer state, independent of
+  how fast that GPU is.
+- **Compute (how long it takes):** training FLOPs scale roughly as `6 × params × tokens`
+  (the same relation behind Chinchilla scaling). For a fixed token budget, more params means
+  proportionally more FLOPs, and wall-clock time is that FLOP count divided by the GPU's
+  actual throughput — which is why the jump from 125M→350M costs minutes→hours even before
+  moving to better hardware.
+
+| Hardware | Model size | Training time | Cost |
+|---|---|---|---|
+| Google Colab Free | 10M params | 1 hour | $0 |
+| Google Colab Free | 125M params | 10 minutes | $0 |
+| Google Colab Pro ($10/mo) | 350M params | 4-8 hours | $10/month |
+| Cloud A100 | 1B params | 8-16 hours | $8-48 per run |
+| RTX 4090 (local) | 1B-3B params | 12-24 hours | $15-30 electricity |
+
+Why the tiers break where they do:
+- **Colab Free caps near 125M** not because the GPU (usually a T4, ~16GB VRAM) is purely
+  compute-bound, but because free-tier sessions get disconnected/reclaimed after a few hours —
+  anything that wouldn't finish inside that window effectively can't be trained there at all,
+  regardless of whether the weights would fit.
+- **A100 shows up at 1B** because that's roughly where Adam's optimizer-state overhead outgrows
+  consumer VRAM (a 24GB card) at fp32/mixed precision without aggressive tricks (gradient
+  checkpointing, 8-bit optimizers, LoRA) — A100's 40-80GB HBM plus much higher memory bandwidth
+  removes that ceiling.
+- **Cost = ($/hr for the GPU) × (training hours)**, and training hours is itself
+  `FLOPs needed ÷ GPU throughput` — so the $8-48/run range isn't arbitrary, it's spot/on-demand
+  A100 pricing (~$1-3/hr) multiplied by the 8-16 hour estimate above.
+- **RTX 4090 (24GB) lands in the same param range as A100** but takes longer per run — a
+  desktop card trades throughput for the fact that there's no cloud meter running, so the
+  "cost" is electricity, not $/hr billing, and there's no forced session timeout pushing the
+  model size back down the way Colab Free's does.
+
+Production reality / gotchas:
+- These are **instructional/demo runs**, not compute-optimal pretraining — they use a small,
+  fixed token budget to get *a* trained model in a reasonable time, not the ~20 tokens/param
+  Chinchilla-optimal budget a real base model would need. A "real" 1B model trained
+  compute-optimally would need far more tokens (and therefore far more of the FLOPs term above)
+  than what fits in an 8-16 hour A100 run.
+- The same param count can straddle two rows depending on technique — LoRA/QLoRA or 8-bit
+  Adam can shrink the *fine-tuning* memory footprint enough to fine-tune a model on hardware
+  that couldn't have pretrained it from scratch, so "what hardware do I need" depends on
+  training-from-scratch vs. fine-tuning, not just param count alone.
+
+**Translating a book's table row to hardware it didn't name — worked example (L4 for the
+350M/Colab-Pro row):** the table names a price tier ("Colab Pro, $10/mo"), not a GPU model, so
+plugging in an actual GPU means comparing specs, not reading the row literally.
+- **Peak Tensor Core FLOPS:** L4 (Ada Lovelace) ≈ 121 TFLOPS FP16/BF16 dense — essentially tied
+  with V100's ≈125 TFLOPS, which is the GPU class Colab Pro's $10/mo tier has historically
+  meant (Pro+ is the tier that adds A100 access). Peak-FLOPS parity alone would suggest L4
+  lands close to the book's 4-8h.
+- **Memory bandwidth is where they diverge:** V100 has 900 GB/s (HBM2); L4 has only 300 GB/s
+  (GDDR6) — a 3x gap. At 350M-param scale, plenty of the training step (attention softmax,
+  layernorm, elementwise ops) is memory-bandwidth-bound rather than matmul-bound, especially at
+  the small batch sizes Colab's VRAM forces — so FLOPS parity with V100 doesn't translate into
+  time parity when the bottleneck is bandwidth.
+- **Resulting estimate:** slower than the V100-based 4-8h, faster than T4 (65 TFLOPS, similar
+  ~320 GB/s bandwidth to L4 but far less compute) → roughly **6-14 hours** for 350M params on
+  L4, with the exact figure depending on batch size: larger batch pushes it toward
+  compute-bound (closer to 4-8h), smaller batch pushes it toward bandwidth-bound (toward the
+  wider end). The honest answer is "depends which bottleneck the batch size hits," not a single
+  number — the book's table hides that by only naming a price tier.

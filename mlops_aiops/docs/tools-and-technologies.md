@@ -37,6 +37,7 @@ skill (see `../../.claude/skills/tech-log/SKILL.md`, at the repo root).
 - [MLOps, AIOps, LLMOps (definitions & origins)](mlops-aiops-llmops.md) — cross-cutting: what each discipline is, who defines it, where they overlap
 - [New Relic](tools/new-relic/README.md) — observability / monitoring (commercial, all-in-one)
 - [NumPy](tools/numpy/README.md) — numerical computing (array/memory foundation of the Python ML stack)
+- [NVIDIA Training GPUs (T4/V100/L4/A100)](tools/nvidia-training-gpus/README.md) — hardware (accelerator selection for model training/fine-tuning)
 - [Observability on EKS (overview)](observability-on-eks.md) — cross-cutting: Prometheus, Grafana, Loki, ELK/EFK, tracing, alerting, alternatives
 - [Observability Terminology (telemetry, tracing, cardinality)](observability-terminology.md) — cross-cutting: term definitions, origins, analogies, CloudWatch vocabulary mapping
 - [OpenTelemetry](tools/opentelemetry/README.md) — observability / monitoring (tracing, instrumentation standard)

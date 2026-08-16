@@ -85,6 +85,70 @@ circuitry. **No instance size in either the `g5` or `g6` family supports MIG** �
 isn't a smaller/cheaper-tier restriction, it's a fact about which chips exist on which
 die, and it directly shapes the sharing options covered below.
 
+### AMI choice determines whether `nvidia-smi` works at boot — not the instance type
+
+`nvidia-smi` ships with the NVIDIA **driver** package, not with the GPU hardware and not
+with the `g5`/`g6` instance family itself — picking a GPU instance type says nothing about
+whether the AMI you boot on it has a driver installed. Concretely:
+
+- **AWS Deep Learning AMI (DLAMI)** — both the GPU "Base" variant and the framework-specific
+  ones (PyTorch DLAMI, etc.) — ships with the NVIDIA driver, CUDA toolkit, and `nvidia-smi`
+  pre-installed and working immediately at boot. This is the standard recommendation
+  specifically to skip the driver-bootstrap step, especially for a first GPU session.
+- **NVIDIA GPU-Optimized AMI** (AWS Marketplace, published by NVIDIA) — also ships drivers
+  pre-installed, sometimes a more current driver version than AWS's own DLAMI.
+- **EKS/ECS GPU-optimized AMIs** — also pre-installed, since the Kubernetes device plugin and
+  ECS GPU support both depend on a working driver already being present.
+- **A stock/generic Ubuntu Server AMI or Amazon Linux 2023 AMI** on a `g5`/`g6` instance —
+  **no driver pre-installed**, even though the GPU hardware is physically there. `nvidia-smi`
+  returns "command not found" until a driver is installed manually (`ubuntu-drivers
+  autoinstall`, NVIDIA's official `.run` installer, or AWS's own GPU driver installation
+  guide).
+
+**The practical rule**: pick a GPU-ready AMI (DLAMI or the NVIDIA Marketplace AMI) to skip
+driver bootstrap entirely, unless there's a specific reason to control the driver version by
+hand.
+
+### First-boot verification checklist
+
+Three commands worth running immediately after first SSH-ing into a freshly provisioned
+`g5`/`g6` instance, before trusting it for any real work:
+
+1. **`nvidia-smi`** — confirms the driver actually loaded, and shows the maximum CUDA
+   version the installed driver supports (top-right of the header) — see
+   [`04_cuda_ecosystem.md`'s driver-vs-toolkit distinction](../phase2_gpu_fundamentals/04_cuda_ecosystem.md#driver-vs-toolkit-the-version-rule-that-prevents-the-most-common-failure)
+   for why that number and `nvcc --version`'s number are not the same thing and don't have
+   to match exactly.
+2. **`nvidia-smi -q`** once — the full field dump, worth reading cold at least once rather
+   than only ever looking at the summary table: ECC error counts, throttle reasons, PCIe
+   link width/generation.
+3. **`nvcc --version`** — only if the workload compiles CUDA code directly rather than using
+   a framework's prebuilt CUDA wheels (PyTorch's GPU wheel bundles its own CUDA runtime and
+   doesn't need a system-wide toolkit install to run).
+
+### `nvidia-smi dmon` — the streaming monitor, not just a snapshot
+
+Plain `nvidia-smi` prints one point-in-time snapshot. `nvidia-smi dmon` (device monitor)
+streams continuously updating rows instead — what you actually want while a training or
+inference job is running, to watch behavior change over time rather than checking a single
+instant repeatedly. The `-s` flag selects metric groups by a string of one-letter codes:
+
+| Code | Metric group |
+|---|---|
+| `p` | Power usage and temperature |
+| `u` | Utilization |
+| `c` | SM/memory clocks |
+| `v` | Power/thermal violations |
+| `m` | Frame-buffer + BAR1 memory usage |
+| `e` | ECC errors + PCIe replay errors |
+| `t` | PCIe RX/TX throughput |
+
+`nvidia-smi dmon -s pucvmet` streams all seven groups together, one refreshed row per
+interval. **Verify this against `nvidia-smi dmon --help` on the actual instance before
+relying on it in a real session** — the exact supported codes can shift slightly across
+driver versions, so treat the table above as a starting point to confirm live, not
+unchanging gospel.
+
 ## Deep-Dive: parallelization options, and why flagship-instance TP assumptions break
 
 "Parallelize" splits into two genuinely different questions at this instance size:
@@ -165,6 +229,10 @@ guarantee MIG would on A100/H100-class hardware.
 - **Reaching for MIG as a sharing option on this hardware** — it doesn't exist on either
   die family; the only real options are MPS and time-slicing, both without hardware
   isolation.
+- **Booting a stock OS AMI on a `g5`/`g6` instance and being confused when `nvidia-smi`
+  isn't found** — the instance has the GPU hardware; it just has no driver installed yet.
+  This reads like a hardware or provisioning failure but is actually an AMI-choice mistake —
+  a DLAMI or NVIDIA Marketplace AMI would have had the driver ready at boot.
 
 ## Make It Yours
 
@@ -197,14 +265,28 @@ than flagship instances, and 24GB caps model+KV-cache size directly. Scaling up 
 multi-GPU variants doesn't get you NVSwitch-class tensor parallelism — it's PCIe-only,
 with a real throughput cost — so scaling out with independent replicas is usually the
 better fit, and GPU sharing has to fall back to MPS or Kubernetes time-slicing since MIG
-isn't available on this hardware at all."
+isn't available on this hardware at all. And picking the instance is only half the
+provisioning decision — the AMI is the other half, since `nvidia-smi` comes from the
+driver, not the GPU: a DLAMI or NVIDIA Marketplace AMI has it working at boot, a stock
+Ubuntu/Amazon Linux AMI doesn't, and that gap looks exactly like a hardware problem the
+first time someone hits it."
 
 **The follow-up-proof version**: be ready to name the specific die (GA102/AD104 vs.
 GA100/GH100) as the root cause of the NVLink/MIG gap, rather than describing it as a
 generic "smaller instance" limitation — this is what shows the reasoning is grounded in
-real hardware facts, not a memorized instance-comparison table.
+real hardware facts, not a memorized instance-comparison table. On the provisioning side,
+be ready to say *why* DLAMI avoids the driver-bootstrap problem (driver ships pre-installed
+and version-matched to the AMI's bundled CUDA toolkit) rather than just naming it as "the
+easy option" — and be able to name the actual verification commands (`nvidia-smi`,
+`nvidia-smi -q`, `nvcc --version`) rather than gesturing at "checking if it works."
 
 **Vocabulary builder**: *compute die vs. gaming/prosumer die* (the actual silicon-level
 distinction behind which features a given GPU SKU supports), *GDDR6 vs. HBM* (a real
 bandwidth-tier difference, not just a naming difference), *MPS* (CUDA's concurrent
-multi-process sharing mechanism, distinct from both MIG and time-slicing).
+multi-process sharing mechanism, distinct from both MIG and time-slicing), *driver vs.
+toolkit* (the driver is what makes `nvidia-smi` work and sets the CUDA-version ceiling;
+the toolkit — `nvcc` — is a separate, optional install for compiling CUDA code directly),
+*snapshot vs. streaming monitor* (`nvidia-smi`'s single point-in-time read vs. `nvidia-smi
+dmon`'s continuously updating rows — reach for `dmon` specifically when watching a live
+job's behavior over time, not just checking current state once).
+
