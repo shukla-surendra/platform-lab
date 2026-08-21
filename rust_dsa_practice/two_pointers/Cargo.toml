@@ -1,0 +1,26 @@
+[package]
+name = "two_pointers"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "001_3sum"
+path = "src/bin/001_3sum.rs"
+
+[[bin]]
+name = "002_container_with_most_water"
+path = "src/bin/002_container_with_most_water.rs"
+
+[[bin]]
+name = "003_valid_palindrome"
+path = "src/bin/003_valid_palindrome.rs"
+
+[[bin]]
+name = "004_remove_duplicates_sorted_array"
+path = "src/bin/004_remove_duplicates_sorted_array.rs"
+
+[[bin]]
+name = "005_trapping_rain_water"
+path = "src/bin/005_trapping_rain_water.rs"
+
+[dependencies]
