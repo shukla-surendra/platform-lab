@@ -58,6 +58,10 @@ nav:
       - Cluster Inventory & Cleanup: cluster-inventory-and-cleanup.md
       - Grafana Dashboard Provisioning: grafana-dashboard-provisioning.md
       - Logs & Metrics Without Instrumentation: metrics-and-logs-without-instrumentation.md
+  - Observability Practice:
+      - Walkthrough: observability-practice-walkthrough.md
+      - Quick Reference: observability-quick-reference.md
+      - Mental Models: observability-mental-models.md
   - Cloud:
       - EKS Setup: eks-setup.md
   - Incident Log: incidents.md

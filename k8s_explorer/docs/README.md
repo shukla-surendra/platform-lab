@@ -61,6 +61,30 @@ browsable site (search, dark mode).
   from cAdvisor/kube-state-metrics with zero app changes, and request-level RED metrics can be
   computed from existing access-log lines via LogQL (with a real `unwrap` gotcha, verified live).
 
+## Observability Practice
+
+A guided, hands-on session against [`../rust-api-observability-stack/`](../rust-api-observability-stack/)
+(Prometheus + Grafana + Loki via Helm) — deploy it, read the actual PromQL/LogQL each panel
+runs, then break it on purpose and diagnose from the dashboards. Builds on
+[`metrics-and-logs-without-instrumentation.md`](./metrics-and-logs-without-instrumentation.md)
+and [`grafana-dashboard-provisioning.md`](./grafana-dashboard-provisioning.md) above — read
+those first if the "how does data get here with zero app instrumentation" question isn't
+already answered.
+
+- [`observability-practice-walkthrough.md`](./observability-practice-walkthrough.md) — the
+  session itself, six parts: mental model → deploy → read the queries → break it and diagnose
+  → talk through incident scenarios out loud → (optional) swap in a Python/FastAPI service.
+- [`observability-quick-reference.md`](./observability-quick-reference.md) — copy/paste
+  `kubectl`/`helm` commands, PromQL, LogQL, and a debugging checklist for when a panel is
+  empty or a query returns nothing. Keep this open in a second terminal during the session.
+- [`observability-mental-models.md`](./observability-mental-models.md) — the diagrams and
+  incident-diagnosis decision tree (metrics → logs → traces → K8s events) to be able to draw
+  and narrate from memory, plus an interview script template.
+- [`examples/observability-scenarios.sh`](./examples/observability-scenarios.sh) — runnable
+  simulations of 8 failure modes (high latency, crash loop, memory pressure, error spike,
+  traffic spike, silent failure, node pressure, cascading failure) to diagnose against the
+  dashboards instead of hand-crafting `curl` commands.
+
 ## Cloud
 
 - [`eks-setup.md`](./eks-setup.md) — standing up and running Amazon EKS end to end: networking
