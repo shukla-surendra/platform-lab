@@ -385,4 +385,4 @@ holds every part to](CLAUDE.md#analogies-real-tools-and-current-trends-required-
 
 ---
 
-**Previous:** [Part 24: Cardinality — One Word, Five Meanings, One Underlying Idea](24_cardinality.md)  |  **Next:** [0. The Interview Framework](../01_ml_system_design/00_interview_framework.md)
+**Previous:** [Part 24: Cardinality — One Word, Five Meanings, One Underlying Idea](24_cardinality.md)  |  **Next:** [Part 26: SSH Keys and Public-Key Cryptography](26_ssh_keys_and_public_key_cryptography.md)

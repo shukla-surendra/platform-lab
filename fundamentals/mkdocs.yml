@@ -214,6 +214,12 @@ nav:
           - "23. Long-Polling, WebSockets, and Server-Sent Events": system_design_foundation/00_prerequisite_concepts/23_realtime_communication_long_polling_websockets_sse.md
           - "24. Cardinality": system_design_foundation/00_prerequisite_concepts/24_cardinality.md
           - "25. Redis — Data Structures as System Design Primitives": system_design_foundation/00_prerequisite_concepts/25_redis_as_a_system_design_primitive.md
+          - "26. SSH Keys and Public-Key Cryptography": system_design_foundation/00_prerequisite_concepts/26_ssh_keys_and_public_key_cryptography.md
+          - "27. Metrics Collection Mechanics": system_design_foundation/00_prerequisite_concepts/27_metrics_collection_and_scraping_mechanics.md
+          - "28. Log Collection Mechanics — Loki": system_design_foundation/00_prerequisite_concepts/28_log_collection_mechanics_loki.md
+          - "29. The Rest of the Stack — Grafana, Tempo, Alertmanager": system_design_foundation/00_prerequisite_concepts/29_the_rest_of_the_stack_grafana_tempo_alertmanager.md
+          - "30. Coalition vs. Unified — LGTM, SigNoz, OpenObserve": system_design_foundation/00_prerequisite_concepts/30_coalition_vs_unified_lgtm_signoz_openobserve.md
+          - "31. OpenTelemetry and Its Ecosystem": system_design_foundation/00_prerequisite_concepts/31_opentelemetry_and_its_ecosystem.md
       - Staff-Level Foundations:
           - 0. The Staff-Level Signal: system_design_practice/00_staff_level_signal/tutorial.md
           - 1. Distributed Systems Foundations: system_design_practice/01_distributed_systems_foundations/tutorial.md

@@ -11,7 +11,7 @@ original plan — plus a bank of scenario-debugging problems.
 If terms like **p99 latency**, **the nines**, **sharding vs. replication**, or
 **idempotency** aren't things you could explain from first principles yet, start with the
 **[Prerequisite Concepts](00_prerequisite_concepts/01_performance_and_scale.md)** primer
-(twenty-five short parts: [Performance & Scale](00_prerequisite_concepts/01_performance_and_scale.md),
+(thirty-one short parts: [Performance & Scale](00_prerequisite_concepts/01_performance_and_scale.md),
 [Data & Consistency](00_prerequisite_concepts/02_data_and_consistency.md),
 [Communication & Resilience](00_prerequisite_concepts/03_communication_and_resilience.md),
 [CPU vs. GPU](00_prerequisite_concepts/04_cpu_vs_gpu.md),
@@ -35,7 +35,13 @@ If terms like **p99 latency**, **the nines**, **sharding vs. replication**, or
 [Proxies — Forward, Reverse, and Why "Reverse Proxy vs. Load Balancer" Is a Trick Question](00_prerequisite_concepts/22_proxies_forward_and_reverse.md),
 [Long-Polling, WebSockets, and Server-Sent Events](00_prerequisite_concepts/23_realtime_communication_long_polling_websockets_sse.md),
 [Cardinality — One Word, Five Meanings, One Underlying Idea](00_prerequisite_concepts/24_cardinality.md),
-[Redis — Data Structures as System Design Primitives](00_prerequisite_concepts/25_redis_as_a_system_design_primitive.md))
+[Redis — Data Structures as System Design Primitives](00_prerequisite_concepts/25_redis_as_a_system_design_primitive.md),
+[SSH Keys and Public-Key Cryptography](00_prerequisite_concepts/26_ssh_keys_and_public_key_cryptography.md),
+[Metrics Collection Mechanics](00_prerequisite_concepts/27_metrics_collection_and_scraping_mechanics.md),
+[Log Collection Mechanics — Loki](00_prerequisite_concepts/28_log_collection_mechanics_loki.md),
+[The Rest of the Stack — Grafana, Tempo, Alertmanager](00_prerequisite_concepts/29_the_rest_of_the_stack_grafana_tempo_alertmanager.md),
+[Coalition vs. Unified — LGTM, SigNoz, OpenObserve](00_prerequisite_concepts/30_coalition_vs_unified_lgtm_signoz_openobserve.md),
+[OpenTelemetry and Its Ecosystem](00_prerequisite_concepts/31_opentelemetry_and_its_ecosystem.md))
 before the Interview Framework below. It's the shared vocabulary every tutorial in this
 section — and in the [Distributed Systems Design track](../system_design_practice/README.md) — assumes
 without re-explaining.

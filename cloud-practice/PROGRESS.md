@@ -84,7 +84,7 @@ contrast with AWS once it begins.
 | 4 | IAM | ⬜ Planned | Security substrate under every service. |
 | 5 | S3 | ⬜ Planned | Object storage, durability math, erasure coding, consistency. |
 | 6 | EC2 / Nitro | ⬜ Planned | Compute, Nitro cards, Firecracker, virtualization. |
-| 7 | Route 53 | ⬜ Planned | DNS internals, health checks, routing policies. |
+| 7 | **Route 53** | 🟡 M1 delivered, gate OPEN | Started out of order (learner's explicit choice — see §3/§4). DNS internals, health checks, routing policies. |
 | 7 | ELB (ALB/NLB) | ⬜ Planned | Load balancing internals, Hyperplane. |
 | 8 | RDS / Aurora | ⬜ Planned | Aurora storage-compute separation. |
 | 9 | DynamoDB | ⬜ Planned | Consistent hashing, quorum, streams. |
@@ -124,6 +124,28 @@ Legend: ⬜ Planned · 🟡 In progress · ✅ Complete
 - **EFS deliverables:** `aws/docs/efs/` = README + architecture, performance, security, best-practices, troubleshooting, interview · `aws/cheatsheets/efs.md` · `aws/terraform/efs/` (encrypted FS + per-AZ mount targets + Access Point + TLS policy) · `aws/boto3/efs/efs_operations.py` · `aws/labs/efs/README.md` (8 labs).
 - **Key framing used:** EBS = "network disk impersonating a local disk" (single-AZ, block, Physalia control plane, 2011 outage); EFS = "managed multi-AZ NFS" (mount targets = per-AZ ENIs, Access Points, Elastic throughput). Studied as a pair for the block-vs-file contrast.
 - **Next (AWS):** await learner's Q&A on EBS/EFS. Candidates after: return to VPC Q&A, or service #4 (**IAM**) / **S3** (natural next storage). Terraform still not `validate`-d locally (no CLI); boto3 files compile.
+- **Cloud / Service:** AWS · **Route 53 (#7) — M1 delivered, gate OPEN.** Started
+  2026-08-22, **explicitly out of order** — learner asked to document Route 53 directly;
+  flagged the conflict with "one service at a time" (IAM #4/S3 #5/EC2 #6 still Planned,
+  untouched) and the gated-module contract, learner chose "start the real gated module"
+  over a non-gated reference doc or sticking to the tracked order. Recorded here, same
+  as the VNet precedent below — not silently reordered.
+- **Route 53 deliverables so far:** `aws/docs/route53/architecture.md` (M1 — why Route 53
+  exists vs. self-hosted/registrar/specialist DNS, the "DNS as a live control plane, not a
+  static phone book" mental model, core terminology table, control/data-plane split, the
+  100% SLA explained via that split, anycast + four-independent-TLD name-server redundancy,
+  quorum-based health-checker consensus, Alias records and the zone-apex problem they
+  solve) · `aws/quizzes/route53/module-1-gate.md` (4-question gate).
+- **Key framing used:** DNS resolution chain and anycast are reused, not re-derived, from
+  `fundamentals/system_design_foundation/00_prerequisite_concepts/09_dns_bgp_and_the_edge.md`
+  (Route 53 = the authoritative link in that chain); the 100% SLA is tied to
+  `13_cap_theorem_and_pacelc.md`'s framing (DNS answers differing by resolver is
+  availability-favoring by design, not a consistency bug); health-check quorum is mapped
+  against a Kubernetes liveness probe's `failureThreshold`, generalized from repeated
+  observations by one observer to one observation each from many independent locations.
+- **Next (Route 53):** learner clears the M1 gate; M2 covers deep routing-policy mechanics
+  (Weighted/Latency/Failover/Geolocation/Geoproximity/Multivalue), DNSSEC, private hosted
+  zones, and packet-level query flow.
 - **Cloud / Service:** Azure · **VNet (#1) — M1 delivered, gate OPEN.** Kicked off
   2026-08-08, taught by contrast against the already-complete AWS VPC doc set.
 - **VNet deliverables so far:** `azure/README.md` (track overview + planned service order)
@@ -180,6 +202,7 @@ Legend: ⬜ Planned · 🟡 In progress · ✅ Complete
 - **2026-07-12** — **Completed the full VPC documentation set** so the learner can study end-to-end: added `internals.md`, `security.md`, `best-practices.md`, `troubleshooting.md`, `interview.md`, a `docs/vpc/README.md` index (study order), and `cheatsheets/vpc.md`. Every doc has an inline Self-check. Learner will review then ask questions.
 - **2026-07-12** — Pivoted to storage (VPC paused). Built **EBS (#2)** and **EFS (#3)** as a pair, each with the **full doc set + hands-on** (learner's choice): 7 EBS docs + 6 EFS docs, two cheatsheets, Terraform modules (`terraform/ebs`, `terraform/efs`), boto3 scripts (`boto3/ebs`, `boto3/efs`), and lab guides (`labs/ebs`, `labs/efs`, 8 labs each). Framing: EBS = network-disk/single-AZ/Physalia; EFS = managed multi-AZ NFS/mount-targets/Access-Points. Links validated; boto3 compiles; site builds.
 - **2026-08-08** — **Started the Azure track (`azure/`)**, full gated rigor matching `aws/` (learner's explicit choice over a lighter standalone-doc option). Re-sequenced the roadmap: Azure now runs *ahead of* the previously-planned GCP track, because Microsoft (Phase 1, ready 2026-09-06) is more time-urgent than Google (Phase 3, ready 2026-11-01) per `private_profile`'s dated plan — GCP still starts after AWS+Azure, unchanged in kind, just pushed later in order. Chose **VNet as Azure service #1**, mirroring VPC's role as AWS service #1, specifically so the module can teach *by contrast* against the already-complete `aws/docs/vpc/` set rather than from zero. Delivered VNet **M1** (`azure/docs/vnet/architecture.md`) — sourced from Microsoft Research's VFP (NSDI 2017) and SmartNIC/Accelerated-Networking (SIGCOMM 2015) papers for the internals, plus Microsoft Learn for the NSG dual-attachment and subnet/AZ behavior — and opened the M1 gate (`azure/quizzes/vnet/module-1-gate.md`, 5 questions). Added `azure/README.md` (track overview, planned 10-service order mirrored against AWS's own order). Updated `gcp/README.md` and root `README.md` to reflect three tracks instead of two.
+- **2026-08-22** — **Started Route 53 (#7) out of order**, learner's explicit choice after the conflict with "one service at a time" (IAM #4/S3 #5/EC2 #6 still untouched) and the "never a single dump" rule was flagged — offered a non-gated quick-reference doc or sticking to the tracked order as alternatives; learner chose the real gated module. Delivered **M1** (`aws/docs/route53/architecture.md`) — why Route 53 exists (pre-2010 self-hosted/registrar/specialist-DNS landscape, the zone-apex CNAME problem), the "DNS as a live control plane" mental model, a core-terminology table (hosted zone, record set, routing policy, TTL, Alias, NS/SOA, health check, Traffic Flow), control/data-plane split explaining the 100% SLA, anycast + four-independent-TLD name-server redundancy, health-checker quorum, and Alias records — and opened the M1 gate (`aws/quizzes/route53/module-1-gate.md`, 4 questions). Cross-referenced rather than re-derived: anycast and the DNS resolution chain from `fundamentals/.../09_dns_bgp_and_the_edge.md`, the availability-over-consistency framing from `fundamentals/.../13_cap_theorem_and_pacelc.md`. Updated the AWS roadmap table (§2) and Current Position (§3) to reflect the jump, same pattern as the VNet precedent above.
 
 ---
 
