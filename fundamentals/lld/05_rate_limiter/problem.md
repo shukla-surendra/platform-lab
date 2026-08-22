@@ -20,6 +20,14 @@ Interviewers sometimes start with this class-level version and escalate to the d
 one as a follow-up — noticing that pivot and re-framing your answer (shared state instead
 of an in-memory dict) is itself a signal worth naming out loud.
 
+The three algorithms below are the ones worth *implementing* by hand in an LLD round; for
+the full landscape (including Leaky Bucket and GCRA, which most LLD rounds don't ask you
+to code but which are worth being able to name and compare) see
+[algorithms_all_iterations.md](../../system_design_practice/07_design_rate_limiter_at_scale/algorithms_all_iterations.md)
+in that same section — and for what it takes to make *this exact code* correct behind a
+Kubernetes Service with multiple replicas (swap the dict for Redis), see
+[kubernetes_native_implementations.md](../../system_design_practice/07_design_rate_limiter_at_scale/kubernetes_native_implementations.md#iteration-7-diy-redis-backed-middleware-closing-the-loop-with-lld).
+
 Requirements: given a `client_id`, decide whether to allow or reject a request right now,
 supporting at least two different limiting algorithms behind the same interface so a
 caller can swap algorithms without changing calling code.

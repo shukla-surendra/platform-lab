@@ -7,6 +7,21 @@ approximate-vs-exact enforcement trade-off. Extends the
 one global limit per user/API-key when requests land on servers spread across multiple
 regions.
 
+**This tutorial assumes the algorithm landscape is already known** and focuses entirely on
+the region-scale coordination problem. Three companion deep-dives fill in the rest of the
+picture: **[algorithms_all_iterations.md](algorithms_all_iterations.md)** walks every
+algorithm (fixed window through GCRA) as a chain of iterations, each motivated by a named
+flaw in the last; **[kubernetes_native_implementations.md](kubernetes_native_implementations.md)**
+maps every algorithm onto a concrete, deployable Kubernetes pattern — ingress annotations,
+Envoy local/global rate limiting, Kong, Gateway API, and a DIY Redis-backed extension of
+this repo's own [LLD rate limiter](../../lld/05_rate_limiter/problem.md) — and shows that
+the "local counter + global aggregator" architecture below isn't just a diagram, it's what
+Envoy's global rate-limit service deployed per-region actually is;
+**[build_vs_buy_and_tooling_landscape.md](build_vs_buy_and_tooling_landscape.md)** answers
+the question underneath all of it — do you actually write this code, or is there tooling
+for it — with a different answer depending on whether you're in an LLD round, a system
+design round, or shipping something real.
+
 ## Clarify
 
 - Is the limit **per-region** (each region enforces its own independent quota — much
@@ -29,6 +44,79 @@ flowchart TB
     GlobalAggregator -.->|"push updated global\nbudget/quota"| LocalCounterUS
     GlobalAggregator -.-> LocalCounterEU
 ```
+
+The diagram above compresses "Client → App Server" into one hop for clarity — in a real
+deployment a load balancer sits in that gap, and *where exactly* the rate-limit check
+happens relative to it is a detail worth being precise about, not glossed over.
+
+## Deep-Dive: Where the Rate Limiter Sits Relative to the Load Balancer
+
+**Precise answer: the rate-limit check runs before the load-balancing decision, and in
+most real stacks they're the same proxy process, not two separate hops.** Envoy, NGINX,
+and Kong — the exact tools named in
+[kubernetes_native_implementations.md](kubernetes_native_implementations.md) — each do
+**both** jobs: an L7 load balancer's job is fundamentally "terminate the request, decide
+what to do with it," and rate limiting is one of the decisions made before the other
+decision (which backend to route to). In Envoy's own filter-chain model, this is literal:
+the `ratelimit` HTTP filter runs *before* the `router` filter that performs load balancing
+— a rejected request never reaches the code path that would have picked a backend pod at
+all.
+
+```mermaid
+flowchart TB
+    Client --> DNS["DNS / Global LB\n(anycast, region selection —\nsee [Part 19: DNS-Level and Global LB](../../system_design_foundation/00_prerequisite_concepts/19_load_balancing.md#dns-level-and-global-load-balancing))"]
+    DNS --> L4["Regional L4 LB\n(TCP-level — AWS NLB.\nNo HTTP visibility, so it\ncannot see client_id/API-key)"]
+    L4 --> L7["L7 LB / Gateway\n(Envoy, NGINX, Kong — HTTP-aware)"]
+    L7 -->|"1. ratelimit filter runs FIRST"| RLCheck{"allow?"}
+    RLCheck -->|"reject: 429"| Client
+    RLCheck -->|"allow"| Router["2. router filter runs SECOND\n(the actual load-balancing decision:\nround-robin / least-conn / consistent hash)"]
+    Router --> Pod1["Backend Pod 1"]
+    Router --> Pod2["Backend Pod 2"]
+    Router --> Pod3["Backend Pod 3"]
+```
+
+**Why this ordering, specifically, and not the reverse:**
+
+- **Cost.** Load balancing does real work — picking a healthy backend, opening or reusing
+  a connection, forwarding bytes. Rejecting a request *before* paying that cost is
+  strictly cheaper than balancing it to a backend and rejecting it there — the same
+  "fail fast, cheap" logic that motivates rejecting at the edge (CDN/WAF) before it even
+  reaches this L7 hop at all, for the coarsest, cheapest checks (raw IP-based abuse).
+- **Correctness — this is the load-bearing reason.** Rate limiting *after* the
+  load-balancing decision means the check runs independently on whichever backend the
+  request happened to land on. That's exactly
+  [kubernetes_native_implementations.md's Iteration 1 failure](kubernetes_native_implementations.md#iteration-1-per-pod-in-memory-limiter-the-naive-answer):
+  `replicas: 3` behind a load balancer fans one client's traffic across 3 independent
+  enforcement points, each blind to the other two, producing an effective limit of
+  `3 × configured_limit`. **Checking at or before the single load-balancing decision
+  point — one hop, one shared view of state (Redis, or the local budget in this
+  tutorial's design) — is what keeps the count meaningful; checking after it, once
+  traffic has already been fanned out to N independent backends, is precisely what
+  breaks it.**
+
+**Why an L4 load balancer can't be "the rate limiter" on its own:** an L4 balancer
+(AWS NLB, per
+[Part 19's L4-vs-L7 mechanics](../../system_design_foundation/00_prerequisite_concepts/19_load_balancing.md#l4-vs-l7-the-mechanism-itself))
+never parses the HTTP request — it has no visibility into a client ID, API key, or JWT
+claim, only source IP and port. It can enforce coarse connection-level limits (max new
+connections/sec from one IP — genuinely useful as a first line of defense against raw
+connection floods), but it structurally cannot enforce the per-user/per-API-key limits
+this whole tutorial is about. That requires HTTP-layer visibility, which is exactly why
+every implementation in
+[kubernetes_native_implementations.md](kubernetes_native_implementations.md) — and every
+managed equivalent (AWS ALB needs **AWS WAF's rate-based rules** attached alongside it;
+plain ALB has no native per-user rate limiting either) — is an L7 mechanism, not an L4
+one. "The load balancer does rate limiting" is really shorthand for "the *L7* load
+balancer, or something attached to it, does" — worth being precise about that distinction
+unprompted.
+
+**Mapping this back onto the diagram above:** `AppUS`'s box already implies a pool of app
+servers behind a regional L7 load balancer, not a single machine — the `LocalCounterUS`
+check happens in that L7 hop, on the *region's* single logical entry point, before the L7
+balancer's own router filter fans the (now-admitted) request out across `AppUS`'s pool.
+That's what keeps `LocalCounterUS` a single, coherent regional count instead of silently
+fragmenting into one counter per app server — the same correctness argument above, just
+restated at the regional-budget level this diagram operates at.
 
 ## Deep-Dive: Why "Just Use One Redis Instance Globally" Doesn't Work
 
@@ -145,7 +233,13 @@ downstream dependency, say) is understood, which is dramatically simpler to buil
 - Design a distributed quota system for a multi-tenant API platform, where tenants have
   wildly different traffic patterns.
 - Extend this design to support a "burst allowance" (short bursts above the sustained
-  limit are permitted) on top of the base global-limit design.
+  limit are permitted) on top of the base global-limit design — this is exactly what
+  token bucket / GCRA add over the simpler counting algorithms; see
+  [algorithms_all_iterations.md](algorithms_all_iterations.md#iteration-4-token-bucket).
+- Walk through deploying this design on an actual Kubernetes cluster instead of just
+  diagramming it — [kubernetes_native_implementations.md](kubernetes_native_implementations.md)
+  has the concrete manifests (Envoy global rate-limit service + Redis, per region) and a
+  hands-on exercise using this repo's own `k8s_explorer/` and `lld/05_rate_limiter/`.
 
 ## Articulate It: Interview Framing & Vocabulary
 
@@ -180,6 +274,11 @@ downstream dependency, say) is understood, which is dramatically simpler to buil
 - **"…is exactly where a senior-level response stops"** — a fluent way to explicitly mark
   the boundary between a correct-but-incomplete answer and the harder version the question
   is actually testing.
+- **"…check before the load-balancing decision, not after"** — the precise, reusable
+  phrase for why a rate limiter belongs at or ahead of the L7 load balancer's own routing
+  step: checking after it means checking once per already-fanned-out backend instead of
+  once per shared decision point, which is what actually causes the multi-replica
+  undercounting bug.
 
 ---
 

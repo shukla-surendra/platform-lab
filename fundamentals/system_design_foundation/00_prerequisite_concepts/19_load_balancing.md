@@ -147,6 +147,12 @@ power-of-two-choices among other strategies) and a service mesh's sidecar-per-ca
 both remove the balancer as a separate hop entirely, trading a simpler network path for
 needing that logic embedded in every client instead of one central place.
 
+**Where rate limiting fits into this stack, precisely:** an L4 balancer's blindness to the
+HTTP request (no client ID, no API key visible) is exactly why per-user rate limiting has
+to live at the L7 hop or later, and why it runs *before* that hop's own routing decision —
+[the rate limiter case study's dedicated deep-dive](../../system_design_practice/07_design_rate_limiter_at_scale/tutorial.md#deep-dive-where-the-rate-limiter-sits-relative-to-the-load-balancer)
+works through the ordering and the correctness argument for it in full.
+
 ## Designing and Operating From First Principles
 
 1. Have I chosen an algorithm based on this workload's actual request-cost variance — is

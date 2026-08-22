@@ -234,6 +234,139 @@ gateways rather than generic reverse proxies because that feature set is their p
 opinionated product surface — even though, mechanically, they're built on the same
 terminate-and-forward foundation as nginx or Envoy.
 
+**"API gateway" names a role, not a product — a common source of confusion worth clearing
+up explicitly.** Hearing the term first as **Amazon API Gateway** (AWS's specific managed
+service, launched 2015) makes it easy to assume the concept is AWS-specific; it isn't, and
+the history runs the other way. **Apigee** — one of the earliest dedicated API-management
+companies, founded 2004 as Sonoa Systems, later acquired by Google — and **Netflix's
+Zuul** (open-sourced 2013, built because Netflix needed exactly this pattern in front of
+its own microservices, years before any cloud vendor sold a packaged version) both predate
+AWS's product. AWS didn't invent the pattern; it productized a role the industry already
+had a name for — the same relationship "Lambda" has to "serverless function," not a novel
+AWS concept. That's *why* the term gets used loosely: every major vendor, cloud or
+otherwise, ended up shipping its own implementation of the identical role, so "put it
+behind an API gateway" is a design decision independent of which product eventually
+implements it — exactly the same [build-vs-buy question already worked through in full for
+rate limiting](../../system_design_practice/07_design_rate_limiter_at_scale/build_vs_buy_and_tooling_landscape.md),
+applied to this pattern instead of that one.
+
+**Does an API gateway throttle requests? Yes — rate limiting is one of its standard,
+expected functions, not an optional extra.** [The "Rate Limiting, Precisely" section
+above](#rate-limiting-precisely) already covers the mechanism (token bucket, leaky bucket)
+in full — an API gateway doesn't reinvent it, it just applies it with gateway-specific
+*keying*: where a plain reverse proxy often rate-limits by source IP, a gateway typically
+keys the limit by **API key or account/plan tier**, because it's already validated
+identity via the authn/authz step above and can see who's actually calling, not just where
+the packet came from. AWS API Gateway's own documentation literally calls this
+**throttling** — steady-state rate plus a burst allowance, the exact token-bucket shape
+[algorithms_all_iterations.md](../../system_design_practice/07_design_rate_limiter_at_scale/algorithms_all_iterations.md#iteration-4-token-bucket)
+already covers — which is worth naming as confirmation that "throttling" and "rate
+limiting" are the same mechanism, not two different features a gateway happens to offer.
+
+### The Complete Function List
+
+Gathering every capability named across this section and cross-referenced elsewhere into
+one table — what an API gateway actually does, and where each one is covered in full:
+
+| Function | What it does | Covered in full |
+|---|---|---|
+| Routing | Directs a request to the correct backend by path, host, or header | Same mechanism as L7 load balancing — [Part 19](19_load_balancing.md#algorithms-how-the-routing-decision-actually-gets-made) |
+| Load balancing (when configured for it) | Distributes requests across a *pool* of backend instances | [Part 19](19_load_balancing.md), and [the section below](#api-gateway-vs-load-balancer-where-it-sits-and-do-you-need-both) on whether this is the same box or a separate one |
+| TLS termination | Ends the client's encrypted connection at the gateway | [Above, this doc](#tls-termination-precisely) |
+| Authentication & authorization | Validates a token/API key before any request reaches a backend | New here |
+| Rate limiting / throttling | Per-client (API key, plan tier) request caps | [Above, this doc](#rate-limiting-precisely) + [the full algorithm landscape](../../system_design_practice/07_design_rate_limiter_at_scale/algorithms_all_iterations.md) |
+| Request/response transformation | Reshapes payloads; translates REST/JSON at the edge into gRPC or another internal protocol | [Part 9](09_dns_bgp_and_the_edge.md#beyond-caching-the-security-and-routing-layer-at-the-edge) |
+| Request validation | Rejects malformed or oversized requests cheaply, before app code ever runs | [Part 9's "shield" framing](09_dns_bgp_and_the_edge.md#beyond-caching-the-security-and-routing-layer-at-the-edge) |
+| API composition / aggregation | One gateway call fans out to several backend calls and combines the results, so the client makes one round trip instead of several | New here — the network-level version of the Backend-for-Frontend pattern |
+| Caching | Caches whole responses at the gateway to avoid repeat backend work | [Part 15](15_caching.md) |
+| Versioning & routing | Sends `/v1/` and `/v2/` traffic to entirely different backend deployments from one public front door | Above, this doc |
+| Observability | Centralized request logging, metrics, and correlation-ID injection so a request can be traced across services | [Part 16](16_observability.md) |
+| Developer portal / API key issuance / usage-based billing | Self-service key management and monetization — the "API management" business layer some products add on top of the pure routing/security mechanism | New here — Apigee and AWS API Gateway's usage plans are the clearest examples |
+
+### Why an API Gateway Exists — the Motivating Problem
+
+**The problem**: in a system with many backend services, every one of them independently
+needs auth checks, rate limiting, request logging, and versioning logic. Duplicating that
+logic in each service wastes engineering effort and — worse — risks *inconsistency*: one
+team's auth check has a subtly different bug than another's, and now the security posture
+of the whole system depends on N independent implementations agreeing. Clients face the
+mirror problem: calling N services directly means every client has to know each service's
+address and be updated whenever that topology changes.
+
+**The mechanism**: centralize all of that cross-cutting logic in one component sitting in
+front of every service. Clients see one public endpoint and one stable contract; backend
+teams stop re-implementing auth, rate limiting, and logging themselves, because the
+gateway already did it before the request arrived.
+
+**Why it matters**: this is the [Facade design pattern](https://en.wikipedia.org/wiki/Facade_pattern)
+applied at the network layer, and it's exactly what decouples backend evolution from
+client-visible contract — a service can be split, merged, rewritten, or migrated entirely
+(the [strangler fig pattern Part 20 already covers](20_microservices_architecture_patterns.md#the-patterns-already-covered-reused-not-re-derived)
+uses precisely this facade) without any client ever noticing, as long as the gateway's own
+public surface stays stable. The [service-mesh/sidecar pattern](../../system_design_practice/01_distributed_systems_foundations/tutorial.md#service-mesh-cross-cutting-concerns-without-cross-cutting-code)
+solves the identical "stop duplicating cross-cutting logic" problem for *service-to-service*
+calls, behind the gateway; the gateway solves it for the *client-facing* edge — two
+instances of the same underlying idea, applied at different points in the request path.
+
+## API Gateway vs. Load Balancer: Where It Sits, and Do You Need Both?
+
+**Short answer: you always need something doing L7 routing; you only need a *separate*
+gateway box in addition to it when the gateway you picked is a managed product that
+structurally can't also do fine-grained load balancing across your own replica pool. If
+you're self-hosting the proxy layer, one properly configured box almost always covers
+both roles — not two things stacked, one thing wearing two hats.**
+
+**The default case: same box, more hats.** [The Trap section above](#the-trap-reverse-proxy-vs-load-balancer)
+already established that an L7 load balancer *is* a reverse proxy — same terminate-and-
+forward mechanism, one extra decision (which backend). An API gateway extends that exact
+same chain one link further: Kong, Envoy (with its rate-limit and ext_authz filters), and
+NGINX Plus can each terminate TLS, apply auth and rate limiting, transform the request,
+*and* balance across a pool of backend instances — all in one pass, one process, one hop.
+This is precisely what
+[kubernetes_native_implementations.md](../../system_design_practice/07_design_rate_limiter_at_scale/kubernetes_native_implementations.md)
+already shows in practice: `ingress-nginx` and Envoy are simultaneously "the load
+balancer" (they pick a backend pod) and, once rate-limiting/auth is configured, "the API
+gateway" for that traffic — never two separate deployed things.
+
+**Where they genuinely do split into two hops: a managed cloud gateway in front of your
+own compute.** AWS API Gateway, Azure API Management, and similar managed products are not
+built to continuously health-check and balance traffic across a large, dynamically-scaling
+pool of your own servers the way a dedicated load balancer is — their backend-integration
+model is built to point at *one* target (a Lambda function, a single HTTP endpoint, or, via
+a VPC Link, a load balancer). Illustrative AWS reference shape, not a universal rule:
+
+```mermaid
+flowchart LR
+    Client --> AGW["API Gateway\n(managed: auth, throttling,\nrequest validation, transformation)"]
+    AGW -->|"VPC Link\n(one integration target)"| LB["ALB / NLB\n(health-check-based balancing)"]
+    LB --> Pod1["Backend replica 1"]
+    LB --> Pod2["Backend replica 2"]
+    LB --> Pod3["Backend replica 3"]
+```
+
+Here, "do you need both" genuinely is **yes** — the managed gateway handles API-surface
+concerns for the whole system, and hands off, through a single integration point, to a
+load balancer whose actual job is picking among your live replicas. This is a *consequence*
+of choosing a managed product over self-hosting the proxy layer, not an inherent property
+of "API gateway" as a concept — swap the managed gateway for Kong or Envoy running in your
+own cluster, and the two hops above collapse back into one, exactly as the default case
+does.
+
+**The decision, as three questions, in order:**
+
+1. **Do I need only routing/balancing across a pool — no auth, no per-key throttling, no
+   versioning or transformation?** A plain L7 (or even L4) load balancer alone is
+   sufficient. There's no "gateway" to add at all.
+2. **Do I need API-specific concerns (auth, per-key throttling, versioning,
+   transformation) on top of routing, and am I self-hosting the proxy layer?** Configure
+   that same L7 proxy (Envoy filters, Kong, NGINX Plus) with the extra feature set — one
+   box, both roles, same pattern as The Trap section's reverse-proxy/load-balancer
+   overlap, just with more jobs stacked on the same hop.
+3. **Am I using a managed cloud API Gateway product specifically, in front of a backend
+   fleet that needs its own replica-level balancing?** Then yes, both — as two distinct
+   hops — because the managed product's own integration model isn't built to do the
+   second job itself.
+
 ## Proxy Caching: The Same Mechanism, a Different Position in the Path
 
 A reverse proxy sitting in the request path is a natural place to cache full responses, and the
@@ -262,8 +395,14 @@ ideas.
 and caching), commercial residential/rotating-IP proxy services. **Reverse proxies / L7
 load balancers (the same software doing both jobs)**: nginx, Envoy, HAProxy, AWS Application
 Load Balancer (ALB) — all [already named in Part 19's L7 tier](19_load_balancing.md#real-tools-modern-defaults).
-**API gateways (reverse proxies with an API-shaped feature set)**: Kong, Traefik, AWS API
-Gateway. **Reverse-proxy caching / CDN-as-distributed-reverse-proxy**: Varnish, nginx
+**API gateways (reverse proxies with an API-shaped feature set)** — self-hosted/open-source:
+Kong, Traefik, Tyk, KrakenD, Apigee (originally standalone, now also offered as a Google
+Cloud product); one cloud vendor's managed product each: AWS API Gateway, Azure API
+Management (APIM), Google Cloud API Gateway; and, on Kubernetes specifically, the [Gateway
+API standard's policy-attachment model already covered in the rate limiter's Kubernetes
+deep-dive](../../system_design_practice/07_design_rate_limiter_at_scale/kubernetes_native_implementations.md#iteration-6-gateway-api-ratelimitpolicy-the-emerging-standard)
+— all names for the same role, none of them the definitive one. **Reverse-proxy caching /
+CDN-as-distributed-reverse-proxy**: Varnish, nginx
 `proxy_cache`, Cloudflare, AWS CloudFront — the same names [Part 9 and Part 15 already
 established](09_dns_bgp_and_the_edge.md#the-edge-where-dns-anycast-and-bgp-meet-a-cdn) for the
 edge/CDN layer, reused here because the mechanism genuinely is the same one. **True L4 packet
@@ -312,6 +451,14 @@ forwarding, not proxying**: AWS Network Load Balancer (NLB), IPVS/LVS.
 - **An API gateway is a reverse proxy with an opinionated, API-specific feature set** —
   authn/authz, per-key rate limiting, protocol translation, and versioning layered on the same
   terminate-and-forward foundation, not a different mechanism.
+- **"API gateway" is a role every major vendor implements, not an AWS invention** — Apigee
+  (2004) and Netflix's Zuul (2013) predate Amazon API Gateway (2015); the term gets used
+  loosely because the pattern, not any one product, is what's actually being referred to.
+- **You need a separate gateway box in addition to a load balancer only when the gateway is
+  a managed product that can't itself balance across your replica pool** — self-hosting the
+  proxy layer (Envoy, Kong, nginx) almost always collapses both roles into one box, the same
+  overlap the reverse-proxy/load-balancer point above already establishes, just with more
+  jobs stacked on it.
 - **Proxy caching is Part 15's caching mechanism, repositioned** — placement pattern, eviction,
   and invalidation all apply unmodified; a CDN PoP is this exact pattern at global scale.
 
@@ -330,6 +477,9 @@ forwarding, not proxying**: AWS Network Load Balancer (NLB), IPVS/LVS.
   operating at L4 — what does it do differently from IPVS/LVS or AWS NLB's default forwarding?
 - What does an API gateway do that a plain reverse proxy doesn't, and why does that extra
   feature set specifically require the traffic behind it to be API traffic?
+- Does a system always need both an API gateway and a load balancer as two separately
+  deployed components? Under what specific condition does the answer become "yes," and why
+  does that condition not apply when self-hosting the proxy layer?
 
 ## Articulate It: Interview Framing & Vocabulary
 

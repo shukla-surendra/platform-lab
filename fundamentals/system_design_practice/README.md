@@ -49,7 +49,7 @@ service mesh, and multi-region active-active replication. Read this second.
 | 4 | [Ride-Hailing Dispatch (Uber)](04_design_ride_hailing_dispatch/tutorial.md) | Geospatial indexing, real-time matching, consistency under contention |
 | 5 | [Distributed Cache (Redis Cluster)](05_design_distributed_cache/tutorial.md) | Consistent hashing, replication, hot keys, cache stampede |
 | 6 | [Distributed Message Queue (Kafka)](06_design_distributed_message_queue/tutorial.md) | Log-structured storage, partitioning/replication, exactly-once semantics |
-| 7 | [Rate Limiter at Global Scale](07_design_rate_limiter_at_scale/tutorial.md) | Distributed counting, clock synchronization, approximate vs. exact enforcement |
+| 7 | [Rate Limiter at Global Scale](07_design_rate_limiter_at_scale/tutorial.md) | Distributed counting, clock synchronization, approximate vs. exact enforcement — plus companion deep-dives on the [full algorithm landscape](07_design_rate_limiter_at_scale/algorithms_all_iterations.md), [Kubernetes-native implementations](07_design_rate_limiter_at_scale/kubernetes_native_implementations.md), and [build-vs-buy/tooling](07_design_rate_limiter_at_scale/build_vs_buy_and_tooling_landscape.md) |
 | 8 | [Video Streaming (YouTube/Netflix)](08_design_video_streaming/tutorial.md) | Transcoding pipelines, adaptive bitrate, CDN architecture |
 | 9 | [Web Crawler](09_design_web_crawler/tutorial.md) | URL frontier design, politeness, dedup at scale |
 | 10 | [Search Autocomplete](10_design_search_autocomplete/tutorial.md) | Distributed trie structures, ranking, real-time trending updates |
