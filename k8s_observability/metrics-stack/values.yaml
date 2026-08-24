@@ -1,0 +1,101 @@
+# Values for the metrics-stack wrapper chart. Deploys kube-prometheus-stack ONLY —
+# Alertmanager, node-exporter, and kube-state-metrics stay on (they're metrics, not
+# logs/traces); Loki/Promtail are never pulled in here at all. For logs, see the
+# separate ../../k8s_explorer/grafana-log-viewer/ chart instead.
+#
+# This profile (Alertmanager off, control-plane scrape targets off,
+# serviceMonitorSelectorNilUsesHelmValues false, emptyDir storage) is the same one
+# already proven out on this repo's minikube cluster in
+# ../../k8s_explorer/rust-api-observability-stack/values.yaml — carried over rather
+# than re-derived from scratch.
+kube-prometheus-stack:
+  # Off by default: nothing on a practice cluster routes anywhere, and it's a
+  # meaningful slice of minikube's CPU budget for a component nothing here uses.
+  # Turn on and configure `alertmanager.config` if you want to test routing/receivers.
+  alertmanager:
+    enabled: false
+
+  prometheus:
+    prometheusSpec:
+      # WITHOUT THESE, ONLY kube-prometheus-stack's OWN BUNDLED TARGETS ARE SCRAPED.
+      # The chart defaults to selecting only ServiceMonitors/PodMonitors/PrometheusRules
+      # carrying its own release label — a ServiceMonitor you add later for your own
+      # app is silently ignored (Prometheus comes up healthy, target list just doesn't
+      # include it) unless these are false.
+      serviceMonitorSelectorNilUsesHelmValues: false
+      podMonitorSelectorNilUsesHelmValues: false
+      ruleSelectorNilUsesHelmValues: false
+      retention: 24h
+      resources:
+        requests:
+          cpu: 100m
+          memory: 512Mi
+      storageSpec: {}   # emptyDir; practice cluster, 24h retention, no PVC needed
+
+  grafana:
+    enabled: true
+    adminPassword: admin   # practice cluster only — change before using anywhere else
+    defaultDashboardsEnabled: true   # ships Node Exporter / K8s cluster dashboards out of the box
+    service:
+      type: NodePort   # reachable via `minikube service` without a port-forward
+    sidecar:
+      dashboards:
+        enabled: true
+        label: grafana_dashboard
+        labelValue: "1"
+        searchNamespace: ALL   # picks up dashboard ConfigMaps from any namespace, not just this release's
+      datasources:
+        enabled: true
+    resources:
+      requests:
+        cpu: 50m
+        memory: 128Mi
+
+  # node-exporter and kube-state-metrics are left at their chart defaults (enabled) —
+  # they're the whole point: real node/pod/deployment metrics with zero app
+  # instrumentation required.
+
+  # Trimmed for minikube: these scrape control-plane endpoints that either don't exist
+  # or aren't reachable on a single-node local cluster; each failing target is noise
+  # that makes a real failure harder to spot in Prometheus's target list.
+  kubeEtcd:
+    enabled: false
+  kubeControllerManager:
+    enabled: false
+  kubeScheduler:
+    enabled: false
+  kubeProxy:
+    enabled: false
+
+# ---------------------------------------------------------------------------
+# Demo app — the third piece: something that actually exposes a /metrics
+# endpoint, so this chart demonstrates the full app -> ServiceMonitor ->
+# Prometheus -> Grafana path, not just infra metrics that need zero app
+# involvement (those come from node-exporter/kube-state-metrics regardless).
+#
+# quay.io/brancz/prometheus-example-app is the minimal app the
+# prometheus-operator project itself uses in its getting-started docs for
+# exactly this purpose: it exposes one real metric,
+#   version{version="v0.5.0"} 1
+# gauge (verified live: `kubectl exec ... curl :8080/metrics`) — enough to
+# prove the pipeline end-to-end without needing traffic generation.
+# ---------------------------------------------------------------------------
+demoApp:
+  enabled: true
+  name: demo-app
+  image:
+    repository: quay.io/brancz/prometheus-example-app
+    tag: v0.5.0
+    pullPolicy: IfNotPresent
+  replicaCount: 1
+  service:
+    port: 8080
+  serviceMonitor:
+    interval: 15s
+  resources:
+    requests:
+      cpu: 10m
+      memory: 16Mi
+    limits:
+      cpu: 50m
+      memory: 64Mi

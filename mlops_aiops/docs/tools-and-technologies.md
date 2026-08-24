@@ -11,6 +11,7 @@ skill (see `../../.claude/skills/tech-log/SKILL.md`, at the repo root).
 <!-- INDEX_START -->
 - [Airflow](tools/airflow/README.md) — workflow orchestrator (DAG scheduler and executor)
 - [Amazon CloudWatch](tools/cloudwatch/README.md) — observability / monitoring (AWS-native)
+- [cAdvisor](tools/cadvisor/README.md) — observability / monitoring (container resource metrics, Kubernetes/EKS)
 - [Calculus for Engineers](calculus-for-engineers.md) — cross-cutting: differentiation (rate of change) and integration (accumulation) mapped onto monitoring (`rate()`/`increase()`), gradient descent, AUC metrics, cost/SLA burn
 - [ClickHouse](tools/clickhouse/README.md) — database (column-oriented OLAP)
 - [Databricks Lakehouse Monitoring](tools/databricks-lakehouse-monitoring/README.md) — ML monitoring / observability (Databricks-native)
@@ -22,6 +23,7 @@ skill (see `../../.claude/skills/tech-log/SKILL.md`, at the repo root).
 - [Grafana](tools/grafana/README.md) — observability / monitoring (Kubernetes/EKS)
 - [Jaeger](tools/jaeger/README.md) — observability / monitoring (tracing)
 - [Kafka](tools/kafka/README.md) — distributed event streaming platform (partitioned commit log)
+- [kube-state-metrics](tools/kube-state-metrics/README.md) — observability / monitoring (Kubernetes object state, Kubernetes/EKS)
 - [LGTM Stack](tools/lgtm-stack/README.md) — observability / monitoring (open-source stack, unified metrics+logs+traces)
 - [Linux & Shell Scripting](tools/linux-shell-scripting/README.md) — operating system / command-line automation (Bash)
 - [LocalStack](tools/localstack/README.md) — local cloud emulator (AWS, self-hosted/CI)
@@ -38,7 +40,9 @@ skill (see `../../.claude/skills/tech-log/SKILL.md`, at the repo root).
 - [New Relic](tools/new-relic/README.md) — observability / monitoring (commercial, all-in-one)
 - [NumPy](tools/numpy/README.md) — numerical computing (array/memory foundation of the Python ML stack)
 - [NVIDIA Training GPUs (T4/V100/L4/A100)](tools/nvidia-training-gpus/README.md) — hardware (accelerator selection for model training/fine-tuning)
+- [Observability: GPU Monitoring (DCGM, Triton, Scalable Metrics)](observability-gpu-monitoring-dcgm-triton.md) — cross-cutting: DCGM/DCGM Exporter pipeline, nvidia-smi vs. DCGM, Triton inference server and alternatives (vLLM/TGI/KServe/SageMaker), Mimir/Thanos/Cortex/AMP
 - [Observability on EKS (overview)](observability-on-eks.md) — cross-cutting: Prometheus, Grafana, Loki, ELK/EFK, tracing, alerting, alternatives
+- [Observability: Prometheus & cAdvisor Fundamentals](observability-prometheus-and-cadvisor.md) — cross-cutting: Prometheus pull model, TSDB/PVC storage, remote_write, cAdvisor-via-kubelet, Kubernetes service discovery, app vs. container-resource metrics
 - [Observability Terminology (telemetry, tracing, cardinality)](observability-terminology.md) — cross-cutting: term definitions, origins, analogies, CloudWatch vocabulary mapping
 - [OpenTelemetry](tools/opentelemetry/README.md) — observability / monitoring (tracing, instrumentation standard)
 - [pandas](tools/pandas/README.md) — data manipulation / analysis (single-machine, in-memory)

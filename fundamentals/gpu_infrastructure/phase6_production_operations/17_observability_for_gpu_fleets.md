@@ -4,9 +4,14 @@ Part of [Phase 6 — Production Operations](../README.md#phase-6-production-oper
 Builds on [`15_gpu_fleet_lifecycle.md`](15_gpu_fleet_lifecycle.md)'s MONITOR stage and
 [`04_cuda_ecosystem.md`](../phase2_gpu_fundamentals/04_cuda_ecosystem.md)'s introduction
 of DCGM. This chapter assumes Prometheus/Grafana fundamentals are already solid from
-`platform-lab/mlops_aiops/` and `k8n_mlops/` — it covers only the GPU-specific metric
-catalog and dashboard design on top of that general stack, the same scoping this track
-applies to Kubernetes in Phase 4.
+[`platform-lab/mlops_aiops/docs/observability-prometheus-and-cadvisor.md`](../../../mlops_aiops/docs/observability-prometheus-and-cadvisor.md)
+(pull model, TSDB, `remote_write`, Kubernetes service discovery) and
+[`k8n_mlops/`](../../../k8s_mlops/) — it covers only the GPU-specific metric catalog and
+dashboard design on top of that general stack, the same scoping this track applies to
+Kubernetes in Phase 4. The DCGM Exporter → Prometheus pipeline mechanics specifically
+(and how Triton/vLLM/KServe fit alongside GPU metrics) are covered in
+[`observability-gpu-monitoring-dcgm-triton.md`](../../../mlops_aiops/docs/observability-gpu-monitoring-dcgm-triton.md) —
+this chapter picks up from there with the actual metric catalog, not the pipeline.
 
 ## Clarify
 

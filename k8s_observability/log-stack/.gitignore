@@ -1,0 +1,2 @@
+# Dependency tarball is reproducible from Chart.lock via `helm dependency build`.
+charts/*.tgz

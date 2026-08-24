@@ -1,0 +1,23 @@
+apiVersion: v2
+name: trace-stack
+description: Tempo + Grafana for distributed tracing — traces only, no metrics, no logs
+type: application
+version: 0.1.0
+appVersion: "2.10.8"
+
+keywords:
+  - grafana
+  - tempo
+  - tracing
+  - observability
+
+dependencies:
+  # grafana.github.io/helm-charts' own "tempo" and "grafana" charts are both
+  # deprecated (repo migration cutoff was 2026-01-30, before this chart was
+  # written) — pulling both from their new home instead: grafana-community/helm-charts.
+  - name: tempo
+    version: "2.2.4"
+    repository: "https://grafana-community.github.io/helm-charts"
+  - name: grafana
+    version: "12.11.2"
+    repository: "https://grafana-community.github.io/helm-charts"

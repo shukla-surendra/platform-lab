@@ -31,6 +31,19 @@ as a second data source — giving one UI for both metrics and logs. Loki, too, 
 chunks in S3-compatible object storage — [MinIO](../minio/README.md) is the common
 self-hosted stand-in for local/CI setups.
 
+## Usage — verified live against this repo's cluster
+
+Deployed via [`k8s_observability/log-stack/`](../../../../k8s_observability/log-stack/)
+(the `loki-stack` chart — Loki + Promtail + a standalone Grafana, own Grafana
+instance rather than sharing `kube-prometheus-stack`'s, see that chart's README for
+why). Two things confirmed live, both silent failure modes if wrong: the Loki
+datasource UID must be pinned in `values.yaml` (`loki.datasource.uid`) or dashboards
+referencing a fixed uid render empty with no error; and Promtail's
+`pipelineStages` must match the cluster's actual container runtime
+(`docker: {}` vs `cri: {}`) or `| json` LogQL parsing silently parses the runtime's
+stdout wrapper instead of the log line, so every `level`-filtered query reads zero
+with logs still visibly arriving in the raw stream.
+
 ## Related
 
 Part of the metrics/logs/visualization trio commonly run together on EKS:

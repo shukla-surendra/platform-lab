@@ -1,0 +1,43 @@
+{{- if .Values.demoApp.enabled }}
+{{/*
+`release: {{ .Release.Name }}` alongside the plain `app: demo-app` label — metrics-stack
+and log-stack ship a demo app with this exact same `app: demo-app` label, and when
+multiple of these releases share a namespace (verified live: all three installed into
+`default`), `kubectl logs -l app=demo-app` matches pods across ALL of them, not just
+this release's own. See metrics-stack/templates/demo-app-deployment.yaml for the fuller
+writeup — that chart's Service actually routed traffic to the wrong release's pod
+before this was added.
+*/}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-{{ .Values.demoApp.name }}
+  labels:
+    app: {{ .Values.demoApp.name }}
+    release: {{ .Release.Name }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ .Values.demoApp.name }}
+      release: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.demoApp.name }}
+        release: {{ .Release.Name }}
+    spec:
+      containers:
+        - name: {{ .Values.demoApp.name }}
+          image: "{{ .Values.demoApp.image.repository }}:{{ .Values.demoApp.image.tag }}"
+          imagePullPolicy: {{ .Values.demoApp.image.pullPolicy }}
+          env:
+            # ENDPOINT and its "host:port" (no scheme) — read directly by the bundled
+            # /example-script.js (verified live: `endpoint = __ENV.ENDPOINT || "otel-collector:4317"`).
+            # Points at Tempo's OTLP gRPC receiver, NOT the :3200 query port Grafana's
+            # datasource uses (see values.yaml).
+            - name: ENDPOINT
+              value: "{{ .Release.Name }}-tempo:4317"
+          resources:
+            {{- toYaml .Values.demoApp.resources | nindent 12 }}
+{{- end }}

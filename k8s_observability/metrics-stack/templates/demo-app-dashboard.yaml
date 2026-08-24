@@ -1,0 +1,23 @@
+{{- if .Values.demoApp.enabled }}
+{{- $kps := index .Values "kube-prometheus-stack" }}
+{{/*
+Ships every dashboard in dashboards/ as a ConfigMap carrying the label the Grafana
+sidecar watches (kube-prometheus-stack.grafana.sidecar.dashboards, already enabled in
+values.yaml with searchNamespace: ALL) — appears in Grafana with no manual JSON import.
+
+.Files.Glob rather than one .Files.Get per file: adding a dashboard means dropping a
+.json into dashboards/, with no template edit and therefore no chance of adding a file
+that silently never gets shipped.
+*/}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-demo-app-dashboards
+  labels:
+    {{ $kps.grafana.sidecar.dashboards.label }}: {{ $kps.grafana.sidecar.dashboards.labelValue | quote }}
+data:
+  {{- range $path, $bytes := .Files.Glob "dashboards/*.json" }}
+  {{ base $path }}: |-
+    {{- $.Files.Get $path | nindent 4 }}
+  {{- end }}
+{{- end }}

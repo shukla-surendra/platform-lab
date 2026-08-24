@@ -1,0 +1,23 @@
+trace-stack deployed as release "{{ .Release.Name }}" in namespace "{{ .Release.Namespace }}".
+
+Grafana:
+{{- if eq .Values.grafana.service.type "NodePort" }}
+  minikube service {{ .Release.Name }}-grafana -n {{ .Release.Namespace }} --url
+{{- else }}
+  kubectl -n {{ .Release.Namespace }} port-forward svc/{{ .Release.Name }}-grafana 3000:80
+  open http://localhost:3000
+{{- end }}
+  user: admin
+  password: {{ .Values.grafana.adminPassword }}
+
+{{- if .Values.demoApp.enabled }}
+Demo app (synthetic multi-service traces via OTLP, on a loop, no config needed):
+  kubectl -n {{ .Release.Namespace }} logs -l app={{ .Values.demoApp.name }},release={{ .Release.Name }} -f
+
+  In Grafana Explore -> Tempo:
+    Search tab, Service Name = "shop-backend" (or article-service / auth-service /
+    postgres / cart-service) -> Run query -> click any trace to see the full span tree.
+{{- end }}
+
+This chart deploys traces only: Prometheus, Loki, and any metrics/log pipeline are
+NOT part of this release. See ../metrics-stack/ for metrics, ../log-stack/ for logs.

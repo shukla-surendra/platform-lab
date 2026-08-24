@@ -1,0 +1,22 @@
+apiVersion: v2
+name: log-stack
+description: Loki + Promtail + Grafana (via loki-stack) for cluster-wide pod log collection — logs only, no metrics, no traces
+type: application
+version: 0.1.0
+appVersion: "2.9.3"
+
+keywords:
+  - grafana
+  - loki
+  - promtail
+  - logging
+  - observability
+
+dependencies:
+  # Same dependency, same version already proven out on this cluster in
+  # ../../k8s_explorer/grafana-log-viewer/Chart.yaml — carried over rather than
+  # re-derived from scratch, including the known Promtail->Loki URL gotcha (see
+  # values.yaml) documented in ../../k8s_explorer/docs/incidents.md.
+  - name: loki-stack
+    version: "2.10.3"
+    repository: "https://grafana.github.io/helm-charts"

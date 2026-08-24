@@ -1,0 +1,24 @@
+log-stack deployed as release "{{ .Release.Name }}" in namespace "{{ .Release.Namespace }}".
+
+Grafana:
+{{- $lsk := index .Values "loki-stack" }}
+{{- if eq $lsk.grafana.service.type "NodePort" }}
+  minikube service {{ .Release.Name }}-grafana -n {{ .Release.Namespace }} --url
+{{- else }}
+  kubectl -n {{ .Release.Namespace }} port-forward svc/{{ .Release.Name }}-grafana 3000:80
+  open http://localhost:3000
+{{- end }}
+  user: admin
+  password: {{ $lsk.grafana.adminPassword }}
+
+{{- if .Values.demoApp.enabled }}
+Demo app (writes JSON log lines to stdout every {{ .Values.demoApp.intervalSeconds }}s — no
+/metrics, no Service, Promtail tails it purely because it's a pod on the node):
+  kubectl -n {{ .Release.Namespace }} logs -l app={{ .Values.demoApp.name }},release={{ .Release.Name }} -f
+
+  In Grafana Explore -> Loki:
+    {app="{{ .Values.demoApp.name }}"}
+{{- end }}
+
+This chart deploys logs only: Prometheus and any metrics/trace pipeline are NOT part
+of this release. See ../metrics-stack/ for metrics.

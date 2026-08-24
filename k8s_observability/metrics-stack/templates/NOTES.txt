@@ -1,0 +1,37 @@
+{{- $kps := index .Values "kube-prometheus-stack" }}
+metrics-stack deployed as release "{{ .Release.Name }}" in namespace "{{ .Release.Namespace }}".
+
+Grafana:
+{{- if eq $kps.grafana.service.type "NodePort" }}
+  minikube service {{ .Release.Name }}-grafana -n {{ .Release.Namespace }} --url
+{{- else }}
+  kubectl -n {{ .Release.Namespace }} port-forward svc/{{ .Release.Name }}-grafana 3000:80
+  open http://localhost:3000
+{{- end }}
+  user: admin
+  password: {{ $kps.grafana.adminPassword }}
+
+Prometheus (PromQL / target list):
+  # "prometheus-operated" is a fixed name the Prometheus Operator itself creates
+  # (not templated off the release name, unlike the chart's own
+  # <release>-kube-promethe-prometheus Service, which gets truncated to fit the
+  # 63-char DNS limit at a point that depends on release-name length) — always
+  # correct regardless of release name, verified live against this release.
+  kubectl -n {{ .Release.Namespace }} port-forward svc/prometheus-operated 9090:9090
+  open http://localhost:9090/targets
+
+Dashboards are already provisioned (defaultDashboardsEnabled: true) — open Grafana,
+Dashboards, and look under the "Kubernetes" and "Node Exporter" folders. No manual
+import needed.
+
+{{- if .Values.demoApp.enabled }}
+Demo app (exposes /metrics, scraped by Prometheus via ServiceMonitor):
+  kubectl -n {{ .Release.Namespace }} port-forward svc/{{ .Release.Name }}-{{ .Values.demoApp.name }} 8080:{{ .Values.demoApp.service.port }}
+  curl http://localhost:8080/metrics
+
+  In Prometheus (Status > Targets) or Grafana Explore, look for job="{{ .Release.Name }}-{{ .Values.demoApp.name }}":
+    version{job="{{ .Release.Name }}-{{ .Values.demoApp.name }}"}
+{{- end }}
+
+This chart deploys metrics only: Alertmanager, Loki, and any log/trace pipeline are
+NOT part of this release. See ../../k8s_explorer/grafana-log-viewer/ for logs.

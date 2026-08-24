@@ -1,0 +1,132 @@
+{
+  "uid": "log-stack-demo-app",
+  "title": "log-stack — demo app logs",
+  "description": "The demo app writes JSON log lines to stdout on a fixed interval (see values.yaml demoApp) — no /metrics, no Service, nothing Loki-specific about it. Promtail (a DaemonSet, one pod per node) tails every container's stdout on its node and ships it to Loki regardless; this dashboard is just Grafana querying that. Verified live: `| json` parsing depends on values.yaml's promtail.config.snippets.pipelineStages matching this cluster's container runtime (docker) — get that wrong and every panel here reads zero with no error anywhere.",
+  "tags": ["log-stack", "loki", "demo-app"],
+  "timezone": "browser",
+  "editable": true,
+  "schemaVersion": 39,
+  "refresh": "30s",
+  "time": { "from": "now-1h", "to": "now" },
+  "templating": {
+    "list": [
+      {
+        "name": "namespace",
+        "label": "Namespace",
+        "type": "query",
+        "datasource": { "type": "loki", "uid": "loki" },
+        "query": "label_values({app=\"demo-app\"}, namespace)",
+        "refresh": 1,
+        "includeAll": true,
+        "current": { "text": "All", "value": "$__all" },
+        "allValue": ".+",
+        "description": "Defaults to All. A hardcoded namespace here renders every panel empty on any install that used a different one."
+      },
+      {
+        "name": "level",
+        "label": "Level",
+        "type": "custom",
+        "query": "INFO,WARN,ERROR",
+        "includeAll": true,
+        "multi": true,
+        "current": { "text": "All", "value": "$__all" },
+        "allValue": ".+"
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Error lines (1h)",
+      "description": "count_over_time on level=\"ERROR\" — every 10th heartbeat line by design (see values.yaml), so a non-zero, non-climbing count here is expected and healthy, not a symptom of anything broken.",
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "targets": [
+        {
+          "expr": "sum(count_over_time({namespace=~\"$namespace\", app=\"demo-app\"} | json | level=\"ERROR\" [1h]))",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "value"
+      }
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Total lines (1h)",
+      "description": "Proves the pipeline is actually moving lines, independent of level — the number to check first if the panels above look suspiciously flat.",
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "targets": [
+        {
+          "expr": "sum(count_over_time({namespace=~\"$namespace\", app=\"demo-app\"} [1h]))",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "#D64545", "value": null },
+              { "color": "#3D9A50", "value": 1 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "Log rate by level",
+      "description": "sum by (level) of the parsed JSON's `level` field — the shape you'd actually alert on (a sudden ERROR spike), not just a raw line count.",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "targets": [
+        {
+          "expr": "sum by (level) (rate({namespace=~\"$namespace\", app=\"demo-app\"} | json [1m]))",
+          "legendFormat": "{{level}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "custom": { "drawStyle": "line", "fillOpacity": 10 } }
+      }
+    },
+    {
+      "id": 4,
+      "type": "logs",
+      "title": "Live log stream",
+      "description": "Structured JSON on stdout — no log file, nothing to rotate, the container runtime plus Promtail handle shipping. Use the Level filter above; it rewrites the query rather than filtering client-side, so it stays fast on a large window.",
+      "gridPos": { "h": 12, "w": 24, "x": 0, "y": 8 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "targets": [
+        {
+          "expr": "{namespace=~\"$namespace\", app=\"demo-app\"} | json | level =~ \"$level\"",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "showTime": true,
+        "showLabels": false,
+        "showCommonLabels": false,
+        "wrapLogMessage": true,
+        "prettifyLogMessage": true,
+        "enableLogDetails": true,
+        "dedupStrategy": "none",
+        "sortOrder": "Descending"
+      }
+    }
+  ]
+}

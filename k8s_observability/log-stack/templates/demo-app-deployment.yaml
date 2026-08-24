@@ -1,0 +1,52 @@
+{{- if .Values.demoApp.enabled }}
+{{/*
+`release: {{ .Release.Name }}` alongside the plain `app: demo-app` label — metrics-stack
+and trace-stack ship a demo app with this exact same `app: demo-app` label, and when
+multiple of these releases share a namespace (verified live: all three installed into
+`default`), `kubectl logs -l app=demo-app` matches pods across ALL of them, not just
+this release's own. See metrics-stack/templates/demo-app-deployment.yaml for the fuller
+writeup (that chart's Service actually routed traffic to the wrong release's pod before
+this was added — this chart has no Service, so the blast radius here is milder, just an
+ambiguous `kubectl logs -l`).
+*/}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-{{ .Values.demoApp.name }}
+  labels:
+    app: {{ .Values.demoApp.name }}
+    release: {{ .Release.Name }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ .Values.demoApp.name }}
+      release: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.demoApp.name }}
+        release: {{ .Release.Name }}
+    spec:
+      containers:
+        - name: {{ .Values.demoApp.name }}
+          image: "{{ .Values.demoApp.image.repository }}:{{ .Values.demoApp.image.tag }}"
+          imagePullPolicy: {{ .Values.demoApp.image.pullPolicy }}
+          # No app to instrument — Promtail tails stdout from every pod on its node
+          # regardless of what wrote it. This just gives it varied-level JSON lines
+          # to actually show, rather than proving the pipeline against silence.
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              i=0
+              while true; do
+                i=$((i+1))
+                level=INFO
+                if [ $((i % 5)) -eq 0 ]; then level=WARN; fi
+                if [ $((i % 10)) -eq 0 ]; then level=ERROR; fi
+                echo "{\"level\":\"$level\",\"msg\":\"heartbeat $i\",\"ts\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}"
+                sleep {{ .Values.demoApp.intervalSeconds }}
+              done
+          resources:
+            {{- toYaml .Values.demoApp.resources | nindent 12 }}
+{{- end }}

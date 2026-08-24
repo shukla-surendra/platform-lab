@@ -1,0 +1,78 @@
+# Values for the trace-stack wrapper chart. Deploys Tempo + Grafana ONLY — no
+# Prometheus, no Loki. For metrics see ../metrics-stack/, for logs ../log-stack/.
+#
+# Unlike loki-stack (log-stack) and kube-prometheus-stack (metrics-stack), the tempo
+# and grafana charts are two INDEPENDENT charts, neither bundling the other — so this
+# values file has to do the datasource wiring by hand instead of relying on a
+# subchart's own sidecar-provisioned datasource.
+tempo:
+  service:
+    type: ClusterIP   # only Grafana and the demo app talk to Tempo directly
+  persistence:
+    enabled: false     # emptyDir; practice cluster, traces don't need to survive a restart
+  tempo:
+    retention: 1h       # short — this is for watching live traces, not long-term storage
+    resources:
+      requests:
+        cpu: 50m
+        memory: 256Mi
+      limits:
+        cpu: 200m
+        memory: 512Mi
+    # OTLP gRPC (:4317) and HTTP (:4318) receivers are enabled by default in this
+    # chart's own values (tempo.tempo.receivers) — nothing to turn on here.
+
+grafana:
+  adminPassword: admin   # practice cluster only — change before using anywhere else
+  service:
+    type: NodePort   # reachable via `minikube service` without a port-forward
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+  # No subchart-provisioned datasource here (unlike loki-stack/kube-prometheus-stack),
+  # so it's provisioned directly. This whole block is passed through `tpl` by the
+  # grafana chart itself (verified in its templates/_config.tpl), so
+  # `{{ .Release.Name }}` below resolves to whatever release this actually is — not
+  # hardcoded to one specific release name.
+  datasources:
+    datasources.yaml:
+      apiVersion: 1
+      datasources:
+        - name: Tempo
+          type: tempo
+          uid: tempo
+          access: proxy
+          # Port 3200 is Tempo's own HTTP API (query + /metrics + /ready) in
+          # single-binary mode — a DIFFERENT port from the OTLP receivers (4317/4318)
+          # the demo app below sends traces to. Grafana reads FROM this port; the demo
+          # app writes TO the OTLP ports. Confusing the two: Grafana either can't
+          # reach Tempo's query API (wrong port entirely) or gets a receiver endpoint
+          # that doesn't speak Tempo's query protocol.
+          url: http://{{ .Release.Name }}-tempo:3200
+          isDefault: true
+
+# ---------------------------------------------------------------------------
+# Demo app — traces don't exist for free the way logs (any pod's stdout) or
+# basic metrics (cAdvisor/kube-state-metrics) do; something has to actually
+# emit OTLP spans. ghcr.io/grafana/xk6-client-tracing is the synthetic trace
+# generator the Tempo project's own docs use for exactly this: a k6 script
+# that fabricates a realistic multi-service trace (shop-backend -> auth-service
+# -> article-service -> postgres, etc.) and sends it over OTLP/gRPC on a loop —
+# verified live: reads ENDPOINT from an env var, defaults to "otel-collector:4317"
+# if unset.
+# ---------------------------------------------------------------------------
+demoApp:
+  enabled: true
+  name: demo-app
+  image:
+    repository: ghcr.io/grafana/xk6-client-tracing
+    tag: v0.0.10
+    pullPolicy: IfNotPresent
+  resources:
+    requests:
+      cpu: 10m
+      memory: 32Mi
+    limits:
+      cpu: 50m
+      memory: 64Mi

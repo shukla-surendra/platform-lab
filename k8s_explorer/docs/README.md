@@ -55,6 +55,10 @@ browsable site (search, dark mode).
   controllers work, with KServe/Kargo/Argo Workflows as real examples already on this cluster.
 - [`helm-vs-kustomize.md`](./helm-vs-kustomize.md) — templating + release tracking vs.
   overlay/patch on plain YAML, and why this repo uses both.
+- [`helm-tutorial.md`](./helm-tutorial.md) — every core Helm command
+  (`template`/`lint`/`install`/`upgrade`/`history`/`rollback`/`uninstall`) worked
+  command-by-command against [`sample-helm-chart/`](../sample-helm-chart/), with real output
+  from a live run, plus how dependency-wrapping charts like `metrics-stack` differ.
 - [`metrics-and-logs-without-instrumentation.md`](./metrics-and-logs-without-instrumentation.md) —
   does an app need a `/metrics` or logging endpoint to appear in Grafana? No — worked example
   against `rust-api`, which has neither: log capture is automatic (stdout), infra metrics come

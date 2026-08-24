@@ -1,0 +1,246 @@
+{
+  "uid": "metrics-stack-demo-app",
+  "title": "metrics-stack — demo app & pod health",
+  "description": "The demo app (quay.io/brancz/prometheus-example-app) exposes exactly one real metric — a static `version` gauge — scraped via the ServiceMonitor in templates/demo-app-servicemonitor.yaml. That's enough to prove the app -> Prometheus -> Grafana path end to end, but not enough on its own to fill a dashboard, so the second half falls back to the same zero-instrumentation sources every pod on the cluster already has: cAdvisor (CPU/memory, via the kubelet ServiceMonitor's /metrics/cadvisor endpoint) and kube-state-metrics (running/restart counts). All queries verified live against this chart's own install — note cAdvisor reports this single-container pod's usage under an empty `container` label (pod cgroup slice, not per-container), so panels below match on `pod` rather than `container` for those two.",
+  "tags": ["metrics-stack", "prometheus", "demo-app"],
+  "timezone": "browser",
+  "editable": true,
+  "schemaVersion": 39,
+  "refresh": "30s",
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "templating": {
+    "list": [
+      {
+        "name": "datasource",
+        "label": "Prometheus",
+        "type": "datasource",
+        "query": "prometheus",
+        "current": {}
+      },
+      {
+        "name": "namespace",
+        "label": "Namespace",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${datasource}"
+        },
+        "query": "label_values(kube_pod_container_status_running{container=\"demo-app\"}, namespace)",
+        "refresh": 1,
+        "includeAll": true,
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        },
+        "allValue": ".+",
+        "description": "Defaults to All. A hardcoded namespace here renders every panel empty on any install that used a different one — e.g. this chart's README documents 'metrics', but the actual verified install runs in 'default'."
+      }
+    ]
+  },
+  "panels": [
+    {
+      "type": "row",
+      "title": "Demo app (exposes /metrics)",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "collapsed": false
+    },
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Scrape health",
+      "description": "up{job=~\".*demo-app\"} — 1 means Prometheus's last scrape of this target succeeded. 0 (or missing) means every other panel here is stale or empty, not necessarily zero-traffic.",
+      "gridPos": { "h": 4, "w": 5, "x": 0, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [
+        {
+          "expr": "up{job=~\".*demo-app\", namespace=~\"$namespace\"}",
+          "legendFormat": "up",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "#D64545", "value": null },
+              { "color": "#3D9A50", "value": 1 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "App version",
+      "description": "The demo app's one real metric: version{version=\"...\"} 1, a static gauge — exists purely to have something genuine to scrape and query, not something expected to change.",
+      "gridPos": { "h": 4, "w": 5, "x": 5, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [
+        {
+          "expr": "version{job=~\".*demo-app\", namespace=~\"$namespace\"}",
+          "legendFormat": "{{version}}",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "name"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "fixed", "fixedColor": "#5794F2" }
+        }
+      }
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "Scrape up/down over time",
+      "description": "Same up{} series as the stat panel, over time — catches a target that flapped (briefly down and back) between dashboard loads, which the stat panel's lastNotNull would hide.",
+      "gridPos": { "h": 7, "w": 14, "x": 10, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [
+        {
+          "expr": "up{job=~\".*demo-app\", namespace=~\"$namespace\"}",
+          "legendFormat": "{{pod}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "min": 0,
+          "max": 1,
+          "custom": { "drawStyle": "line", "lineInterpolation": "stepAfter", "fillOpacity": 10 }
+        }
+      }
+    },
+    {
+      "type": "row",
+      "title": "Pod resource usage (cAdvisor / kube-state-metrics)",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 8 },
+      "collapsed": false
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Pods running",
+      "description": "kube_pod_container_status_running for the demo-app container. Zero here means the app panels above are reading a target that's about to go (or already went) down.",
+      "gridPos": { "h": 4, "w": 5, "x": 0, "y": 9 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [
+        {
+          "expr": "count(kube_pod_container_status_running{namespace=~\"$namespace\", container=\"demo-app\"} == 1)",
+          "legendFormat": "running",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value_and_name"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "#D64545", "value": null },
+              { "color": "#3D9A50", "value": 1 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 5,
+      "type": "stat",
+      "title": "Restarts (1h)",
+      "description": "kube-state-metrics' restart counter, windowed — a healthy demo app should read 0. Non-zero without a deliberate `kubectl delete pod` means something crashed.",
+      "gridPos": { "h": 4, "w": 5, "x": 5, "y": 9 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [
+        {
+          "expr": "sum(increase(kube_pod_container_status_restarts_total{namespace=~\"$namespace\", container=\"demo-app\"}[1h]))",
+          "legendFormat": "restarts",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "#3D9A50", "value": null },
+              { "color": "#D64545", "value": 1 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "CPU usage",
+      "description": "cAdvisor reports this single-container pod's cgroup usage with an empty `container` label (pod-slice aggregate, not per-container breakdown) — verified live against this chart's install — so this matches on `pod`, not `container`.",
+      "gridPos": { "h": 7, "w": 7, "x": 10, "y": 9 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [
+        {
+          "expr": "sum(rate(container_cpu_usage_seconds_total{namespace=~\"$namespace\", pod=~\".*demo-app.*\"}[5m])) by (pod)",
+          "legendFormat": "{{pod}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": { "drawStyle": "line", "fillOpacity": 10 }
+        }
+      }
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "Memory (working set)",
+      "description": "Same pod-slice caveat as CPU usage — matches on `pod`, not `container`.",
+      "gridPos": { "h": 7, "w": 7, "x": 17, "y": 9 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [
+        {
+          "expr": "sum(container_memory_working_set_bytes{namespace=~\"$namespace\", pod=~\".*demo-app.*\"}) by (pod)",
+          "legendFormat": "{{pod}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "custom": { "drawStyle": "line", "fillOpacity": 10 }
+        }
+      }
+    }
+  ]
+}

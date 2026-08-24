@@ -1,0 +1,113 @@
+# Values for the log-stack wrapper chart. Deploys loki-stack ONLY (Loki + Promtail +
+# Grafana) — no Prometheus, no fluent-bit/filebeat/logstash. For metrics, see the
+# separate ../metrics-stack/ chart instead.
+#
+# Memory-bounded, CPU-unbounded — the profile that actually schedules on this repo's
+# minikube cluster (see ../../k8s_explorer/docs/incidents.md,
+# 2026-07-21-grafana-log-viewer-stuck-pending-insufficient-cpu, for what happened when
+# CPU limits were set with no free CPU on the node). For a cluster with real CPU
+# headroom, add explicit cpu requests/limits to each block below rather than editing
+# this file in place — see that same incident writeup for why limits-without-requests
+# is a worse mistake than no limits at all.
+loki-stack:
+  loki:
+    enabled: true
+    isDefault: true
+    datasource:
+      # Pinned rather than left to Grafana's auto-generated uid, so
+      # dashboards/demo-app-logs.json can reference a fixed
+      # "datasource": {"type": "loki", "uid": "loki"} and actually resolve —
+      # left to the default, every log panel would render empty with no error.
+      uid: loki
+    persistence:
+      enabled: false
+    resources:
+      requests:
+        memory: 128Mi
+      limits:
+        memory: 256Mi
+
+  # DaemonSet: one pod per node, tails container logs from every namespace.
+  promtail:
+    enabled: true
+    resources:
+      requests:
+        memory: 64Mi
+      limits:
+        memory: 128Mi
+    config:
+      # MUST BE OVERRIDDEN. Upstream's default is
+      # `http://{{ .Release.Name }}:3100/loki/api/v1/push` — it assumes the Loki
+      # Service is named exactly the release name. It is not: the Loki subchart names
+      # it `<release>-loki`. With the default, Promtail starts healthy (1/1 Running, no
+      # errors at default verbosity) and posts every batch into the void — Loki holds
+      # zero streams and every Grafana log panel is empty with no error shown anywhere.
+      # This exact failure is on record for this cluster already: see
+      # ../../k8s_explorer/grafana-log-viewer/README.md and
+      # ../../k8s_explorer/docs/incidents.md. Templated on `.Release.Name` (via `tpl`)
+      # rather than hardcoded, so it's correct under any release name, not just one
+      # specific one.
+      clients:
+        - url: http://{{ .Release.Name }}-loki:3100/loki/api/v1/push
+      snippets:
+        # MUST MATCH THE CLUSTER'S CONTAINER RUNTIME. This cluster's nodes report
+        # `docker://...` (verified: `kubectl get node -o jsonpath='{.items[0].status.nodeInfo.containerRuntimeVersion}'`),
+        # so `docker: {}` unwraps the runtime's stdout envelope correctly. On a
+        # containerd/CRI cluster (upstream's own default) this must be `cri: {}`
+        # instead — get it wrong and logs still arrive and look fine in the Live
+        # stream panel, but `| json` parses the wrapper instead of the log line, so
+        # `level` is always empty and level-filtered panels silently read zero no
+        # matter how many errors there are.
+        pipelineStages:
+          - docker: {}
+
+  grafana:
+    enabled: true
+    adminPassword: admin   # practice cluster only — change before using anywhere else
+    sidecar:
+      datasources:
+        enabled: true
+      dashboards:
+        enabled: true
+        label: grafana_dashboard
+        labelValue: "1"
+        searchNamespace: ALL
+    service:
+      type: NodePort   # reachable via `minikube service` without a port-forward
+    resources:
+      requests:
+        memory: 128Mi
+      limits:
+        memory: 256Mi
+
+  fluent-bit:
+    enabled: false
+  prometheus:
+    enabled: false
+  filebeat:
+    enabled: false
+  logstash:
+    enabled: false
+
+# ---------------------------------------------------------------------------
+# Demo app — a tiny log-emitting Pod, so this chart demonstrates the full
+# app -> Promtail -> Loki -> Grafana path with something to actually look at,
+# not an empty Explore panel. Needs no /metrics endpoint, no ServiceMonitor,
+# no Service even — Promtail is a DaemonSet that tails every pod's stdout on
+# its node regardless of whether that pod is fronted by a Service.
+# ---------------------------------------------------------------------------
+demoApp:
+  enabled: true
+  name: demo-app
+  image:
+    repository: busybox
+    tag: "1.36"
+    pullPolicy: IfNotPresent
+  intervalSeconds: 2
+  resources:
+    requests:
+      cpu: 10m
+      memory: 8Mi
+    limits:
+      cpu: 20m
+      memory: 16Mi

@@ -55,6 +55,7 @@ nav:
   - Advanced:
       - CRDs & Operators: crds-and-operators.md
       - Helm vs Kustomize: helm-vs-kustomize.md
+      - Helm Tutorial: helm-tutorial.md
       - Cluster Inventory & Cleanup: cluster-inventory-and-cleanup.md
       - Grafana Dashboard Provisioning: grafana-dashboard-provisioning.md
       - Logs & Metrics Without Instrumentation: metrics-and-logs-without-instrumentation.md

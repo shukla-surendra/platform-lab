@@ -21,6 +21,34 @@ dashboard straight to its full trace" as the actual workflow this enables.
 block store from the start — not an afterthought, the same design philosophy Loki uses for
 logs. Locally, that's typically [MinIO](../minio/README.md) standing in for S3.
 
+## Deployment and usage — verified live against this repo's cluster
+
+Deployed via [`k8s_observability/trace-stack/`](../../../../k8s_observability/trace-stack/)
+(the `grafana-community/tempo` chart, single-binary mode — the older `grafana/tempo`
+chart at `grafana.github.io/helm-charts` is deprecated, migrated to
+`grafana-community/helm-charts`). Two separate ports matter and are easy to confuse:
+`:3200` is Tempo's own HTTP query API (what Grafana's Tempo datasource points at);
+`:4317`/`:4318` are the OTLP gRPC/HTTP receivers (what anything *sending* traces points
+at) — enabled by default in this chart, nothing to turn on.
+
+Traces don't exist for free the way logs (any pod's stdout, tailed by Promtail with zero
+app changes) or basic metrics (cAdvisor/kube-state-metrics, scraped with zero app
+changes) do — something has to actually emit OTLP spans. `trace-stack`'s demo app is
+`ghcr.io/grafana/xk6-client-tracing`, a k6-based synthetic trace generator the Tempo
+project's own docs use for exactly this. It bundles a script
+(`/example-script.js`) that fabricates a realistic multi-service trace —
+`shop-backend → auth-service → article-service → postgres`, plus a `cart-service` flow
+— and sends it over OTLP/gRPC on a loop, reading the target from an `ENDPOINT` env var
+(`__ENV.ENDPOINT || "otel-collector:4317"`, verified by reading the script directly
+inside a running container). No app instrumentation to write, no OTel SDK to configure
+— just point `ENDPOINT` at `<tempo-release>:4317` and real, queryable, multi-span
+traces start landing within seconds:
+
+```bash
+curl -s "http://<tempo-svc>:3200/api/search?tags=service.name%3Dshop-backend&limit=3"
+curl -s "http://<tempo-svc>:3200/api/traces/<traceID>"
+```
+
 ## Alternatives
 
 - **Jaeger** — older, CNCF-graduated, still widely used, has its own dedicated UI rather
