@@ -1,0 +1,63 @@
+# Values for the ingestion wrapper chart. Deploys Kafka in KRaft mode (no
+# separate ZooKeeper StatefulSet — fewer pods for a minikube resource
+# budget) plus a synthetic producer that stands in for a real production
+# event source.
+#
+# NOT YET VERIFIED against a real install — bitnami/kafka's actual values.yaml
+# schema should be diffed against this (`helm show values
+# oci://registry-1.docker.io/bitnamicharts/kafka --version 26.6.1`) before
+# the first `helm install`, the same way metrics-stack/values.yaml's profile
+# was carried over from a chart it had already been proven on rather than
+# guessed from scratch.
+kafka:
+  listeners:
+    client:
+      protocol: PLAINTEXT   # practice cluster only — no auth/TLS
+  kraft:
+    enabled: true
+  controller:
+    replicaCount: 1
+    resources:
+      requests:
+        cpu: 100m
+        memory: 512Mi
+  broker:
+    # Bitnami's KRaft chart runs combined controller+broker nodes when
+    # broker.replicaCount is 0 — one pod total instead of two, cheaper for
+    # a local cluster. Bump this only if isolating controller/broker roles
+    # is actually needed for what's being tested.
+    replicaCount: 0
+  persistence:
+    enabled: false   # emptyDir; practice cluster, data loss on pod restart is fine
+
+# ---------------------------------------------------------------------------
+# Synthetic producer — the demo app. Emits JSON events onto `events` at a
+# steady rate, with an env-toggle to shift one feature's distribution
+# mid-stream so both 03-drift-engine's batch and streaming modes have
+# something real to detect. Image built locally (no official image fits a
+# repo-specific schema), same "build the Dockerfile in this dir" pattern as
+# ../../../k8s_mlops/evidently_stack/.
+# ---------------------------------------------------------------------------
+producer:
+  enabled: true
+  name: producer
+  image:
+    repository: producer
+    tag: local
+    pullPolicy: IfNotPresent
+  replicaCount: 1
+  topic: events
+  eventsPerSecond: 5
+  # After this many events, shift `amount`'s mean from driftBaselineMean to
+  # driftShiftedMean — gives both drift-engine modes a real, timed signal to
+  # catch instead of pure noise. Set to 0 to disable the shift entirely.
+  driftShiftAfterEvents: 2000
+  driftBaselineMean: 50.0
+  driftShiftedMean: 90.0
+  resources:
+    requests:
+      cpu: 20m
+      memory: 32Mi
+    limits:
+      cpu: 100m
+      memory: 64Mi

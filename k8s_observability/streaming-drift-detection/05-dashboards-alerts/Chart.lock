@@ -1,0 +1,9 @@
+dependencies:
+- name: grafana
+  repository: https://grafana-community.github.io/helm-charts
+  version: 12.11.2
+- name: alertmanager
+  repository: https://prometheus-community.github.io/helm-charts
+  version: 1.42.0
+digest: sha256:d70c80fe678a7d5870ec707c374174e1ecc01ee79eeef82611884998aa60aeb2
+generated: "2026-08-25T10:13:23.563069063Z"

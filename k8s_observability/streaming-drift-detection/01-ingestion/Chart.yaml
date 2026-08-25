@@ -1,0 +1,22 @@
+apiVersion: v2
+name: ingestion
+description: Kafka (Bitnami OCI chart, KRaft mode) + a synthetic event producer — the entry point for streaming-drift-detection's production event stream
+type: application
+version: 0.1.0
+appVersion: "26.6.1"
+
+keywords:
+  - kafka
+  - streaming
+  - ingestion
+  - drift-detection
+
+dependencies:
+  # charts.bitnami.com/bitnami stopped receiving updates on 2025-08-28 (all
+  # tags moved to docker.io/bitnamilegacy); current charts are OCI-only now.
+  # Version confirmed live on Artifact Hub (bitnami/kafka 26.6.1) as of
+  # 2026-08-25 — re-check with `helm show chart oci://registry-1.docker.io/bitnamicharts/kafka`
+  # before first install, since this hasn't been installed here yet.
+  - name: kafka
+    version: "26.6.1"
+    repository: "oci://registry-1.docker.io/bitnamicharts"

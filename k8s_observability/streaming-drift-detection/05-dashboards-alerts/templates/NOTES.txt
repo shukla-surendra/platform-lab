@@ -1,0 +1,11 @@
+dashboards-alerts ({{ .Release.Name }}) installed into {{ .Release.Namespace }}.
+
+Grafana:
+  minikube service {{ .Release.Name }}-grafana -n {{ .Release.Namespace }} --url
+  (admin / {{ .Values.grafana.adminPassword }})
+
+Alertmanager (in-cluster): alertmanager:9093
+
+The "Drift Overview" dashboard should already be loaded (sidecar picks up
+the ConfigMap this chart ships) — if it's not there yet, check:
+  kubectl logs -n {{ .Release.Namespace }} deploy/{{ .Release.Name }}-grafana -c grafana-sc-dashboard

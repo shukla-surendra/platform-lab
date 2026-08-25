@@ -1,0 +1,11 @@
+feature-store ({{ .Release.Name }}) installed into {{ .Release.Namespace }}.
+
+Feature server (in-cluster): {{ .Release.Name }}-feast:{{ .Values.featureServer.port }}
+
+Push an event (what 03-drift-engine's streaming consumer does per Kafka message):
+  POST /push  {"push_source_name": "amount_push_source", "df": {...}}
+
+Read it back:
+  POST /get-online-features  {"feature_service": ..., "entities": {"producer_id": [...]}}
+
+See this chart's README for the exact request bodies.

@@ -1,0 +1,60 @@
+# NOT YET VERIFIED — see ../04-metrics-export/values.yaml's same note.
+
+grafana:
+  adminPassword: admin   # practice cluster only — change before using anywhere else
+  service:
+    type: NodePort   # reachable via `minikube service` without a port-forward
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+  sidecar:
+    dashboards:
+      enabled: true
+      label: grafana_dashboard
+      labelValue: "1"
+  # This whole block is passed through `tpl` by the grafana chart itself
+  # (same pattern already verified in ../../trace-stack/values.yaml) — both
+  # URLs below are 04-metrics-export's fixed Service names, not release-name
+  # dependent, since that's a different Helm release from this one.
+  datasources:
+    datasources.yaml:
+      apiVersion: 1
+      datasources:
+        - name: Prometheus
+          type: prometheus
+          uid: prometheus
+          access: proxy
+          url: http://prometheus-server:9090
+          isDefault: true
+        - name: Alertmanager
+          type: alertmanager
+          uid: alertmanager
+          access: proxy
+          url: http://alertmanager:9093
+          jsonData:
+            implementation: prometheus
+
+alertmanager:
+  fullnameOverride: alertmanager
+  persistence:
+    enabled: false   # emptyDir; practice cluster
+  resources:
+    requests:
+      cpu: 20m
+      memory: 32Mi
+  # No real receiver wired up (no Slack/email/PagerDuty creds on a practice
+  # cluster) — `null` receiver on the default route so `FeatureDriftDetected`
+  # firing doesn't error out with "no receiver configured", just goes
+  # nowhere until this is filled in. Confirm the fired alert reaches here at
+  # all (Grafana's Alertmanager datasource above, or `amtool`) before
+  # wiring a real receiver on top of this.
+  config:
+    route:
+      receiver: "null"
+      group_by: ["feature", "mode"]
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 4h
+    receivers:
+      - name: "null"

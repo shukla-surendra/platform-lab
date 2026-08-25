@@ -297,6 +297,25 @@ rebalancing, what "aborted" actually means for a transactional message on disk, 
 recreated topic can make a consumer group silently skip data instead of erroring — each one
 run against the live cluster, not just named.
 
+## Deploying on Kubernetes
+
+The docker-compose lab above is for learning Kafka's mechanics locally;
+[`k8s_observability/streaming-drift-detection/01-ingestion/`](../../../../k8s_observability/streaming-drift-detection/01-ingestion/)
+is this repo's example of running it on a cluster instead — Bitnami's
+`kafka` chart, KRaft mode (`kraft.enabled: true`, `broker.replicaCount: 0`
+so combined controller+broker nodes run as one pod instead of two, cheaper
+for a small cluster).
+
+One gotcha worth knowing before reaching for that chart: `charts.bitnami.com/bitnami`,
+the classic Helm repo URL used in most existing Kafka-on-k8s tutorials,
+stopped receiving updates on **2025-08-28** — every previously-published tag
+moved to `docker.io/bitnamilegacy` and the repo is effectively frozen.
+Current Bitnami charts are **OCI-only**:
+`oci://registry-1.docker.io/bitnamicharts/kafka`, added as a Helm chart
+dependency the same way any `https://` repo would be
+(`repository: "oci://registry-1.docker.io/bitnamicharts"`, no `helm repo add`
+needed — OCI registries are referenced directly by URL).
+
 ## Operational gotchas
 
 - **A stuck poison message blocks everything behind it on that partition, silently.**

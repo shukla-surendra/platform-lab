@@ -1,0 +1,25 @@
+apiVersion: v2
+name: metrics-export
+description: OTel Collector (receives OTLP metrics from 03-drift-engine, exports Prometheus format) + standalone Prometheus (scrapes/stores them) — no bundled Grafana/Alertmanager, those live in 05-dashboards-alerts
+type: application
+version: 0.1.0
+appVersion: "0.170.0"
+
+keywords:
+  - opentelemetry
+  - prometheus
+  - drift-detection
+
+dependencies:
+  # Versions confirmed live against each chart's own Chart.yaml on GitHub
+  # (raw.githubusercontent.com/.../main/charts/.../Chart.yaml) as of
+  # 2026-08-25. Deliberately the standalone `prometheus` chart, not
+  # `kube-prometheus-stack` (which metrics-stack/ next door uses) — that
+  # one bundles Alertmanager and Grafana, which this project keeps in
+  # 05-dashboards-alerts instead (see ../README.md#why-one-shared-namespace-not-five).
+  - name: opentelemetry-collector
+    version: "0.170.0"
+    repository: "https://open-telemetry.github.io/opentelemetry-helm-charts"
+  - name: prometheus
+    version: "29.27.0"
+    repository: "https://prometheus-community.github.io/helm-charts"

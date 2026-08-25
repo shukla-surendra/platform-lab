@@ -1,0 +1,11 @@
+apiVersion: v2
+name: feature-store
+description: Self-hosted Feast feature server, custom image with this project's feature_repo baked in — no third-party chart dependency (see README for why)
+type: application
+version: 0.1.0
+appVersion: "0.49.0"
+
+keywords:
+  - feast
+  - feature-store
+  - drift-detection

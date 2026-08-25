@@ -1,0 +1,25 @@
+apiVersion: v2
+name: dashboards-alerts
+description: Grafana (drift dashboards) + standalone Alertmanager (routes alerts on drift_detected) — reads from 04-metrics-export's Prometheus
+type: application
+version: 0.1.0
+appVersion: "12.11.2"
+
+keywords:
+  - grafana
+  - alertmanager
+  - drift-detection
+
+dependencies:
+  # grafana pinned to the same version already verified working elsewhere in
+  # this repo (../../trace-stack/Chart.yaml — also on grafana-community
+  # since grafana.github.io/helm-charts' own grafana chart is deprecated,
+  # see ../../README.md#chart-provenance-note-as-of-this-writing).
+  # alertmanager version confirmed live against its own Chart.yaml on GitHub
+  # as of 2026-08-25.
+  - name: grafana
+    version: "12.11.2"
+    repository: "https://grafana-community.github.io/helm-charts"
+  - name: alertmanager
+    version: "1.42.0"
+    repository: "https://prometheus-community.github.io/helm-charts"

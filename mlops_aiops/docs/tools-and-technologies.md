@@ -10,6 +10,7 @@ skill (see `../../.claude/skills/tech-log/SKILL.md`, at the repo root).
 
 <!-- INDEX_START -->
 - [Airflow](tools/airflow/README.md) — workflow orchestrator (DAG scheduler and executor)
+- [Alertmanager](tools/alertmanager/README.md) — observability / monitoring (alert routing)
 - [Amazon CloudWatch](tools/cloudwatch/README.md) — observability / monitoring (AWS-native)
 - [cAdvisor](tools/cadvisor/README.md) — observability / monitoring (container resource metrics, Kubernetes/EKS)
 - [Calculus for Engineers](calculus-for-engineers.md) — cross-cutting: differentiation (rate of change) and integration (accumulation) mapped onto monitoring (`rate()`/`increase()`), gradient descent, AUC metrics, cost/SLA burn

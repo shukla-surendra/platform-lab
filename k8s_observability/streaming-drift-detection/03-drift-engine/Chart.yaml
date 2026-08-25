@@ -1,0 +1,11 @@
+apiVersion: v2
+name: drift-engine
+description: Evidently-based drift checks against the events stream — a scheduled batch CronJob and a continuous streaming consumer, sharing one reference dataset and one OTLP metrics emitter
+type: application
+version: 0.1.0
+appVersion: "0.7.21"
+
+keywords:
+  - evidently
+  - drift-detection
+  - opentelemetry

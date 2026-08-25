@@ -1,0 +1,42 @@
+{
+  "title": "Drift Overview",
+  "uid": "drift-overview",
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "refresh": "10s",
+  "time": { "from": "now-1h", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Drift score by feature/mode",
+      "type": "timeseries",
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "drift_score",
+          "legendFormat": "{{feature}} ({{mode}})",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "none", "min": 0 },
+        "overrides": []
+      }
+    },
+    {
+      "id": 2,
+      "title": "Drift detected (1 = drifted)",
+      "type": "state-timeline",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 10 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "drift_detected",
+          "legendFormat": "{{feature}} ({{mode}})",
+          "refId": "A"
+        }
+      ]
+    }
+  ]
+}

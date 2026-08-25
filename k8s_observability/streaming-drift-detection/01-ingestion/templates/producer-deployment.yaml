@@ -1,0 +1,46 @@
+{{- if .Values.producer.enabled }}
+{{/*
+`release: {{ .Release.Name }}` on every selector — five charts share one
+namespace here (see ../../README.md#why-one-shared-namespace-not-five), and
+metrics-stack/README.md already documents what happens without it: a bare
+`app: producer` selector matches pods from ANY release in the namespace.
+*/}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-{{ .Values.producer.name }}
+  labels:
+    app: {{ .Values.producer.name }}
+    release: {{ .Release.Name }}
+spec:
+  replicas: {{ .Values.producer.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ .Values.producer.name }}
+      release: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.producer.name }}
+        release: {{ .Release.Name }}
+    spec:
+      containers:
+        - name: {{ .Values.producer.name }}
+          image: "{{ .Values.producer.image.repository }}:{{ .Values.producer.image.tag }}"
+          imagePullPolicy: {{ .Values.producer.image.pullPolicy }}
+          env:
+            - name: KAFKA_BOOTSTRAP_SERVERS
+              value: "{{ .Release.Name }}-kafka:9092"
+            - name: TOPIC
+              value: {{ .Values.producer.topic | quote }}
+            - name: EVENTS_PER_SECOND
+              value: {{ .Values.producer.eventsPerSecond | quote }}
+            - name: DRIFT_SHIFT_AFTER_EVENTS
+              value: {{ .Values.producer.driftShiftAfterEvents | quote }}
+            - name: DRIFT_BASELINE_MEAN
+              value: {{ .Values.producer.driftBaselineMean | quote }}
+            - name: DRIFT_SHIFTED_MEAN
+              value: {{ .Values.producer.driftShiftedMean | quote }}
+          resources:
+            {{- toYaml .Values.producer.resources | nindent 12 }}
+{{- end }}

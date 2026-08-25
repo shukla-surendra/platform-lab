@@ -1,0 +1,12 @@
+drift-engine ({{ .Release.Name }}) installed into {{ .Release.Namespace }}.
+
+Batch:     CronJob {{ .Release.Name }}-{{ .Values.batch.name }}, schedule {{ .Values.batch.schedule }}
+Streaming: Deployment {{ .Release.Name }}-{{ .Values.streaming.name }}, checking every {{ .Values.streaming.checkIntervalSeconds }}s
+
+Trigger a batch run immediately (don't wait for the schedule):
+  kubectl create job -n {{ .Release.Namespace }} --from=cronjob/{{ .Release.Name }}-{{ .Values.batch.name }} manual-run-1
+
+Watch streaming's live checks:
+  kubectl logs -n {{ .Release.Namespace }} deploy/{{ .Release.Name }}-{{ .Values.streaming.name }} -f
+
+Metrics land in 04-metrics-export's OTel Collector at {{ .Values.otel.endpoint }}.

@@ -205,3 +205,11 @@ while model accuracy collapses. Verified with real numbers, not just
 asserted: `DataDriftPreset` stays completely quiet (0 drifted columns)
 while accuracy drops from 0.997 to 0.497 — the sharpest illustration of
 why step 3 alone isn't sufficient.
+
+The same data-drift-vs-concept-drift pair, turned into a reusable batch
+pipeline (persisted model + reference data, separate train/predict/
+generate-drift/monitor stages you can run independently later, not one
+notebook run top to bottom) instead of a one-off demonstration:
+[`projects/batch-drift-detection-xgboost/`](../../../projects/batch-drift-detection-xgboost/).
+Same real-number result, reproduced by that project's own code: 0 drifted
+columns while accuracy collapses from 1.000 to 0.487.

@@ -1,0 +1,56 @@
+# No third-party chart dependency — same reasoning as
+# ../02-feature-store/values.yaml: this stage is entirely this project's own
+# code (batch/, streaming/, common/), hand-rolled CronJob + Deployment.
+
+kafka:
+  topic: events
+
+otel:
+  # OTel Collector Service from ../04-metrics-export, cross-chart short DNS
+  # name — works because all five stages share one namespace, see
+  # ../README.md#why-one-shared-namespace-not-five.
+  endpoint: "metrics-export-otel-collector:4317"
+
+driftThreshold: 0.5
+
+batch:
+  enabled: true
+  name: drift-batch
+  image:
+    repository: drift-batch
+    tag: local
+    pullPolicy: IfNotPresent
+  schedule: "*/5 * * * *"   # every 5 minutes
+  windowSeconds: 60
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+streaming:
+  enabled: true
+  name: drift-streaming
+  image:
+    repository: drift-streaming
+    tag: local
+    pullPolicy: IfNotPresent
+  replicaCount: 1
+  windowSize: 200
+  minWindowSize: 50
+  checkIntervalSeconds: 15
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+# ../02-feature-store's release name — override with
+# --set featureServer.releaseName=<name> if installed under a different one.
+featureServer:
+  releaseName: feature-store
+  port: 6566

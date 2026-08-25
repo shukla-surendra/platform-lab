@@ -87,6 +87,16 @@ a drop-in swap, so `log-stack` stayed on the old (still-functional, verified liv
 source rather than taking on that rewrite. See each chart's `Chart.yaml`/README for
 specifics.
 
+## A fourth, different kind of project in this directory
+
+[`streaming-drift-detection/`](streaming-drift-detection/) doesn't follow
+the one-signal-per-chart split above — it's five *coupled* charts (Kafka →
+Feast → Evidently → OTel/Prometheus → Grafana/Alertmanager) forming one
+MLOps drift-monitoring pipeline, sharing one namespace instead of one each.
+See [`streaming-drift-detection/README.md`](streaming-drift-detection/README.md#why-one-shared-namespace-not-five)
+for why that's the right call there and not here. Scaffolded, not yet
+installed.
+
 ## Related
 
 - [`mlops_aiops/docs/tools/prometheus/README.md`](../mlops_aiops/docs/tools/prometheus/README.md),

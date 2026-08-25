@@ -84,6 +84,10 @@ Evidently, focused on the drift taxonomy rather than the logging pipeline.
 
 ## Related docs
 
+- [`../batch-drift-detection-xgboost/`](../batch-drift-detection-xgboost/) —
+  the data-drift/concept-drift pair from `drift_types_with_evidently.ipynb`
+  turned into a reusable batch pipeline (persisted model, separate train/
+  predict/generate-drift/monitor stages) instead of a one-off notebook run.
 - [Evidently](../../docs/tools/evidently/README.md) — full write-up,
   alternatives, server requirements, MLflow relationship.
 - [MLflow](../../docs/tools/mlflow/README.md) — tracking backbone used here.

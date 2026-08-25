@@ -1,0 +1,44 @@
+{{- if .Values.streaming.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-{{ .Values.streaming.name }}
+  labels:
+    app: {{ .Values.streaming.name }}
+    release: {{ .Release.Name }}
+spec:
+  replicas: {{ .Values.streaming.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ .Values.streaming.name }}
+      release: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.streaming.name }}
+        release: {{ .Release.Name }}
+    spec:
+      containers:
+        - name: {{ .Values.streaming.name }}
+          image: "{{ .Values.streaming.image.repository }}:{{ .Values.streaming.image.tag }}"
+          imagePullPolicy: {{ .Values.streaming.image.pullPolicy }}
+          env:
+            - name: KAFKA_BOOTSTRAP_SERVERS
+              value: "ingestion-kafka:9092"
+            - name: TOPIC
+              value: {{ .Values.kafka.topic | quote }}
+            - name: FEATURE_SERVER_URL
+              value: "http://{{ .Values.featureServer.releaseName }}-feast:{{ .Values.featureServer.port }}"
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: "http://{{ .Values.otel.endpoint }}"
+            - name: WINDOW_SIZE
+              value: {{ .Values.streaming.windowSize | quote }}
+            - name: MIN_WINDOW_SIZE
+              value: {{ .Values.streaming.minWindowSize | quote }}
+            - name: CHECK_INTERVAL_SECONDS
+              value: {{ .Values.streaming.checkIntervalSeconds | quote }}
+            - name: DRIFT_THRESHOLD
+              value: {{ .Values.driftThreshold | quote }}
+          resources:
+            {{- toYaml .Values.streaming.resources | nindent 12 }}
+{{- end }}

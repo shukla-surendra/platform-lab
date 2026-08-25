@@ -1,0 +1,10 @@
+metrics-export ({{ .Release.Name }}) installed into {{ .Release.Namespace }}.
+
+OTel Collector OTLP gRPC (in-cluster): otel-collector:4317
+Prometheus (in-cluster):               prometheus-server:9090
+
+Port-forward Prometheus's UI:
+  kubectl port-forward -n {{ .Release.Namespace }} svc/prometheus-server 9090:80
+
+Check the OTel Collector's scrape target is up:
+  open http://localhost:9090/targets after port-forwarding

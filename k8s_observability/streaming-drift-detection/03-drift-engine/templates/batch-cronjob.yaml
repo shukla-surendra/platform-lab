@@ -1,0 +1,38 @@
+{{- if .Values.batch.enabled }}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ .Release.Name }}-{{ .Values.batch.name }}
+  labels:
+    app: {{ .Values.batch.name }}
+    release: {{ .Release.Name }}
+spec:
+  schedule: {{ .Values.batch.schedule | quote }}
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          labels:
+            app: {{ .Values.batch.name }}
+            release: {{ .Release.Name }}
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: {{ .Values.batch.name }}
+              image: "{{ .Values.batch.image.repository }}:{{ .Values.batch.image.tag }}"
+              imagePullPolicy: {{ .Values.batch.image.pullPolicy }}
+              env:
+                - name: KAFKA_BOOTSTRAP_SERVERS
+                  value: "ingestion-kafka:9092"
+                - name: TOPIC
+                  value: {{ .Values.kafka.topic | quote }}
+                - name: WINDOW_SECONDS
+                  value: {{ .Values.batch.windowSeconds | quote }}
+                - name: OTEL_EXPORTER_OTLP_ENDPOINT
+                  value: "http://{{ .Values.otel.endpoint }}"
+                - name: DRIFT_THRESHOLD
+                  value: {{ .Values.driftThreshold | quote }}
+              resources:
+                {{- toYaml .Values.batch.resources | nindent 16 }}
+{{- end }}

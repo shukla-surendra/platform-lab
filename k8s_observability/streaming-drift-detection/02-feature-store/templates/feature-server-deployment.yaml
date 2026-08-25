@@ -1,0 +1,30 @@
+{{- if .Values.featureServer.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-{{ .Values.featureServer.name }}
+  labels:
+    app: {{ .Values.featureServer.name }}
+    release: {{ .Release.Name }}
+spec:
+  replicas: {{ .Values.featureServer.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ .Values.featureServer.name }}
+      release: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.featureServer.name }}
+        release: {{ .Release.Name }}
+    spec:
+      containers:
+        - name: {{ .Values.featureServer.name }}
+          image: "{{ .Values.featureServer.image.repository }}:{{ .Values.featureServer.image.tag }}"
+          imagePullPolicy: {{ .Values.featureServer.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.featureServer.port }}
+          resources:
+            {{- toYaml .Values.featureServer.resources | nindent 12 }}
+{{- end }}

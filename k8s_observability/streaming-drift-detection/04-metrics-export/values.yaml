@@ -1,0 +1,101 @@
+# NOT YET VERIFIED against a real install — both subcharts' exact values.yaml
+# keys should be diffed (`helm show values <repo>/<chart> --version <v>`)
+# against what's set here before the first `helm install`. `fullnameOverride`
+# on both subcharts is deliberate: fixed, predictable Service names
+# (`otel-collector`, `prometheus-server`) that don't depend on this chart's
+# own release name, so 03-drift-engine and 05-dashboards-alerts can address
+# them without guessing this chart's release name too.
+
+opentelemetry-collector:
+  fullnameOverride: otel-collector
+  mode: deployment
+  # Default config already has an otlp receiver; this replaces the default
+  # exporter pipeline with a bare-bones batch -> prometheus pipeline, since
+  # the only producer here (03-drift-engine) speaks OTLP and the only
+  # consumer (Prometheus, below) wants to scrape a /metrics endpoint.
+  config:
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+          http:
+            endpoint: 0.0.0.0:4318
+    exporters:
+      prometheus:
+        endpoint: 0.0.0.0:8889
+    service:
+      pipelines:
+        metrics:
+          receivers: [otlp]
+          exporters: [prometheus]
+        traces: null
+        logs: null
+  ports:
+    prometheus:
+      enabled: true
+      containerPort: 8889
+      servicePort: 8889
+      protocol: TCP
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+
+prometheus:
+  fullnameOverride: prometheus
+  alertmanager:
+    enabled: false   # lives in ../05-dashboards-alerts instead
+  kube-state-metrics:
+    enabled: false    # already covered by metrics-stack/ next door if needed
+  prometheus-node-exporter:
+    enabled: false
+  prometheus-pushgateway:
+    enabled: false
+  server:
+    retention: 24h
+    persistentVolume:
+      enabled: false   # emptyDir; practice cluster
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+    # Static scrape target instead of ServiceMonitor/PodMonitor — this
+    # chart doesn't bring the prometheus-operator CRDs the way
+    # kube-prometheus-stack does, and there's exactly one thing to scrape.
+    extraScrapeConfigs: |
+      - job_name: otel-collector
+        static_configs:
+          - targets: ["otel-collector:8889"]
+    # Alertmanager lives in 05-dashboards-alerts (fixed name `alertmanager`
+    # there too, see that chart's values.yaml). NOT YET VERIFIED which of
+    # this chart's actual keys wires `alerting.alertmanagers` into the
+    # generated prometheus.yml (`server.alertmanagers` in some chart
+    # versions, a raw `serverFiles."prometheus.yml"` override in others) —
+    # confirm against `helm show values prometheus-community/prometheus
+    # --version 29.27.0` and fix this key before the first real install.
+    alertmanagers:
+      - static_configs:
+          - targets: ["alertmanager:9093"]
+  # Alert RULE definitions have to live here too, not in
+  # 05-dashboards-alerts, even though rules are conceptually a "stage 5"
+  # concern — evaluating PromQL alert rules is inherently a Prometheus
+  # server config, and this chart has no prometheus-operator CRDs
+  # (PrometheusRule) to let a different chart contribute rules
+  # declaratively. `05-dashboards-alerts/README.md` explains this split.
+  serverFiles:
+    alerting_rules.yml:
+      groups:
+        - name: drift-detection
+          rules:
+            - alert: FeatureDriftDetected
+              expr: drift_detected == 1
+              for: 2m
+              labels:
+                severity: warning
+              annotations:
+                summary: "{{ $labels.feature }} drifted ({{ $labels.mode }} mode)"
+                description: "drift_score={{ $value }} for feature {{ $labels.feature }}, mode {{ $labels.mode }}"

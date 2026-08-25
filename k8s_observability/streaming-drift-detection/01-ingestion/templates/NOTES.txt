@@ -1,0 +1,11 @@
+ingestion ({{ .Release.Name }}) installed into {{ .Release.Namespace }}.
+
+Kafka bootstrap (in-cluster):   {{ .Release.Name }}-kafka:9092
+Producer topic:                 {{ .Values.producer.topic }}
+
+Check the producer is emitting:
+  kubectl logs -n {{ .Release.Namespace }} deploy/{{ .Release.Name }}-producer -f
+
+Read the topic directly (from a throwaway Kafka client pod — see this
+chart's README for the exact command, Bitnami's kafka-client image name
+changes across chart versions).
