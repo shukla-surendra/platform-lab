@@ -11,6 +11,12 @@ processes, the way a real batch system would.
 Everything below was actually run against this project's own code — see
 "Results from a real run."
 
+**New to this project? Start with [`WALKTHROUGH.md`](WALKTHROUGH.md)
+instead** — a step-by-step SOP with the exact commands in order, the real
+output each one produces, and what to actually look at in that output and
+why. This README is the reference doc (design decisions, the "why"); that
+one is the "sit down and run it" doc.
+
 ## Why this exists alongside `evidently-monitoring-demo/`
 
 [`../evidently-monitoring-demo/drift_types_with_evidently.ipynb`](../evidently-monitoring-demo/drift_types_with_evidently.ipynb)
