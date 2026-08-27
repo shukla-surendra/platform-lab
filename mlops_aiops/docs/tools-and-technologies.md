@@ -15,6 +15,7 @@ skill (see `../../.claude/skills/tech-log/SKILL.md`, at the repo root).
 - [cAdvisor](tools/cadvisor/README.md) — observability / monitoring (container resource metrics, Kubernetes/EKS)
 - [Calculus for Engineers](calculus-for-engineers.md) — cross-cutting: differentiation (rate of change) and integration (accumulation) mapped onto monitoring (`rate()`/`increase()`), gradient descent, AUC metrics, cost/SLA burn
 - [ClickHouse](tools/clickhouse/README.md) — database (column-oriented OLAP)
+- [cryptography (pyca/cryptography)](tools/cryptography/README.md) — cryptography / security (Python library, AES/RSA/hashing/HMAC/Ed25519)
 - [Databricks Lakehouse Monitoring](tools/databricks-lakehouse-monitoring/README.md) — ML monitoring / observability (Databricks-native)
 - [Datadog](tools/datadog/README.md) — observability / monitoring (commercial, all-in-one)
 - [Dynatrace](tools/dynatrace/README.md) — observability / monitoring (commercial, all-in-one)

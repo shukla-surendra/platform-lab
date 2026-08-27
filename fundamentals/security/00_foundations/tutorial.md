@@ -110,41 +110,132 @@ items individually, is what signals you understand AppSec rather than memorized 
 
 You rarely implement cryptographic primitives yourself in production — the interview bar
 is being able to reason about which primitive fits which problem and naming the common
-misuse patterns, not deriving RSA:
+misuse patterns, not deriving RSA. Four primitive *types* cover essentially every
+real-world use case; everything else in this section is a specific algorithm choice
+within one of them, or a pattern for combining more than one.
 
-- **Symmetric encryption** (e.g. AES) — one shared key both encrypts and decrypts. Fast,
-  used for bulk data (data at rest, the body of a TLS session after handshake). The hard
-  problem it doesn't solve: how do two parties who've never met agree on a shared key
-  without an eavesdropper capturing it in transit?
-- **Asymmetric encryption** (e.g. RSA, ECC) — a public key encrypts, only the paired
-  private key decrypts (or the reverse, for signing). Solves the key-exchange problem
-  above, at a real computational cost — which is exactly why TLS uses it only to bootstrap
-  a symmetric session key, not for the whole connection.
-- **Hashing** (e.g. SHA-256) is **one-way** — it produces a fixed-size digest with no
-  feasible way back to the input, and is used for integrity checks (does this artifact
-  match its published checksum) and password storage (store the hash, never the
-  plaintext). Hashing is *not* encryption — there's no key and no decryption, which is
-  precisely why "just hash the password" needs one more step:
-- **Salting** — a unique random value appended to each password before hashing, stored
-  alongside the hash. Without it, two users with the same password produce identical
-  hashes, and an attacker can precompute a **rainbow table** (a lookup of hash → plaintext
-  for common passwords) once and reuse it against every account in a breached database.
-  Modern password hashing (bcrypt, scrypt, Argon2) builds in salting plus deliberate
-  slowness, so brute-forcing even a stolen hash is computationally expensive per guess.
-- **Digital signatures** — the asymmetric-key pattern run in reverse: the *private* key
-  signs (over a hash of the message, for efficiency), and anyone with the *public* key can
-  verify the signature matches — proving both integrity (the content wasn't altered) and
-  authenticity (it came from the private key's holder). This is the mechanism behind
-  artifact/container image signing, covered in
-  [Cloud Security](../02_cloud_security/tutorial.md#core-concepts) and
-  [MLOps/LLMOps Security](../03_mlops_llmops_security/tutorial.md#core-concepts) as the
-  answer to "how do you know this model/image wasn't tampered with after it was built."
-- **Key management** is where crypto actually fails in practice far more often than the
-  math: keys hardcoded in source, checked into git history, embedded in a container image,
-  or never rotated. A **KMS (Key Management Service)** exists specifically so application
-  code never sees a raw key directly — it requests an operation (encrypt/decrypt/sign)
-  from the KMS, which performs it and returns the result, keeping the key material inside
-  a boundary that's audited and access-controlled independently of the application.
+| Primitive type | What it does | Solves | Doesn't solve |
+|---|---|---|---|
+| **Symmetric encryption** | One shared key both encrypts and decrypts | Fast bulk confidentiality (data at rest, the body of a TLS session after handshake) | Key exchange — how do two parties who've never met agree on that shared key without an eavesdropper capturing it? |
+| **Asymmetric encryption** | A public key encrypts (or verifies), only the paired private key decrypts (or signs) | The key-exchange problem above, and identity (only the private-key holder can decrypt/sign) | Speed — 2-3 orders of magnitude slower than symmetric for the same data volume, which is why it's used to *bootstrap* a session, not carry it |
+| **Hashing** | One-way fixed-size digest, no feasible path back to the input | Integrity checks, password storage (store the hash, never the plaintext) | Confidentiality (no key, no decryption) and, alone, authenticity (anyone can hash anything — see HMAC below) |
+| **Key exchange (Diffie-Hellman)** | Two parties derive an identical shared secret over a public channel, without ever transmitting the secret itself | The literal "never met, no eavesdropper-proof channel yet" problem symmetric crypto assumes is already solved | Identity — DH alone doesn't prove *who* you're exchanging keys with, which is why TLS combines it with a certificate (PKI, above) |
+
+#### Symmetric Encryption: AES and the Modes That Decide Whether It's Actually Safe
+
+**AES (Advanced Encryption Standard)** is the practical default — a **block cipher**
+(encrypts fixed-size chunks, e.g. 128 bits, at a time) with 128/192/256-bit keys. AES
+itself being unbroken doesn't automatically make an AES-encrypted system safe: the
+**mode of operation** — how successive blocks are chained — determines whether patterns
+in the plaintext leak through:
+
+| Mode | How it works | Pros | Cons |
+|---|---|---|---|
+| **ECB (Electronic Codebook)** | Each block encrypted independently, same key | Simplest, trivially parallelizable | **Identical plaintext blocks produce identical ciphertext blocks** — patterns in the input (e.g. an image's flat-color regions) remain visible in the output. Essentially never the right choice; naming "don't use ECB" unprompted is a strong interview signal. |
+| **CBC (Cipher Block Chaining)** | Each block XORed with the *previous ciphertext block* before encrypting, using a random **IV (initialization vector)** for the first block | Hides plaintext patterns, widely supported | Provides confidentiality only, not integrity — a bit-flip in ciphertext produces a predictably-corrupted (not rejected) plaintext block, which enabled real padding-oracle attacks; requires a separate MAC if integrity matters (see "encrypt-then-MAC" below) |
+| **CTR (Counter)** | Turns a block cipher into a stream cipher by encrypting a counter value and XORing it with the plaintext | Parallelizable, no padding needed | Same integrity gap as CBC; **catastrophic if a (key, counter) pair is ever reused** — two ciphertexts XOR to reveal the XOR of their plaintexts |
+| **GCM (Galois/Counter Mode)** | CTR-mode encryption plus a built-in authentication tag over the ciphertext | **AEAD** (Authenticated Encryption with Associated Data) — confidentiality *and* integrity/authenticity in one primitive, the modern default (TLS 1.3, most new systems) | Requires a unique **nonce** per (key, message) — nonce reuse in GCM is worse than in CTR, since it can additionally leak the authentication key |
+
+The one-line version worth stating in an interview: **"use an AEAD mode (AES-GCM or
+ChaCha20-Poly1305), not a bare confidentiality-only mode with a bolted-on MAC, unless
+you have a specific reason not to."**
+
+#### Asymmetric Encryption: RSA vs. ECC, and How Diffie-Hellman Actually Solves Key Exchange
+
+| | RSA | ECC (Elliptic Curve Cryptography) |
+|---|---|---|
+| Hard problem it relies on | Integer factorization | The discrete logarithm problem over an elliptic curve group |
+| Key size for ~128-bit security | ~3072-bit | ~256-bit |
+| Practical implication | Larger keys/signatures, slower operations, but older/simpler, universally supported | Much smaller keys and faster operations for equivalent security — why TLS, SSH, and mobile/IoT crypto have largely moved to ECC (commonly **ECDSA** for signing, **ECDH** for key exchange) |
+| Where you'll still see it | Legacy systems, some CAs, some HSMs with limited curve support | Default for new systems where key size/performance matters |
+
+**Diffie-Hellman (DH)** is the mechanism, not just a buzzword, behind "how do two
+parties who've never met agree on a shared key" — each side generates a private value,
+exchanges a *public* value derived from it, and both independently compute the *same*
+shared secret from their own private value and the other's public value; an eavesdropper
+who sees both public values can't feasibly derive the shared secret (the same discrete-log
+hardness ECC relies on, when done as **ECDH**). This is the actual handshake step in
+TLS's asymmetric bootstrap, not "asymmetric encryption" of the session key directly in
+most modern configurations.
+
+**Forward secrecy** is the property this buys when the DH exchange uses **ephemeral**
+key pairs, generated fresh per session and discarded after (**DHE**/**ECDHE**): even if a
+server's long-term private key is compromised *later*, past session keys can't be
+reconstructed from it, because they were never derived from that long-term key in a
+recoverable way — each session's secret died with its ephemeral keys. Static (non-ephemeral)
+DH doesn't have this property, which is why "does this use forward secrecy" is a real,
+checkable question about a TLS configuration, not a theoretical nicety.
+
+#### Hashing: Algorithm Choice, Salting, and the HMAC Gap
+
+Not every hash algorithm still standing today is safe to use — "hashing" as a category
+being unbroken doesn't mean every named algorithm in it is:
+
+| Algorithm | Status | Why |
+|---|---|---|
+| **MD5** | **Broken** | Practical collision attacks exist (two different inputs producing the same hash) — unsafe for anything security-relevant, including certificates and integrity checks |
+| **SHA-1** | **Broken** | A practical, demonstrated collision (Google/CWI's "SHAttered," 2017) — deprecated everywhere security-relevant |
+| **SHA-256 / SHA-512 (SHA-2 family)** | Current default | No practical collision attack known; the safe general-purpose choice today |
+| **SHA-3** | Current, structurally different | A different internal construction (sponge function, not Merkle-Damgård like SHA-2) — chosen via open competition specifically as a hedge in case a future attack broke SHA-2's construction, not because SHA-2 is currently weak |
+
+**Salting** (unique random value per password, stored alongside the hash) prevents an
+attacker from precomputing a **rainbow table** (hash → plaintext lookup for common
+passwords) once and reusing it against every account in a breached database — without a
+salt, two users with the same password produce identical hashes. Modern password hashing
+(**bcrypt, scrypt, Argon2**) builds in salting plus deliberate slowness (a tunable work
+factor), so brute-forcing even a stolen hash is computationally expensive per guess — the
+category worth naming explicitly: these are **key-derivation functions (KDFs)** purpose-built
+for "make guessing expensive," not general-purpose hashes reused for a job they weren't
+designed for.
+
+**HMAC (Hash-based Message Authentication Code)** is the piece plain hashing alone can't
+provide: *authenticity*. A bare hash proves integrity only if the verifier already trusts
+the channel the hash arrived over — anyone can compute `SHA256(message)` for a message
+they tampered with. HMAC combines the hash with a **shared secret key**
+(`HMAC(key, message)`), so only someone holding the key could have produced a valid tag —
+proving the message came from a legitimate holder of that key, not just that *some* hash
+matches. This is the symmetric-key cousin of digital signatures below: HMAC is cheaper
+(no asymmetric math) but requires both sides to share a secret in advance, exactly the
+key-distribution problem asymmetric crypto exists to solve — pick HMAC when both parties
+already share a key (e.g. an established API integration); pick signatures when the
+verifier shouldn't need to hold a secret (e.g. anyone should be able to verify a signed
+artifact without being trusted with a signing key).
+
+#### Digital Signatures
+
+The asymmetric-key pattern run in reverse: the *private* key signs (over a hash of the
+message, for efficiency — never the raw message, which would be slow and size-limited),
+and anyone with the *public* key can verify the signature matches — proving both
+integrity (the content wasn't altered) and authenticity (it came from the private key's
+holder). Algorithm choice mirrors the RSA-vs-ECC trade-off above: **RSA signatures**
+(larger, universally supported) vs. **ECDSA/EdDSA** (smaller, faster, the modern default —
+EdDSA specifically fixes some implementation footguns ECDSA has around random-number
+generation during signing). This is the mechanism behind artifact/container image
+signing, covered in [Cloud Security](../02_cloud_security/tutorial.md#core-concepts) and
+[MLOps/LLMOps Security](../03_mlops_llmops_security/tutorial.md#core-concepts) as the
+answer to "how do you know this model/image wasn't tampered with after it was built."
+
+#### Key Management
+
+This is where crypto actually fails in practice far more often than the math: keys
+hardcoded in source, checked into git history, embedded in a container image, or never
+rotated. A **KMS (Key Management Service)** exists specifically so application code never
+sees a raw key directly — it requests an operation (encrypt/decrypt/sign) from the KMS,
+which performs it and returns the result, keeping the key material inside a boundary
+that's audited and access-controlled independently of the application.
+
+#### A Forward-Looking Note: Post-Quantum Cryptography
+
+RSA and ECC's hardness assumptions (factoring, discrete log) are both efficiently
+breakable by a sufficiently large quantum computer running **Shor's algorithm** — not a
+near-term operational risk for most systems, but the reason NIST standardized
+**post-quantum (PQC)** replacements (**ML-KEM** for key exchange, **ML-DSA** for
+signatures, both finalized 2024) built on hardness assumptions quantum algorithms don't
+currently break. Worth knowing the name and the shape of the concern even without needing
+implementation depth: it's a live, current migration question for anything with a
+long-lived confidentiality requirement (data that must stay secret for decades, where
+"harvest now, decrypt later" is a real threat model today even before a capable quantum
+computer exists), not a settled, distant hypothetical.
 
 ### IAM: Authentication vs. Authorization, and the Protocols That Implement Them
 
@@ -285,6 +376,9 @@ applying it to.
 | Encryption placement | TLS terminated at the load balancer, plaintext internally | TLS/mTLS all the way to the service (zero trust) | Terminate-at-edge only within a network you fully trust and control; end-to-end/mTLS once "inside the VPC" isn't itself a strong trust boundary — the default assumption in a zero-trust design |
 | Password verification cost | Fast hash (SHA-256) | Deliberately slow hash (bcrypt/Argon2) | Never use a fast general-purpose hash for passwords — always the slow, purpose-built option; the only real "trade-off" is tuning the slowness parameter against acceptable login latency |
 | Threat modeling depth | Full STRIDE pass on every component | STRIDE only at trust boundaries and high-value assets | Full pass when the system is new or high-stakes; boundary-focused pass as the practical default once a system is mature, to keep the exercise tractable |
+| Bulk data encryption | Symmetric only | Hybrid (asymmetric key exchange + symmetric bulk encryption) | Symmetric-only when both parties already share a key out-of-band (rare in practice); hybrid is the practical default for anything starting from "two parties with no prior shared secret" — TLS, most application-level encryption |
+| Message authenticity | HMAC (shared secret) | Digital signature (asymmetric) | HMAC when both parties already hold a shared key and speed matters (service-to-service, already-authenticated channels); signatures when the verifier must not need a secret (public artifact/software verification, multi-party verification) |
+| Encryption mode | Confidentiality-only (CBC/CTR) + separate MAC | AEAD (AES-GCM, ChaCha20-Poly1305) | AEAD by default — it's harder to misuse than manually composing a cipher mode with a MAC, and is what TLS 1.3 and most new protocols standardize on |
 
 ## Failure Modes to Raise Proactively
 
@@ -308,6 +402,21 @@ applying it to.
 - **Logging exists, but no one alerts on it** — satisfying "logging & monitoring" on paper
   while the actual detection gap (nothing pages a human) remains open; a log no one reads
   provides repudiation-resistance after the fact but doesn't shorten time-to-detection.
+- **ECB mode (or any bare confidentiality-only mode) used where an AEAD mode should be** —
+  patterns leak through ECB directly, and CBC/CTR without a separate integrity check let
+  ciphertext be tampered with undetected; the fix is almost always "switch to AES-GCM,"
+  not "add a bespoke MAC on top."
+- **A nonce or IV reused with the same key** — catastrophic in CTR and GCM specifically
+  (XORing two ciphertexts under the same keystream leaks the XOR of their plaintexts; in
+  GCM it can additionally expose the authentication key), and a common real-world bug when
+  a nonce is derived from something not actually guaranteed unique (a truncated timestamp,
+  a counter that resets on restart).
+- **Rolling a custom cryptographic algorithm or protocol** — "we wrote our own encryption
+  scheme" is a red flag independent of how it's implemented; unlike most engineering
+  problems, novelty in crypto design is a liability, not a differentiator — use standardized,
+  widely-reviewed primitives (AES, RSA/ECC, SHA-2/3) and protocols (TLS) rather than
+  inventing new ones, since a design flaw here typically isn't found until it's already
+  been exploited.
 
 ## Make It Yours
 
@@ -331,6 +440,11 @@ applying it to.
 - Design the key-management approach for a system that needs to encrypt data at rest,
   verify signed artifacts, and issue short-lived service credentials — what's stored in a
   KMS vs. issued directly to services, and why?
+- A teammate proposes encrypting a data field with AES in ECB mode "because it's simpler
+  to implement." Explain concretely what breaks, and what you'd propose instead.
+- Explain why TLS uses asymmetric crypto only to bootstrap a symmetric session key rather
+  than encrypting the whole connection asymmetrically, and what "forward secrecy" adds on
+  top of that bootstrap that a static (non-ephemeral) key exchange wouldn't provide.
 
 ## Articulate It: Interview Framing & Vocabulary
 
@@ -350,6 +464,13 @@ applying it to.
   re-checked per resource, not assumed once authentication succeeds. Almost every broken
   access control bug is authorization quietly borrowing an authentication decision it
   wasn't entitled to."
+- **Primitive-selection framing (good for "walk me through your crypto choices" questions):**
+  "I think about crypto as four primitive types, not a grab-bag of algorithms: symmetric
+  for fast bulk confidentiality, asymmetric for identity and solving key exchange, hashing
+  for one-way integrity checks, and Diffie-Hellman for two parties agreeing on a secret over
+  a channel they don't yet trust. Once I know which problem I'm solving, the algorithm
+  choice mostly falls out — AEAD over a bare cipher mode, ECC over RSA for new systems,
+  never a hand-rolled scheme."
 
 ### Vocabulary Builder
 
@@ -368,6 +489,20 @@ applying it to.
   directly.
 - **non-repudiation** (n.) — the property that an action can be conclusively attributed to
   its actor after the fact, typically via signed or tamper-evident audit logs.
+- **AEAD** (n., Authenticated Encryption with Associated Data) — an encryption mode (e.g.
+  AES-GCM) providing confidentiality and integrity/authenticity together, the modern
+  default over composing a bare cipher mode with a separate MAC by hand.
+- **forward secrecy** (n. phrase) — the property that compromising a long-term key later
+  can't be used to decrypt past sessions, achieved by using ephemeral (per-session,
+  discarded-after-use) key exchange rather than a static one.
+- **nonce** (n., "number used once") — a value that must never repeat for a given key in
+  modes like CTR/GCM; reuse is a critical, often silent failure, not a minor bug.
+- **KDF** (n., Key Derivation Function) — a function (bcrypt, scrypt, Argon2) purpose-built
+  to make guessing a secret (a password) computationally expensive per attempt, distinct
+  from a general-purpose hash used for the same job it wasn't designed for.
+- **HMAC** (n., Hash-based Message Authentication Code) — a keyed hash proving a message
+  came from a holder of the shared key, not just that a hash matches; the symmetric-key
+  cousin of a digital signature.
 
 **Expressive phrases — for stating a trade-off fluently instead of listing pros/cons:**
 
