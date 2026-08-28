@@ -218,6 +218,47 @@ efficiently (more tokens per character), especially languages without spaces or 
 Unicode; and this is OpenAI-specific — Claude uses a different vocabulary, so a tiktoken
 count is not a Claude token count and shouldn't be reused for Claude context/cost math.
 
+### Tokenizing a raw corpus into a `.bin` token stream (what a "tokenization" pretraining
+job is actually doing)
+
+It is not counting tokens — counting is just the progress readout printed along the way.
+The actual job is **translation**: every chunk of raw text gets converted into its
+sequence of integer token IDs (per the BPE vocabulary — see the tiktoken entry above for
+how that vocabulary itself works), and those integers are the thing that gets written to
+disk. Think of it like translating an entire shelf of books into a private numbered code
+and writing *only the number sequence* onto tape, discarding the original wording — future
+readers of the tape don't re-translate anything, they just read numbers back.
+
+Mechanism, for a corpus-building run (not a single API call like tiktoken's `.encode()`):
+raw text is read in fixed-size chunks (streaming — a 15GB source file is never loaded into
+RAM whole), each chunk is fed through the trained tokenizer to get a list of integer IDs,
+and those IDs are appended straight to a flat binary file, 2 bytes per token (`uint16`,
+since a 32,768-entry vocabulary fits in that range). A special document-separator token
+(`<|endoftext|>`) gets inserted at real document boundaries so the model can learn "this
+document ended" instead of the text of one book bleeding straight into the next as if it
+were one continuous sentence. The printed "N tokens" line during the run is just a running
+tally of how many integers have been written so far — useful for tracking progress on a
+multi-hour job, not the deliverable itself.
+
+Why bother writing a separate `.bin` file instead of just keeping the `.txt` and tokenizing
+on the fly during training: training samples millions of random windows from the same
+corpus over the course of a run, and re-running BPE's merge logic every single time would
+waste enormous compute redoing identical work. Tokenize once, store the resulting integers,
+and the training loop just memory-maps that file — the OS pages in only the byte ranges a
+given random window actually touches, so a 10B-token corpus never needs to fully live in
+RAM even though training reads from it constantly.
+
+Production reality / gotchas: token count is not proportional to word count or byte count —
+it depends entirely on how well *that specific* vocabulary compresses *that specific* text.
+A tokenizer trained mostly on English prose will produce noticeably more tokens per
+character on text in a script it rarely saw (e.g. Hindi Devanagari against an
+English-majority BPE vocabulary), because byte-level BPE falls back toward near-raw-byte
+encoding wherever it never learned useful merges. This is also why a multi-source corpus
+build reports per-source token counts rather than per-source file sizes or document counts:
+training budgets and mixture ratios ("70% source A, 25% source B, 5% source C") are defined
+in tokens, since that's the unit the model actually consumes, and raw byte size is only a
+rough proxy for it.
+
 ### Chinchilla-optimal training budget
 
 Think of it like a student and a textbook: a huge textbook (lots of parameters) is wasted on
@@ -431,3 +472,59 @@ plugging in an actual GPU means comparing specs, not reading the row literally.
   compute-bound (closer to 4-8h), smaller batch pushes it toward bandwidth-bound (toward the
   wider end). The honest answer is "depends which bottleneck the batch size hits," not a single
   number — the book's table hides that by only naming a price tier.
+
+### HF-compatible vs. vLLM-compatible (two different bars, not synonyms)
+
+Think of it like a shipping container: "HF-compatible" is the container meeting the standard
+size/shape so *any* dock can lift it (a generic loader — `transformers.AutoModelForCausalLM`).
+"vLLM-compatible" is a stricter requirement on top: not just any dock, but specifically the
+*fast, specialized* dock that only knows how to unload a handful of container types it was
+custom-built for.
+
+Mechanism:
+- **HF-compatible** means a model directory has a `config.json` naming an `architectures` class
+  `transformers` already implements (e.g. `GPT2LMHeadModel`, `LlamaForCausalLM`), weights
+  (safetensors) whose parameter names/shapes match that implementation exactly, and tokenizer
+  files transformers can load. Meeting this gets you `from_pretrained()`, `Trainer`,
+  `pipeline()`, and Hub upload/download for free.
+- **vLLM-compatible** is narrower: vLLM keeps its *own* separate registry of model
+  implementations (rewritten internally with paged attention, continuous batching, fused
+  kernels) and only serves architectures it has specifically reimplemented — a large list
+  (Llama, Mistral, GPT-2, Qwen, Gemma, Phi, ...) but not every HF-loadable architecture. So
+  `vLLM-compatible ⊆ HF-compatible`: being HF-loadable (even via `trust_remote_code=True` custom
+  code) does not imply vLLM support, but landing on an architecture name vLLM already
+  implements gets both at once.
+
+The trick for a genuinely custom/from-scratch architecture is never "make vLLM understand my
+model" — it's "repackage my weights to numerically match an architecture vLLM already
+understands," verified by comparing logits (`torch.allclose`) between the original model and
+the repackaged one on the same input, since a silent key-mapping mistake still produces a
+model that *loads* without error but computes something subtly wrong.
+
+Native checkpoint (custom keys/format)
+        │
+        │ export: remap weights into an existing architecture's
+        │ exact key names/shapes + write config.json + tokenizer files
+        ▼
+HF-format directory (config.json + safetensors + tokenizer files)
+        │
+        ├──▶ transformers.AutoModelForCausalLM.from_pretrained()   ← HF-compatible
+        │
+        └──▶ vllm serve <dir>                                      ← vLLM-compatible too,
+                                                                        IF the target architecture
+                                                                        is one vLLM implements
+
+Two concrete conversions worth remembering as reference points: a GPT-2-shaped custom model
+(learned position embeddings, GELU MLP, fused QKV) maps onto `GPT2LMHeadModel` — the only real
+wrinkles are that GPT-2's `Conv1D` layers store weights *transposed* relative to `nn.Linear`,
+and GPT-2's default activation is a tanh-approximated GELU (`gelu_new`) rather than exact GELU,
+so the exported config needs `activation_function="gelu"` to match a model actually trained with
+`nn.GELU()`. A RoPE+RMSNorm+SwiGLU custom model (no biases) maps onto `LlamaForCausalLM` instead
+— no activation mismatch (SwiGLU's `silu` *is* Llama's default), no transpose needed (both sides
+use plain `nn.Linear`), but the fused QKV projection has to be *split* into three separate
+matrices since Llama never fuses them. Same underlying principle, different architecture family,
+different specific gotchas — the gotchas are always in the weight *layout* and activation
+*exactness*, never in the tokenizer if the vocabulary is already a real published one (GPT-2's
+tokenizer needs no conversion at all) or already stored in `transformers`' own native tokenizer
+JSON format (a custom vocabulary trained via the `tokenizers` library loads directly into
+`PreTrainedTokenizerFast` with zero conversion either).
