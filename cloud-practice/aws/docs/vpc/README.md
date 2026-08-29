@@ -22,7 +22,8 @@ The full deep-dive on Amazon VPC, from first principles to production. Read in t
 - **[VPC cheatsheet](../../cheatsheets/vpc.md)** — one-page recall.
 
 ## Practice
-- **[Terraform: 3-tier VPC](../../terraform/vpc/README.md)** — runnable, heavily commented, builds the canonical multi-AZ design.
+- **[Terraform: 3-tier VPC](../../terraform/vpc/README.md)** — runnable, heavily commented, builds the canonical multi-AZ design (NAT Gateway included by default).
+- **[Tutorial: The NAT Gateway Decision](tutorial-nat-gateway-decision.md)** — read after Module 2. Not new theory — applies `networking.md` §3c and `best-practices.md` §7 to a real either/or choice, worked through on two real VPCs already in this repo that land on opposite answers: the 3-tier module above (NAT by default) versus [`k8s_explorer/aws-kubeadm-cluster`](../../../../k8s_explorer/aws-kubeadm-cluster/)'s cluster VPC (no NAT at all, and why that's the right call there specifically).
 
 ## Gates (self-test)
 - [Module 1 gate](../../quizzes/vpc/module-1-gate.md) · [Module 2 gate](../../quizzes/vpc/module-2-gate.md). Each doc also ends with an inline **Self-check**.
