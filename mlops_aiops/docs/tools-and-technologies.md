@@ -25,6 +25,7 @@ skill (see `../../.claude/skills/tech-log/SKILL.md`, at the repo root).
 - [Grafana](tools/grafana/README.md) — observability / monitoring (Kubernetes/EKS)
 - [Jaeger](tools/jaeger/README.md) — observability / monitoring (tracing)
 - [Kafka](tools/kafka/README.md) — distributed event streaming platform (partitioned commit log)
+- [KubeRay](tools/kuberay/README.md) — Kubernetes operator (RayCluster/RayJob/RayService CRDs for running Ray clusters on Kubernetes)
 - [kube-state-metrics](tools/kube-state-metrics/README.md) — observability / monitoring (Kubernetes object state, Kubernetes/EKS)
 - [LGTM Stack](tools/lgtm-stack/README.md) — observability / monitoring (open-source stack, unified metrics+logs+traces)
 - [Linux & Shell Scripting](tools/linux-shell-scripting/README.md) — operating system / command-line automation (Bash)

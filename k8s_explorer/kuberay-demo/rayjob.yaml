@@ -1,0 +1,44 @@
+apiVersion: ray.io/v1
+kind: RayJob
+metadata:
+  name: rayjob-demo
+  namespace: kuberay
+spec:
+  # Inline, single-line entrypoint (a lambda wrapped in ray.remote(), not a
+  # decorated def) — no working_dir/runtime_env needed, and avoids YAML's
+  # scalar-folding rules mangling a multi-line python -c script. Getting
+  # a real script file into the job container would otherwise need a
+  # baked-in image, a real git/zip URL, or a ConfigMap volume mount.
+  entrypoint: python -c "import ray; ray.init(); f = ray.remote(lambda x: x * x); print('results:', ray.get([f.remote(i) for i in range(8)]))"
+  shutdownAfterJobFinishes: true
+  ttlSecondsAfterFinished: 60
+  rayClusterSpec:
+    rayVersion: "2.40.0"
+    headGroupSpec:
+      rayStartParams:
+        dashboard-host: "0.0.0.0"
+      template:
+        spec:
+          nodeSelector:
+            kubernetes.io/hostname: minikube
+          containers:
+            - name: ray-head
+              image: rayproject/ray:2.40.0
+              resources:
+                requests: { cpu: "500m", memory: "1Gi" }
+                limits: { cpu: "1", memory: "2Gi" }
+    workerGroupSpecs:
+      - groupName: small-group
+        replicas: 1
+        minReplicas: 1
+        maxReplicas: 1
+        template:
+          spec:
+            nodeSelector:
+              kubernetes.io/hostname: minikube
+            containers:
+              - name: ray-worker
+                image: rayproject/ray:2.40.0
+                resources:
+                  requests: { cpu: "500m", memory: "1Gi" }
+                  limits: { cpu: "1", memory: "2Gi" }

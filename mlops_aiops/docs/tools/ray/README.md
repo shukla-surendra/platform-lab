@@ -332,3 +332,7 @@ hands-on rather than described architecturally.
   fast, in-memory data access across processes) but purpose-built for Ray's own task/actor
   scheduling, not a general-purpose cache/data-structure server the way Redis is; the two
   solve related-looking but distinct problems.
+- **[KubeRay](../kuberay/README.md)** — everything above runs in local mode
+  (`ray.init(num_cpus=4)` on one machine). KubeRay is the separate tool (a Kubernetes
+  operator) for running an actual multi-node Ray *cluster* — the head/worker topology this
+  doc never touches — on Kubernetes, with the cluster itself expressed as a CRD.

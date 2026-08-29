@@ -76,3 +76,17 @@ Triton) sits behind KServe or a plain Deployment+Service the same way any
 other model-serving container would — see
 [`docs/observability-on-eks.md`](../../observability-on-eks.md) for how
 metrics/logs from that serving pod would get monitored once it's running.
+
+## Multi-node: where Ray comes in
+
+Single GPU, or tensor-parallel across multiple GPUs on **one** node, needs no
+Ray at all — vLLM's own multiprocessing backend (`distributed_executor_backend:
+"mp"`, the default) handles that locally over NCCL. The moment a deployment
+spans **multiple nodes** — the model doesn't fit on one machine's GPUs, or
+you're running many replicas that need a shared scheduler — vLLM switches
+that same setting to `"ray"` and delegates cross-node process placement to
+[Ray](../ray/README.md), the same way it delegates KV-cache management to
+PagedAttention instead of reinventing it. If that Ray cluster itself runs on
+Kubernetes, [KubeRay](../kuberay/README.md) is the operator managing it as a
+`RayCluster` resource. Full layering (vLLM → Ray → KubeRay → Kubernetes), with
+diagrams, in [`kuberay/conversation.md`](../kuberay/conversation.md).
