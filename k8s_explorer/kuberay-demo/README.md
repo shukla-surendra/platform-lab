@@ -81,11 +81,65 @@ by touching this repo's YAML or docs. `ray status`, the dashboard's Overview/Clu
 tabs, and the KubeRay operator's own reconciliation all work correctly throughout —
 only the job-submission code path is affected.
 
-If you need to actually run something on the cluster, `ray.init(address="auto")`
-from a plain Python script — connecting via the Ray client port (10001, exposed in
-`raycluster.yaml`) from *outside* the container — is the one path not yet confirmed
-broken; `kubectl exec`-ing a script directly inside the head container is confirmed
-**broken** (crashes the raylet, see the troubleshooting doc).
+**Update:** Ray Client (`ray://`, port 10001) from outside the container was also
+tested and is **also broken** — same underlying crash, different front door. Every
+path tried that spawns a new worker process on this raylet (`kubectl exec`, the
+Jobs API, Ray Client) hits it; `rayjob.yaml` in this folder (the `RayJob` CRD —
+the Kubernetes-native way to invoke a job from outside the cluster, see
+[`INSTALL-KUBERAY.md`](./INSTALL-KUBERAY.md)) is untested but would be expected to
+hit the same wall, since it still ultimately goes through the same job-execution
+code path inside the cluster. There is currently no confirmed-working way to run
+a job or a Serve deployment on *this specific* minikube/KubeRay setup — see
+"Real workload examples," below, for where that actually got proven out instead.
+
+## Real workload examples: a real training job + a real serving endpoint
+
+`train_job.py` and `serve_model.py` are a genuine (if small) ML platform workflow,
+not a toy — real dataset (sklearn's breast-cancer set), real distributed
+hyperparameter search across 8 configs as parallel Ray tasks, real 5-fold
+cross-validation, a real held-out test accuracy (96.5%), and a real HTTP
+prediction endpoint serving that trained model.
+
+Because of the limitation above, these are proven out against **native Ray
+running directly on the Mac** (no Kubernetes/minikube involved at all) rather
+than this folder's `RayCluster` — same Ray version (2.40.0), same code, just a
+different cluster underneath, chosen specifically because it isn't affected by
+the bug:
+
+```bash
+# one-time: start a local Ray head (dashboard at :8265)
+.venv/bin/ray start --head --dashboard-host=0.0.0.0 --dashboard-port=8265 --port=6379
+
+# train: submitted via the real Jobs API (not kubectl exec, not `python train_job.py`
+# directly) so the driver logs actually show up under the dashboard's Jobs tab —
+# this is also what the dashboard's own "Driver logs are only available when
+# submitting jobs via the Job Submission API..." message is telling you.
+RAY_ADDRESS='http://127.0.0.1:8265' .venv/bin/ray job submit \
+  --working-dir . --submission-id train-breast-cancer \
+  -- .venv/bin/python train_job.py
+
+# serve the model that job just trained
+.venv/bin/python serve_model.py
+
+curl -X POST http://localhost:8010/predict -H "Content-Type: application/json" \
+  -d '{"features": [17.99, 10.38, 122.8, 1001, 0.1184, 0.2776, 0.3001, 0.1471, \
+                     0.2419, 0.0787, 1.095, 0.9053, 8.589, 153.4, 0.0064, 0.049, \
+                     0.0537, 0.0159, 0.03, 0.0062, 25.38, 17.33, 184.6, 2019, \
+                     0.1622, 0.6656, 0.7119, 0.2654, 0.4601, 0.1189]}'
+# -> {"prediction": "malignant", "probabilities": {...}, "model_test_accuracy": 0.9649}
+```
+
+One real gotcha worth keeping: `ray job submit --working-dir .` runs the job from
+a **sandboxed copy** of that directory (uploaded as a package to the cluster), not
+this actual folder — `train_job.py` saves `model.joblib` to a hardcoded absolute
+path for exactly this reason, since a path relative to `__file__` would land
+inside that ephemeral sandbox instead. `serve_model.py` doesn't have this problem
+since it's run directly, not through the Jobs API.
+
+`entrypoint: python train_job.py` (system `python`, no venv) also fails with
+`command not found` — the job supervisor spawns the entrypoint via a bare shell,
+which doesn't inherit this venv's `PATH`. Use the venv's full python path in the
+entrypoint instead.
 
 ## Teardown
 

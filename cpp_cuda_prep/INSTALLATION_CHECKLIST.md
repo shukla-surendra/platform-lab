@@ -489,7 +489,7 @@ softwareupdate -i -a
 ### 1. Verify Everything Works
 
 ```bash
-cd /Users/surendrashukla/projects/2026/platform-lab/cpp_cuda_prep
+cd ~/projects/2026/platform-lab/cpp_cuda_prep
 make run-all
 ```
 

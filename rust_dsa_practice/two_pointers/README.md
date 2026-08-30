@@ -24,7 +24,7 @@ Two pointers is a technique where you maintain two indices (pointers) into an ar
 
 **To solve:**
 ```bash
-cd /Users/surendrashukla/projects/2026/platform-lab/rust_dsa_practice/two_pointers
+cd ~/projects/2026/platform-lab/rust_dsa_practice/two_pointers
 
 # Read the problem and hints
 cat src/bin/001_3sum.rs

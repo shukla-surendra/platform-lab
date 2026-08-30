@@ -67,7 +67,7 @@
  * Don't peek at solutions online until you've attempted it.
  *
  * Test cases are provided below. Run with:
- * cd /Users/surendrashukla/projects/2026/platform-lab/rust_dsa_practice/two_pointers
+ * cd ~/projects/2026/platform-lab/rust_dsa_practice/two_pointers
  * cargo run --bin 001_3sum
  *
  * ============================================================================

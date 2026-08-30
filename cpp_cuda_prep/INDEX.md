@@ -1,6 +1,6 @@
 # C++ CUDA Prep Project — Complete Index
 
-**Location:** `/Users/surendrashukla/projects/2026/platform-lab/cpp_cuda_prep`
+**Location:** `~/projects/2026/platform-lab/cpp_cuda_prep`
 
 **Total Documentation:** 2,737 lines across 7 markdown files + working code
 
@@ -402,7 +402,7 @@ Kernel launching maps to function concepts from 03_functions_lambdas.cpp
 
 ```bash
 # Navigation
-cd /Users/surendrashukla/projects/2026/platform-lab/cpp_cuda_prep
+cd ~/projects/2026/platform-lab/cpp_cuda_prep
 
 # Verify setup
 clang++ --version && make --version && lldb --version

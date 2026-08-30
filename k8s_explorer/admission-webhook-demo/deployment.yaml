@@ -1,0 +1,41 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: admission-webhook
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: admission-webhook
+  template:
+    metadata:
+      labels:
+        app: admission-webhook
+    spec:
+      containers:
+        - name: webhook
+          image: admission-webhook-demo:local
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 8443
+          volumeMounts:
+            - name: certs
+              mountPath: /certs
+              readOnly: true
+      volumes:
+        - name: certs
+          secret:
+            secretName: admission-webhook-tls
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: admission-webhook
+  namespace: default
+spec:
+  selector:
+    app: admission-webhook
+  ports:
+    - port: 443
+      targetPort: 8443

@@ -278,6 +278,102 @@ requirement (common in ML pipelines to control memory), the fix is being explici
 (`.astype(np.float32)` immediately after any operation that might upcast) rather than
 assuming a mixed-dtype expression stays in the narrower type.
 
+## Memory-mapped arrays: `np.memmap` for data bigger than RAM
+
+Every array so far assumed the data fits in memory. `np.memmap` is for when it doesn't: it
+gives you an object that **looks and slices exactly like a normal `ndarray`**, but is backed
+by a file on disk instead of a heap allocation — the OS pages bytes in on demand as you
+actually touch them, instead of the whole array being read into RAM up front.
+
+```python
+import numpy as np
+
+# mode="w+": create (or overwrite) the file and open it writable
+arr = np.memmap("data.bin", dtype=np.uint16, mode="w+", shape=(50_000_000,))
+arr[:] = np.arange(50_000_000, dtype=np.uint16)
+arr.flush()      # w+/r+ are NOT auto-flushed — see the gotcha below
+del arr          # closes the mapping; the data is now durably on disk
+
+# mode="r": read-only, the common case for "consume a huge dataset someone else built"
+mm = np.memmap("data.bin", dtype=np.uint16, mode="r")
+window = mm[1000:1010]          # reads only this slice's bytes off disk, not the whole file
+print(window)
+# memmap([1000, 1001, 1002, 1003, 1004, 1005, 1006, 1007, 1008, 1009], dtype=uint16)
+```
+
+The dtype and shape aren't stored in the file — `np.memmap` is a bare byte array with no
+header, so you must supply `dtype`/`shape` matching whatever wrote it, or you'll silently
+read garbage (wrong byte offsets) instead of getting an error.
+
+### The modes, and what each actually permits
+
+| Mode | Meaning |
+|---|---|
+| `"r"` | Read-only. Writing raises `ValueError: assignment destination is read-only` — verified: `mm[0] = 1` on a `mode="r"` memmap raises exactly that. |
+| `"r+"` | Read/write, file must already exist. Writes go to the mapped pages; call `.flush()` (or let garbage collection close it) to guarantee they've hit disk. |
+| `"w+"` | Create the file (or truncate an existing one) and open read/write — what the write example above uses. |
+| `"c"` | Copy-on-write: you can write to the array in your process, but writes never touch the underlying file — useful for "mutate a huge reference dataset locally without corrupting the shared original." |
+
+### The gotcha `type()` won't warn you about: slicing stays a memmap, `.astype()` silently detaches from it
+
+Slicing a memmap does **not** give you back a plain `ndarray` — it gives you another
+`memmap`, still backed by the same file:
+
+```python
+print(type(mm[1000:1010]))
+# <class 'numpy.memmap'>
+```
+
+That's usually fine — it's still lazy, still cheap. The gotcha is the reverse case: **`.astype()`
+must allocate a real, independent buffer** (you can't reinterpret `uint16` disk bytes as
+`int64` in place), but the object it hands back still reports `type() == numpy.memmap` too,
+because NumPy subclasses propagate through most operations by default. Checking `type(x) is
+np.memmap` to answer "is this still lazily reading from disk?" is therefore **wrong** — it says
+yes for both. Verified the actual distinguishing signal:
+
+```python
+window = mm[10:15]
+materialized = window.astype(np.int64)
+
+print(type(materialized))          # <class 'numpy.memmap'>  <- looks the same as `window`
+print(materialized.filename)       # None                    <- but this is the tell
+print(window.filename)             # /tmp/.../data.bin
+
+materialized[0] = 999999           # mutate the "materialized" copy
+# re-reading the file afterward shows the original value, untouched — confirming
+# `materialized` really is a separate, real, in-RAM buffer despite its reported type
+```
+
+The reliable check is `.filename` (`None` once truly detached from the file), not `type()`/
+`isinstance()`. `np.asarray(x)` is the explicit way to get a genuinely plain `ndarray` back if
+the memmap subclass itself (not just the underlying buffer) needs to go away.
+
+### Why this matters in practice, not just as API trivia
+
+The out-of-core pattern above — memmap a file, slice small random windows, `.astype()` only
+the sampled windows into real memory — is exactly how you train a language model on a corpus
+too large to fit in RAM or VRAM. Grounding example:
+`mini-llms-playground/from_scratch/custom-gpt-50m/src/gpt/data/dataset.py`. That project
+tokenizes its training corpus once into a flat `uint16` `.bin` file (2 bytes/token — GPT-2's
+50,257-word vocabulary fits under uint16's 65,536 ceiling), then trains by opening it with
+`np.memmap(bin_path, dtype=np.uint16, mode="r")` and, every training step, slicing a handful of
+random `context_length`-token windows off that memmap and `.astype(np.int64)`-ing only those
+sampled windows before handing them to PyTorch. The module's own docstring spells out the
+concrete numbers this avoids: a 2.5B-token corpus as one `torch.tensor` would be ~20GB in int64
+on a 24GB GPU, and just reading the raw text into one Python `str` first is ~10GB of system
+RAM — both OOM before training even starts. The memmap version is ~5GB on disk and touches
+only whatever the sampled batches actually read, which is what makes a corpus far bigger than
+either RAM or VRAM trainable at all.
+
+### One more real gotcha: memmap objects hold an open file handle
+
+A memmap isn't closed just because it goes out of scope in a function — CPython's refcounting
+usually closes it promptly, but relying on exact timing is fragile (PyPy, reference cycles, or
+just code that keeps a reference alive longer than expected). On Windows especially, an open
+memmap can prevent the underlying file from being deleted or reopened `mode="w+"` elsewhere.
+The safe pattern for anything long-running: `del` the memmap explicitly (as in the write example
+above) or wrap its use so the reference provably drops before the file needs to be touched again.
+
 ## Where this connects to the rest of the ML stack
 
 - **[pandas](../pandas/README.md)** — a `DataFrame` is, underneath its labels and mixed

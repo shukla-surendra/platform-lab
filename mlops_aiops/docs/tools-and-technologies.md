@@ -33,6 +33,7 @@ skill (see `../../.claude/skills/tech-log/SKILL.md`, at the repo root).
 - [Loki](tools/loki/README.md) — observability / monitoring (Kubernetes/EKS)
 - [Microservices](tools/microservices/README.md) — distributed systems architecture pattern (production failure modes and operations, not a single tool)
 - [Mimir](tools/mimir/README.md) — observability / monitoring (metrics, long-term storage)
+- [Memray](tools/memray/README.md) — observability / debugging (Python memory profiler, C-level allocation tracing)
 - [MinIO](tools/minio/README.md) — object storage (self-hosted, S3-API-compatible)
 - [MLflow](tools/mlflow/README.md) — experiment tracking / model registry / model lifecycle
 - [Instrumentation Tradeoffs](observability-instrumentation-tradeoffs.md) — cross-cutting: platform vs. developer responsibility for telemetry, critical-path/sampling/cardinality cost tradeoffs

@@ -1,0 +1,56 @@
+# Rendered by deploy.sh (CA_BUNDLE substituted in) - not applied directly.
+#
+# Safety, both objects: namespaceSelector restricts this to namespaces explicitly labeled
+# `admission-webhook-demo: enabled` - nothing else in this shared cluster is affected, no
+# matter what this webhook does or how it fails. failurePolicy: Ignore means if the webhook
+# pod is ever down/unreachable, admission proceeds as if the webhook didn't exist, rather than
+# blocking Pod creation cluster-wide - the opposite of what you'd want in a real production
+# policy webhook (there, Fail is usually correct), but the right default for a demo running
+# on a cluster with other real workloads on it.
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingWebhookConfiguration
+metadata:
+  name: admission-webhook-demo-mutating
+webhooks:
+  - name: mutate.admission-webhook-demo.local
+    clientConfig:
+      service:
+        name: admission-webhook
+        namespace: default
+        path: /mutate
+      caBundle: CA_BUNDLE_PLACEHOLDER
+    rules:
+      - apiGroups: [""]
+        apiVersions: ["v1"]
+        operations: ["CREATE"]
+        resources: ["pods"]
+    namespaceSelector:
+      matchLabels:
+        admission-webhook-demo: enabled
+    failurePolicy: Ignore
+    sideEffects: None
+    admissionReviewVersions: ["v1"]
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: admission-webhook-demo-validating
+webhooks:
+  - name: validate.admission-webhook-demo.local
+    clientConfig:
+      service:
+        name: admission-webhook
+        namespace: default
+        path: /validate
+      caBundle: CA_BUNDLE_PLACEHOLDER
+    rules:
+      - apiGroups: [""]
+        apiVersions: ["v1"]
+        operations: ["CREATE"]
+        resources: ["pods"]
+    namespaceSelector:
+      matchLabels:
+        admission-webhook-demo: enabled
+    failurePolicy: Ignore
+    sideEffects: None
+    admissionReviewVersions: ["v1"]

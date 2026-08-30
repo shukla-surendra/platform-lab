@@ -18,6 +18,10 @@ browsable site (search, dark mode).
   `kubectl` on a bare Linux box and bringing up a multi-node cluster, command by command
   (what `systemctl enable --now` actually does, `kube-system` Pods explained, scaling nodes,
   common first-run errors).
+- [`minikube-macos-setup.md`](./minikube-macos-setup.md) — the same journey on macOS, from a
+  fully clean slate to a real 2-node cluster: turning off Docker Desktop's own Kubernetes first,
+  why `--driver=docker` is mandatory for multi-node here (ties to the `vfkit` incident in
+  `incidents.md`), and verifying the result node by node.
 
 ## Networking & Access
 
@@ -48,6 +52,9 @@ browsable site (search, dark mode).
 
 - [`rbac.md`](./rbac.md) — ServiceAccount/Role/RoleBinding/ClusterRole, least-privilege in
   practice, checking effective permissions with `kubectl auth can-i`.
+- [`eks-sso-rbac.md`](./eks-sso-rbac.md) — SSO (IAM Identity Center or an external OIDC
+  provider) mapped onto the RBAC above; worked hands-on, no AWS needed, with
+  [`../identity-to-rbac-demo/`](../identity-to-rbac-demo).
 
 ## Advanced
 
@@ -96,6 +103,13 @@ already answered.
   storage, node/pod autoscaling, observability, and cleanup/cost control. Reference tutorial,
   not verified live like the rest of this folder — no AWS account/credentials in this
   environment.
+- [`eks-sso-rbac.md`](./eks-sso-rbac.md) — SSO for humans (IAM Identity Center + EKS Access
+  Entries, or a direct OIDC identity provider) mapped onto Kubernetes RBAC — and why that's a
+  different question from IRSA (`eks-setup.md` §4, Pods calling AWS, not humans calling
+  Kubernetes). Reference for the AWS-side setup (unverified, same reason as `eks-setup.md`); the
+  RBAC-side mechanism it maps onto is live-verified in
+  [`../identity-to-rbac-demo/`](../identity-to-rbac-demo) via `kubectl` impersonation —
+  no AWS account needed for that half.
 
 ## Install logs
 

@@ -7,7 +7,7 @@ Keep this open in a second terminal while you work through the scenarios.
 ## Setup & Deployment
 
 ```bash
-cd /Users/surendrashukla/projects/2026/platform-lab/k8s_explorer/rust-api-observability-stack
+cd ~/projects/2026/platform-lab/k8s_explorer/rust-api-observability-stack
 
 # First time only
 helm dependency build

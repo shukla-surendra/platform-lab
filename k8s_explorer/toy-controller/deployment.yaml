@@ -1,0 +1,20 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: toy-controller
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: toy-controller
+  template:
+    metadata:
+      labels:
+        app: toy-controller
+    spec:
+      serviceAccountName: toy-controller
+      containers:
+        - name: toy-controller
+          image: toy-controller:local
+          imagePullPolicy: Never

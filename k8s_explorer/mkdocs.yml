@@ -37,6 +37,7 @@ nav:
       - Cluster Architecture: cluster-architecture.md
       - Local Cluster Setup: local-cluster-setup.md
       - "Minikube on Linux: Bootstrap": minikube-linux-bootstrap.md
+      - "Minikube on macOS: Multi-Node Setup": minikube-macos-setup.md
       - ConfigMaps & Secrets: configmaps-and-secrets.md
       - Storage & Persistence: storage-and-persistence.md
   - Networking & Access:
@@ -65,4 +66,5 @@ nav:
       - Mental Models: observability-mental-models.md
   - Cloud:
       - EKS Setup: eks-setup.md
+      - "EKS: SSO & RBAC": eks-sso-rbac.md
   - Incident Log: incidents.md

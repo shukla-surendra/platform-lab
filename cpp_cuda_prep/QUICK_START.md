@@ -3,7 +3,7 @@
 ## TL;DR - Run These Commands Now
 
 ```bash
-cd /Users/surendrashukla/projects/2026/platform-lab/cpp_cuda_prep
+cd ~/projects/2026/platform-lab/cpp_cuda_prep
 
 # Build everything
 make

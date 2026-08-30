@@ -364,7 +364,7 @@ All three layers are LLVM. That's why it's so powerful.
 ## Next: Explore LLVM in Your Project
 
 ```bash
-cd /Users/surendrashukla/projects/2026/platform-lab/cpp_cuda_prep
+cd ~/projects/2026/platform-lab/cpp_cuda_prep
 
 # Generate LLVM IR from your examples
 clang++ -S -emit-llvm src/02_arrays_memory.cpp -o /tmp/arrays.ll

@@ -473,6 +473,90 @@ plugging in an actual GPU means comparing specs, not reading the row literally.
   wider end). The honest answer is "depends which bottleneck the batch size hits," not a single
   number — the book's table hides that by only naming a price tier.
 
+### Kubernetes controllers — the reconcile loop (why "operator" isn't magic)
+
+A thermostat, not a light switch. A light switch is edge-triggered: it reacts to the one moment
+someone flips it, and if it missed that moment (power blip, whatever), it just stays wrong until
+another flip happens. A thermostat is level-triggered: it doesn't care *when* the room got cold,
+it just keeps asking "is it currently below target" on a loop and corrects — so it self-heals
+even if it missed the exact moment the temperature dropped. Every Kubernetes controller/operator
+(the ones actually installed and used elsewhere in this repo — KubeRay, Argo/Kubeflow, Kargo)
+is the thermostat pattern, not the light-switch pattern.
+
+Mechanism: a **SharedInformer** watches a resource type and keeps a local cache; every change
+gets turned into a **key** (usually just the object's namespace/name) pushed onto a
+**workqueue** — a queue that dedupes identical pending keys, so a burst of events for the same
+object collapses into one pending reconcile, not one-per-event. A worker pulls a key off the
+queue and calls **reconcile(key)** — and this is the part that's easy to get backwards:
+reconcile does *not* receive the event that triggered it. It re-reads the object's current live
+state from the API server and re-derives what should exist, from scratch, every single time —
+which is exactly what makes it level-triggered. On top of the event-driven path, a **periodic
+resync** re-enqueues every object on a fixed timer regardless of whether anything changed, as a
+safety net for events a watch stream silently dropped (a resource-version expiry, a brief
+disconnect) — the resync tick is what actually makes the "self-healing" property real, not the
+watch loop.
+
+Grounding example — `platform-lab/k8s_explorer/toy-controller/`, built and verified live against
+a real 3-node minikube cluster specifically to see this mechanism, not just read about it: a
+`ResourceQuota` was deleted by hand from a managed namespace, and it came back ~20s later with
+**no new watch event involved at all** — the controller's logs showed a scheduled
+`resync: re-enqueued N namespaces` line firing right before the recreate, timed to the 30s resync
+tick started at process launch, not to the delete.
+
+Production reality / gotchas:
+- **Finalizers**, not reconcile itself, handle cleanup-on-delete — deliberately left out of the
+  toy version to keep the core loop legible. Reconcile answers "what should exist," a finalizer
+  answers "what has to happen before this object is allowed to actually disappear" — a separate
+  mechanism bolted on, not a variant of the same one.
+- A reconcile that keeps failing needs **exponential backoff on the requeue**, not a tight retry
+  loop — otherwise one permanently-broken object (bad RBAC, a typo'd field) burns CPU hammering
+  the API server forever.
+- Real frameworks (client-go's `workqueue.RateLimitingInterface`, `controller-runtime` in Go)
+  provide the workqueue/backoff/informer machinery for free; this toy version hand-rolls all of
+  it in Python specifically to make the pattern visible, not because that's how you'd actually
+  ship one.
+
+### Kubernetes extended resources & GPU scheduling (why GPUs need device plugins, not just a bigger number)
+
+CPU and memory are like flour in a recipe — you can ask for exactly 1.5 cups, the kitchen just
+measures it out. A GPU (as Kubernetes sees it) is like asking for a whole cake pan — you get one
+pan or zero, there's no API for "half a pan." That distinction is the entire reason GPU device
+plugins, MIG, and time-slicing exist as a separate layer instead of GPUs just being "a resource
+type with more zeroes."
+
+Mechanism: the scheduler only ever reads two numbers off a Node object — `status.capacity` and
+`status.allocatable` — for whatever resource names happen to be there. It has **no idea** where
+those numbers came from or what's providing them; `cpu`/`memory` come from the kubelet itself,
+and anything else (`nvidia.com/gpu`, or any custom name) is an **extended resource**, which a
+device plugin advertises by calling the kubelet's `ListAndWatch` gRPC method — which, underneath,
+just results in the kubelet patching that same `status.capacity`/`allocatable` pair. Because the
+scheduler-facing half is *just* those two numbers, you can simulate exactly that half by hand,
+with a plain `kubectl patch --subresource=status`, without any real GPU or device plugin at all —
+confirmed this isn't wiped by the kubelet's own periodic node-status heartbeat, because kubelet
+only reconciles resource types it manages itself and leaves ones it doesn't recognize alone.
+
+The integer-only rule is the actual reason MIG/time-slicing exist, not an unrelated fact: a Pod
+requesting `example.com/toygpu: "500m"` gets **rejected at admission**, before the scheduler is
+even involved (`Invalid value: "500m": must be an integer`) — extended resources have no
+API-level concept of a fraction. A real GPU can't be requested as "0.4 of a card" for the same
+reason. MIG and time-slicing device plugins exist specifically to make **one physical GPU present
+itself as several whole extended-resource units** (`nvidia.com/gpu: 4` on a single card, sliced
+four ways) — because making the request itself fractional was never on the table.
+
+Grounding example — `platform-lab/k8s_explorer/gpu-scheduling-demo/`: patched a real minikube
+node's status to advertise 2 units of a fake `example.com/toygpu` resource, requested 3 Pods at 1
+unit each, and watched the real scheduler put 2 `Running` (bin-packed onto the one node that had
+the resource at all — the other two nodes were "insufficient" in exactly the same way as a node
+that has the resource but is full) and 1 `Pending` with a real
+`FailedScheduling: 3 Insufficient example.com/toygpu` event.
+
+Production reality / boundary of this technique: this simulates the scheduler-facing half only.
+A real device plugin also implements `Allocate` (called at bind time, handing over which specific
+physical device — sets `NVIDIA_VISIBLE_DEVICES`, mounts `/dev/nvidiaN`) over a gRPC socket at
+`/var/lib/kubelet/device-plugins/`, none of which this technique touches; and GPU scheduling in
+production also cares about topology (NUMA/PCIe locality between the GPU and the CPU/NIC it's
+paired with), which plain extended-resource accounting has no concept of at all.
+
 ### HF-compatible vs. vLLM-compatible (two different bars, not synonyms)
 
 Think of it like a shipping container: "HF-compatible" is the container meeting the standard

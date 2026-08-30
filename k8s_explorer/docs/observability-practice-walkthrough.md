@@ -86,7 +86,7 @@ kubectl get nodes
 ### Deploy the Helm chart
 
 ```bash
-cd /Users/surendrashukla/projects/2026/platform-lab/k8s_explorer/rust-api-observability-stack
+cd ~/projects/2026/platform-lab/k8s_explorer/rust-api-observability-stack
 
 # First time only: fetch dependencies
 helm dependency build

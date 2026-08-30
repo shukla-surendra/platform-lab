@@ -655,7 +655,7 @@ clang++ -std=c++17 main.o utils.o -o myprogram
 ### Method 1: Super Simple (One File)
 
 ```bash
-cd /Users/surendrashukla/projects/2026/platform-lab/cpp_cuda_prep
+cd ~/projects/2026/platform-lab/cpp_cuda_prep
 
 clang++ -std=c++17 src/01_hello_world.cpp -o hello
 ./hello

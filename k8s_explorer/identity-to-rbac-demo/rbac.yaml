@@ -1,0 +1,63 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: payments
+---
+# The ClusterRole is reusable, cluster-scoped policy — same object EKS's own
+# AmazonEKSViewPolicy/AmazonEKSEditPolicy access-policies are conceptually equivalent to.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: platform-team-viewer
+rules:
+  - apiGroups: ["", "apps"]
+    resources: ["pods", "deployments", "replicasets"]
+    verbs: ["get", "list", "watch"]
+---
+# The RoleBinding is what actually grants it, scoped to one namespace, to a *Group* —
+# never a specific user. This is the exact object an SSO group (via IAM role mapping,
+# or an OIDC groups claim) ultimately has to land on to mean anything to Kubernetes.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: platform-team-viewer-binding
+  namespace: payments
+subjects:
+  - kind: Group
+    name: eks-platform-team
+    apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: ClusterRole
+  name: platform-team-viewer
+  apiGroup: rbac.authorization.k8s.io
+---
+# A restricted ServiceAccount used to prove impersonation is itself access-controlled —
+# it has ordinary read permissions but NOT the `impersonate` verb, so its own kubeconfig
+# cannot pretend to be `eks-platform-team` even though that group has real permissions.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: restricted-sa
+  namespace: default
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: restricted-sa-role
+rules:
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: restricted-sa-binding
+subjects:
+  - kind: ServiceAccount
+    name: restricted-sa
+    namespace: default
+roleRef:
+  kind: ClusterRole
+  name: restricted-sa-role
+  apiGroup: rbac.authorization.k8s.io
