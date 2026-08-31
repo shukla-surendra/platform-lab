@@ -1,0 +1,25 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: {{ .Release.Name }}-node-reporter
+spec:
+  selector:
+    matchLabels:
+      app: node-reporter
+  template:
+    metadata:
+      labels:
+        app: node-reporter
+    spec:
+      containers:
+        - name: node-reporter
+          image: "{{ .Values.nodeReporter.image.repository }}:{{ .Values.nodeReporter.image.tag }}"
+          imagePullPolicy: {{ .Values.nodeReporter.image.pullPolicy }}
+          env:
+            # Downward API: the pod learns which node it landed on from Kubernetes itself,
+            # not from any per-node config baked into the image - the same image runs
+            # identically on every node, and this is what makes that possible.
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName

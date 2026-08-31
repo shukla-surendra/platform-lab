@@ -1,0 +1,19 @@
+# All three images are local-only (built via `build-images.sh`, never pushed anywhere) -
+# imagePullPolicy: Never on every container is what makes that work: it tells the kubelet
+# "don't even try to pull this, use whatever's already in the node's local image store."
+nodeReporter:
+  image:
+    repository: node-reporter
+    tag: local
+    pullPolicy: Never
+
+sidecarApp:
+  replicaCount: 1
+  image:
+    repository: hit-counter
+    tag: local
+    pullPolicy: Never
+  sidecarImage:
+    repository: log-tailer
+    tag: local
+    pullPolicy: Never

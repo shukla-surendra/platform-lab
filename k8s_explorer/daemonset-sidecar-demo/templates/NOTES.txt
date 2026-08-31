@@ -1,0 +1,10 @@
+{{ .Release.Name }} deployed:
+  - DaemonSet {{ .Release.Name }}-node-reporter — one pod per node, automatically
+  - Deployment {{ .Release.Name }}-hit-counter — {{ .Values.sidecarApp.replicaCount }} replica(s), 2 containers each (app + sidecar)
+
+Check it:
+
+  kubectl get daemonset,deployment,pods -l 'app in (node-reporter,hit-counter)'
+  kubectl logs -l app=node-reporter --prefix
+  kubectl logs deploy/{{ .Release.Name }}-hit-counter -c hit-counter --tail=5
+  kubectl logs deploy/{{ .Release.Name }}-hit-counter -c log-tailer --tail=5

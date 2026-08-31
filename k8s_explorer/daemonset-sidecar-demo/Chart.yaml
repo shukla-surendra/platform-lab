@@ -1,0 +1,4 @@
+apiVersion: v2
+name: daemonset-sidecar-demo
+version: 0.1.0
+description: One DaemonSet (node-per-pod) and one Deployment with a real sidecar container, both built from local images with no registry involved.

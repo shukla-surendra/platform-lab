@@ -39,7 +39,12 @@ browsable site (search, dark mode).
 ## Workloads & Reliability
 
 - [`workload-types.md`](./workload-types.md) — Deployment vs StatefulSet vs DaemonSet vs Job
-  vs CronJob, and when each one is the right choice.
+  vs CronJob, and when each one is the right choice; DaemonSet worked hands-on, local images,
+  with [`daemonset-sidecar-demo/`](../daemonset-sidecar-demo).
+- [`daemonset-sidecar-walkthrough.md`](./daemonset-sidecar-walkthrough.md) — real doubts from
+  actually exploring `daemonset-sidecar-demo/` live: is a ReplicaSet a Pod, what the `READY`
+  column means on a Pod vs. a controller, which containers are in the sidecar Pod, how to find
+  which node a Pod landed on. Growing over time, not a one-shot writeup.
 - [`probes-and-health-checks.md`](./probes-and-health-checks.md) — liveness vs readiness vs
   startup probes, and why a missing readiness probe breaks rollouts.
 - [`resource-management.md`](./resource-management.md) — requests/limits, LimitRange,

@@ -6,6 +6,13 @@ datasource sidecar in [`grafana-log-viewer`](../grafana-log-viewer), covered end
 [`grafana-dashboard-provisioning.md`](./grafana-dashboard-provisioning.md). This page is the
 general concept; that page is the worked example.
 
+For the specific, most common sidecar shape — a **log-shipping sidecar** reading whatever the
+main container already writes to disk — see [`daemonset-sidecar-demo/`](../daemonset-sidecar-demo)
+instead: two from-scratch local images sharing one `emptyDir`, with a real, load-bearing finding
+that isn't obvious until you see it — `kubectl logs` on the *main* container comes back
+completely empty, because it writes to a file, not stdout. The sidecar reading that file is the
+only reason the data is visible via `kubectl logs` at all.
+
 ## For beginners: what's a Pod, a container, and a "sidecar"?
 
 If "Pod" and "container" are still a little fuzzy, start here before the technical sections below.
@@ -62,13 +69,57 @@ extra networking) and could be scheduled onto a different Node entirely. Putting
 Pod makes "always co-located, always sharing files/network" true by construction rather than
 something you have to engineer.
 
-## What sidecars share with the main container
+## What sidecars share with the main container — and what they don't
 
 | Shared resource | Mechanism |
 |---|---|
 | Network | Same Pod IP — containers reach each other over `localhost:<port>` |
-| Storage | Common `volumes:` entries, mounted into both containers' `volumeMounts` |
+| Storage | Common `volumes:` entries, mounted into both containers' `volumeMounts` — and *only* the ones you explicitly declare |
 | Lifecycle | Historically: created/destroyed together. With native sidecars (below): ordered but still tied to the Pod |
+
+Everything else is **independent per container**, easy to assume is shared and isn't:
+filesystem/image (each container's own root filesystem, unrelated to the other unless a volume
+is mounted into both), process tree (each container gets its own PID 1 and its own PID
+namespace, unless `shareProcessNamespace: true` is set on the Pod spec), environment variables,
+and resource requests/limits.
+
+## What happens when one container gets killed?
+
+Verified against [`../daemonset-sidecar-demo/`](../daemonset-sidecar-demo)'s real running Pod —
+stopped the `log-tailer` container directly at the container-runtime level (`crictl stop` on the
+node, not a signal from inside — a signal doesn't work here: PID 1 inside a container is immune
+to unhandled signals, *even* `SIGKILL`, a real documented Linux PID-namespace behavior, confirmed
+empirically when `kubectl exec ... -c log-tailer -- kill -9 1` did nothing at all):
+
+```bash
+kubectl get pod demo-hit-counter-7d587fd798-9tfgn -n daemonset-sidecar-demo \
+  -o jsonpath='{range .status.containerStatuses[*]}{.name}: restarts={.restartCount} started={.state.running.startedAt}{"\n"}{end}'
+```
+
+Before:
+```
+hit-counter: restarts=0 started=2026-08-30T15:56:47Z
+log-tailer: restarts=0 started=2026-08-30T15:56:47Z
+```
+
+After stopping only `log-tailer`'s container:
+```
+hit-counter: restarts=0 started=2026-08-30T15:56:47Z
+log-tailer: restarts=1 started=2026-08-30T17:15:06Z
+```
+
+- **Only `log-tailer` restarted** — new timestamp, `restartCount` incremented.
+- **`hit-counter` was completely untouched** — identical `restartCount` and start time as before.
+- **The Pod itself never left `Running`, never got recreated** — same name, same age; the Pod-level
+  `RESTARTS` column is just the sum across its containers, not proof the Pod was reborn.
+- **`hit-counter` never even noticed** — its event file kept incrementing with no gap right through
+  the exact moment `log-tailer` was killed and restarted.
+
+The rule this proves: **kubelet supervises each container in a Pod independently.** One crashing
+(a real crash, an OOM, or this test's runtime-level stop) only restarts *that* container, per the
+Pod's `restartPolicy` — the Pod's identity, IP, and every sibling container are unaffected. This
+is the actual practical reason sidecars are considered safe to add: a buggy log shipper
+crash-looping doesn't take the real application down with it.
 
 ## Common use cases
 

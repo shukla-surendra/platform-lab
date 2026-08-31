@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-hit-counter
+spec:
+  replicas: {{ .Values.sidecarApp.replicaCount }}
+  selector:
+    matchLabels:
+      app: hit-counter
+  template:
+    metadata:
+      labels:
+        app: hit-counter
+    spec:
+      # Both containers mount the same emptyDir at the same path - that shared filesystem,
+      # not any direct communication between the two containers, is the entire sidecar
+      # mechanism. Neither container's image knows the other one exists.
+      volumes:
+        - name: shared-logs
+          emptyDir: {}
+      containers:
+        - name: hit-counter
+          image: "{{ .Values.sidecarApp.image.repository }}:{{ .Values.sidecarApp.image.tag }}"
+          imagePullPolicy: {{ .Values.sidecarApp.image.pullPolicy }}
+          volumeMounts:
+            - name: shared-logs
+              mountPath: /var/log/app
+        - name: log-tailer
+          image: "{{ .Values.sidecarApp.sidecarImage.repository }}:{{ .Values.sidecarApp.sidecarImage.tag }}"
+          imagePullPolicy: {{ .Values.sidecarApp.sidecarImage.pullPolicy }}
+          volumeMounts:
+            - name: shared-logs
+              mountPath: /var/log/app

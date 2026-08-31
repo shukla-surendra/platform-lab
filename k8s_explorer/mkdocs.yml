@@ -51,6 +51,7 @@ nav:
       - Resource Management: resource-management.md
       - Pod & Node Affinity: pod-and-node-affinity.md
       - Sidecar Containers: sidecar-containers.md
+      - "DaemonSet & Sidecar: Real Doubts, Answered Live": daemonset-sidecar-walkthrough.md
   - Security:
       - RBAC: rbac.md
   - Advanced:

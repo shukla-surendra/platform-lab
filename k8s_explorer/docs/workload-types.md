@@ -14,6 +14,47 @@ Covered in depth in [`kubernetes-fundamentals.md`](./kubernetes-fundamentals.md)
 choice: any replica can be replaced by a fresh one with a new name/IP and nothing downstream
 cares (`full-stack-app`'s frontend and backend are both Deployments).
 
+### ReplicaSet — the object actually doing the work underneath
+
+You almost never create one directly (Deployment does it for you — see
+[`../daemonset-sidecar-walkthrough.md`](./daemonset-sidecar-walkthrough.md#is-a-replicaset-a-pod)
+for the real, live-verified `ownerReferences` proof of the Deployment → ReplicaSet → Pod chain),
+but it's worth being explicit about *why* this extra layer exists instead of Deployment just
+managing Pods directly. Five real production needs, each one a genuine capability that would be
+lost without it:
+
+1. **Self-healing when a Pod dies for reasons that have nothing to do with your code** — an OOM
+   kill, a node losing power, a spot instance getting reclaimed mid-run. The ReplicaSet's whole
+   reconcile loop is "does actual replica count match desired," so a Pod disappearing for *any*
+   reason gets a replacement within seconds, with no on-call page needed. This is the same
+   reconcile-loop mechanism [`../toy-controller/`](../toy-controller) builds by hand for a
+   Namespace's `ResourceQuota` — a ReplicaSet is that same pattern, applied to Pod replica count.
+2. **Rolling updates without downtime.** This is the actual reason the ReplicaSet layer exists at
+   all rather than Deployment editing Pods in place: on a new image, Deployment creates a
+   *second*, new-hash ReplicaSet and shifts replica count from the old one to the new one
+   gradually — old and new Pods coexist mid-rollout, so traffic never drops to zero. Without a
+   separate addressable object per "version," there'd be nothing to gradually shift between.
+3. **HorizontalPodAutoscaler-driven scaling under real traffic.** HPA never touches Pods
+   directly — it edits the Deployment's `replicas:` field, and the ReplicaSet is what actually
+   reconciles that into real Pods. A Black Friday traffic spike pushing CPU past a threshold
+   turns into "20 more Pods, created within seconds" purely because this reconciliation exists;
+   see [`resource-management.md`](./resource-management.md) for the HPA side of this.
+4. **Zero-downtime node maintenance.** Cordoning and draining a node for a Kubernetes upgrade or
+   hardware replacement evicts every Pod on it. The ReplicaSet notices desired-vs-actual drift
+   immediately and reschedules replacements onto surviving nodes — the *service* keeps its full
+   replica count the whole time, even though individual Pods are actively churning underneath.
+5. **High availability across failure domains, combined with anti-affinity.** Spread 3 replicas
+   across 3 AZs with pod anti-affinity (see [`pod-and-node-affinity.md`](./pod-and-node-affinity.md),
+   worked hands-on in [`../affinity-demo/`](../affinity-demo)) and lose a whole AZ — 2 replicas
+   keep serving, and once capacity returns, the ReplicaSet is what actually creates the missing
+   replica again. Anti-affinity only decides *where* replacements can go; the ReplicaSet is what
+   notices one is needed and creates it.
+6. **What progressive-delivery tooling (Argo Rollouts, Flagger, canary releases) is built on.**
+   A canary controller shifts traffic gradually from an old ReplicaSet's Pods to a new one's —
+   only possible because ReplicaSets are separate, individually-addressable objects a controller
+   can point a fraction of traffic at, not because Deployment has any special canary feature of
+   its own.
+
 ## StatefulSet — replicas with stable identity
 
 ```yaml
@@ -51,10 +92,57 @@ Postgres owns be *the same* volume across every restart.
 
 ## DaemonSet — exactly one Pod per node
 
-Not present in this repo's own charts, but this cluster runs some (`kube-proxy`, and typically
-the CNI's node agent) — visible via `kubectl get daemonset -A`. Used for node-level agents: log
-shippers, metrics collectors, CNI plugins — anything that needs to run on *every* node,
-automatically added/removed as nodes join/leave, rather than a chosen replica count.
+This cluster already runs some — real, verified, not hypothetical:
+
+```bash
+kubectl get daemonset -A
+```
+```
+NAMESPACE     NAME         DESIRED   CURRENT   READY   UP-TO-DATE   AVAILABLE   NODE SELECTOR
+kube-system   kindnet      2         2         2       2            2          <none>
+kube-system   kube-proxy   2         2         2       2            2          kubernetes.io/os=linux
+```
+
+Used for node-level agents: anything that needs to run on *every* node, automatically added/
+removed as nodes join/leave, rather than a chosen replica count. Try it hands-on in
+[`daemonset-sidecar-demo/`](../daemonset-sidecar-demo) — no `replicas` field at all (there isn't
+one on the DaemonSet spec), a real 2-node cluster produces exactly 2 Pods, and each one learns
+which node it landed on via the Downward API rather than any per-node image/config.
+
+### Real production use cases — why this workload type has to exist
+
+Every one of these needs the same guarantee: *exactly* one per node, not "roughly enough,"
+because missing even a single node breaks something in a way a higher replica count on other
+nodes can't compensate for.
+
+1. **CNI networking — `kindnet` above, on this exact cluster.** Every node needs its own CNI
+   plugin Pod to set up Pod networking on that node specifically. Without it, no Pod scheduled
+   there gets a network at all — this isn't optional infrastructure, it's the thing that makes
+   the node usable for scheduling anything.
+2. **Service routing — `kube-proxy` above, same cluster.** [`../kube-proxy-packet-path-demo/`](../kube-proxy-packet-path-demo)
+   traced exactly what this Pod does: program the `iptables`/IPVS rules that turn a ClusterIP
+   into a real Pod IP. A node without its own kube-proxy Pod can't route Service traffic at all —
+   again, per-node, not a cluster-wide replica count that could be satisfied by Pods elsewhere.
+3. **Log collection (Fluentd/Fluent Bit/Promtail).** Container logs live on each node's *local*
+   disk (`/var/log/containers/`) — a collector has to run where the logs physically are. A
+   DaemonSet guarantees coverage without anyone needing to know the node count in advance or
+   manually deploying N collectors to N nodes as the cluster scales.
+4. **Node-level metrics (`node-exporter`).** Needs to scrape *that node's* CPU/memory/disk
+   directly. Two on one node double-counts; zero on a node makes it invisible to monitoring —
+   DaemonSet is the only workload type that gives the "exactly one, everywhere" guarantee
+   natively rather than as something you have to engineer.
+5. **Runtime security/compliance agents** (Falco, CrowdStrike, Aqua) watching syscalls on every
+   node for intrusion detection. Compliance requirements typically demand *all* nodes covered,
+   not "most" — a Deployment with `replicas: 10` on a 12-node cluster gives no guarantee which
+   2 nodes are uncovered, or that it stays that way as nodes are added.
+6. **CSI storage node-plugins.** The component that actually mounts/unmounts a volume onto a
+   given node has to run on that node — [`eks-setup.md`](./eks-setup.md)'s EBS CSI driver ships
+   its node-level component as a DaemonSet for exactly this reason; a Pod requesting a volume on
+   a node with no CSI node-plugin there just sits stuck.
+7. **GPU device plugins** — [`../gpu-scheduling-demo/`](../gpu-scheduling-demo) covers the
+   scheduling side of this; the real NVIDIA/AMD device plugin that *advertises* those extended
+   resources to the kubelet runs as a DaemonSet, one per GPU-equipped node, because GPU discovery
+   is inherently local to whatever hardware is physically in that node.
 
 ## Job — run to completion, once
 
