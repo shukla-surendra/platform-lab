@@ -45,9 +45,9 @@ but they answer genuinely different questions from genuinely different data sour
 
 ## Usage — verified live against this repo's cluster
 
-Deployed via [`k8s_observability/metrics-stack/`](../../../../k8s_observability/metrics-stack/)
+Deployed via [`k8s/k8s_observability/practice/metrics-stack/`](../../../../k8s/k8s_observability/practice/metrics-stack/)
 (bundled by `kube-prometheus-stack`, on by default), queried building the
-[`demo-app` Grafana dashboard](../../../../k8s_observability/metrics-stack/dashboards/demo-app.json):
+[`demo-app` Grafana dashboard](../../../../k8s/k8s_observability/practice/metrics-stack/dashboards/demo-app.json):
 
 ```promql
 count(kube_pod_container_status_running{namespace=~"$namespace", container="demo-app"} == 1)

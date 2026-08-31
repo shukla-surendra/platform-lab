@@ -54,7 +54,7 @@ monitoring, retraining triggers.
 - [Evidently](tools/evidently/README.md) — drift detection and model-quality monitoring,
   the thing that catches the "quietly degraded" failure mode from the problem statement
   above.
-- [KServe](../../k8n_explorer/kserve-inference/README.md) — Kubernetes-native model
+- [KServe](../../k8s/k8s_explorer/practice/kserve-inference/README.md) — Kubernetes-native model
   serving with rollout safety (canary/shadow), covered conceptually in
   [`04_model_serving_deployment`](../../engineering_fundamentals/system_design_foundation/04_model_serving_deployment/tutorial.md).
 

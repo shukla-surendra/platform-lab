@@ -11,9 +11,9 @@ three pieces of a metrics pipeline together:
 3. **Grafana**, pre-wired to that Prometheus as a datasource.
 
 Metrics only — no Loki, no Promtail, no Alertmanager routing. For logs, see
-[`../../k8s_explorer/grafana-log-viewer/`](../../k8s_explorer/grafana-log-viewer/)
+[`../../k8s/k8s_explorer/grafana-log-viewer/`](../../k8s/k8s_explorer/grafana-log-viewer/)
 instead — a separate chart, kept separate deliberately (see
-[`../README.md`](../README.md#why-a-separate-chart-from-grafana-log-viewer)).
+[`../../README.md`](../../README.md#why-a-separate-chart-from-grafana-log-viewer)).
 
 ## Where this is installed
 
@@ -40,12 +40,12 @@ helm install metrics . \
 
 `helm` needs a literal filesystem path (`.`, `./metrics-stack`, `../metrics-stack`) —
 running from the repo root, point at the directory: `helm install metrics
-k8s_observability/metrics-stack ...`.
+k8s/k8s_observability/metrics-stack ...`.
 
 Install brings in Custom Resource Definitions (`ServiceMonitor`, `PodMonitor`,
 `PrometheusRule`, etc.) cluster-wide, shared with any other chart on this cluster that
 also depends on `kube-prometheus-stack` — e.g.
-[`rust-api-observability-stack`](../../k8s_explorer/rust-api-observability-stack/).
+[`rust-api-observability-stack`](../../k8s/k8s_explorer/rust-api-observability-stack/).
 Installing this chart a second time under a different release name will try to
 recreate the same CRDs and fail; only one `kube-prometheus-stack`-based release should
 run per cluster.

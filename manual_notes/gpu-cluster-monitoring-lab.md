@@ -7,7 +7,7 @@ rules on top.
 
 *(Refactored from a raw "Lab 112" note — original numbered steps preserved, formatting
 and a few hard-won caveats added. See
-[`../k8s_observability/metrics-stack/`](../k8s_observability/metrics-stack/) for this
+[`../k8s/k8s_observability/practice/metrics-stack/`](../k8s/k8s_observability/practice/metrics-stack/) for this
 exact `kube-prometheus-stack` chart already deployed and verified live in this repo,
 and
 [`../mlops_aiops/docs/observability-gpu-monitoring-dcgm-triton.md`](../mlops_aiops/docs/observability-gpu-monitoring-dcgm-triton.md)
@@ -258,7 +258,7 @@ kubectl -n monitoring get svc | grep prometheus
 > to port-forward to instead is `prometheus-operated` — a fixed Service the
 > Prometheus Operator itself creates directly, independent of the Helm release name
 > entirely. Verified against a real install of this same chart in
-> [`k8s_observability/metrics-stack/README.md`](../k8s_observability/metrics-stack/README.md).
+> [`k8s/k8s_observability/practice/metrics-stack/README.md`](../k8s/k8s_observability/practice/metrics-stack/README.md).
 
 ```bash
 kubectl -n monitoring port-forward svc/prometheus-operated 9090:9090

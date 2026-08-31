@@ -1,6 +1,6 @@
 # identity-to-rbac-demo
 
-Companion to [`docs/eks-sso-rbac.md`](../docs/eks-sso-rbac.md) — that doc covers *how* AWS SSO
+Companion to [`docs/eks-sso-rbac.md`](../../docs/eks-sso-rbac.md) — that doc covers *how* AWS SSO
 (IAM Identity Center) or an external OIDC provider gets a user's groups in front of the
 Kubernetes API server. This project proves the piece both paths funnel into: **Kubernetes RBAC
 doesn't know or care how an identity's username/groups were established** — an IAM role mapped

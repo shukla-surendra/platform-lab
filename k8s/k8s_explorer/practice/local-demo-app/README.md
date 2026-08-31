@@ -125,7 +125,7 @@ kubectl logs -l app=local-demo-app --tail=5
 ```
 
 Then confirm the log actually reached Loki (see
-[`docs/incidents.md`](../docs/incidents.md) for why this is worth checking directly rather than
+[`docs/incidents.md`](../../docs/incidents.md) for why this is worth checking directly rather than
 assuming the pipeline works):
 
 ```bash

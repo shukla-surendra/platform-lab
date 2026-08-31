@@ -300,7 +300,7 @@ run against the live cluster, not just named.
 ## Deploying on Kubernetes
 
 The docker-compose lab above is for learning Kafka's mechanics locally;
-[`k8s_observability/streaming-drift-detection/01-ingestion/`](../../../../k8s_observability/streaming-drift-detection/01-ingestion/)
+[`k8s/k8s_observability/practice/streaming-drift-detection/01-ingestion/`](../../../../k8s/k8s_observability/practice/streaming-drift-detection/01-ingestion/)
 is this repo's example of running it on a cluster instead — Bitnami's
 `kafka` chart, KRaft mode (`kraft.enabled: true`, `broker.replicaCount: 0`
 so combined controller+broker nodes run as one pod instead of two, cheaper

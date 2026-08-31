@@ -1,6 +1,6 @@
 # toy-controller
 
-Hands-on companion to [`docs/crds-and-operators.md`](../docs/crds-and-operators.md) — but where
+Hands-on companion to [`docs/crds-and-operators.md`](../../docs/crds-and-operators.md) — but where
 that page (and `kuberay-demo/`, `kubeflow-pipeline-sample/`, `kargo/` elsewhere in this repo) show
 you *installing and using* someone else's operator, this one is the reconcile loop built from
 scratch, to prove the mechanism is understood rather than just consumed.

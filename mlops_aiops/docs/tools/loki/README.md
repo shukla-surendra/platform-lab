@@ -33,7 +33,7 @@ self-hosted stand-in for local/CI setups.
 
 ## Usage — verified live against this repo's cluster
 
-Deployed via [`k8s_observability/log-stack/`](../../../../k8s_observability/log-stack/)
+Deployed via [`k8s/k8s_observability/practice/log-stack/`](../../../../k8s/k8s_observability/practice/log-stack/)
 (the `loki-stack` chart — Loki + Promtail + a standalone Grafana, own Grafana
 instance rather than sharing `kube-prometheus-stack`'s, see that chart's README for
 why). Two things confirmed live, both silent failure modes if wrong: the Loki

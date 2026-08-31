@@ -1,6 +1,6 @@
 # DaemonSet & Sidecar — Real Doubts, Answered Live
 
-Companion to [`../daemonset-sidecar-demo/`](../daemonset-sidecar-demo) and to
+Companion to [`../practice/daemonset-sidecar-demo/`](../practice/daemonset-sidecar-demo) and to
 [`workload-types.md`](./workload-types.md#daemonset-exactly-one-pod-per-node) /
 [`sidecar-containers.md`](./sidecar-containers.md). That project's README documents the
 *mechanism*; this page documents the actual **questions that came up exploring the real,

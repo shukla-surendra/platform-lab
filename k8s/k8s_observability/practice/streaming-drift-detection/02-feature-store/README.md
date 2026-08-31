@@ -1,6 +1,6 @@
 # 02-feature-store
 
-A self-hosted [Feast](../../mlops_aiops/docs/tools/feast/README.md) feature
+A self-hosted [Feast](../../../mlops_aiops/docs/tools/feast/README.md) feature
 server, custom-built image with this project's `feature_repo/` baked in.
 Stage 2 of [`../`](../): sits between the raw event stream (stage 1) and the
 drift engine (stage 3), and its entire job is making sure both training-time
@@ -21,7 +21,7 @@ build to catch a typo.
 Tecton has no self-hosted tier — it's SaaS-only, so using it here would mean
 this stage can't run on a local minikube cluster at all, same problem Pub/Sub
 and Kinesis had for stage 1. Feast is fully open-source and self-hostable;
-[`../../mlops_aiops/docs/tools/feast/README.md`](../../mlops_aiops/docs/tools/feast/README.md)
+[`../../../mlops_aiops/docs/tools/feast/README.md`](../../../mlops_aiops/docs/tools/feast/README.md)
 has the full comparison.
 
 ## Why no third-party Helm chart dependency
@@ -30,7 +30,7 @@ Feast does publish its own Helm charts, but their exact `values.yaml`
 schema (subchart layout, how `feature_repo/` gets mounted vs. baked in) is
 not something this pass verified from source — depending on it here would
 mean shipping config nobody's checked. `evidently_stack` next door
-([`../../k8s_mlops/evidently_stack/`](../../k8s_mlops/evidently_stack/))
+([`../../k8s/k8s_mlops/evidently_stack/`](../../k8s/k8s_mlops/evidently_stack/))
 already establishes the fallback for exactly this situation in this repo:
 build a small custom image with the app's own Dockerfile, hand-write the
 Deployment/Service. Same approach here — [`Dockerfile`](Dockerfile) installs
@@ -65,6 +65,6 @@ helm install feature-store . -n drift-detection --create-namespace
 ## Related
 
 - [`../README.md`](../README.md) — the full pipeline.
-- [`../../mlops_aiops/docs/tools/feast/README.md`](../../mlops_aiops/docs/tools/feast/README.md).
-- [`../../k8s_mlops/evidently_stack/`](../../k8s_mlops/evidently_stack/) —
+- [`../../../mlops_aiops/docs/tools/feast/README.md`](../../../mlops_aiops/docs/tools/feast/README.md).
+- [`../../k8s/k8s_mlops/evidently_stack/`](../../k8s/k8s_mlops/evidently_stack/) —
   the custom-Dockerfile pattern this chart follows.

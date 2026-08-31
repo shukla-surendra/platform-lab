@@ -9,7 +9,7 @@
 > does yet: the API-vs-SDK distinction, exactly how a trace ID crosses a network call,
 > Semantic Conventions, and the OpenTelemetry Operator's actual injection mechanism —
 > which turns out to be a concrete, real-world test of the sidecar-vs-init-container
-> distinction [already taught in this workspace](../../../k8s_explorer/docs/sidecar-containers.md).
+> distinction [already taught in this workspace](../../../k8s/k8s_explorer/docs/sidecar-containers.md).
 
 ## In Plain English
 
@@ -121,7 +121,7 @@ mechanism, and why it's a precise real-world test of a distinction this workspac
 teaches in depth.
 
 **What a Kubernetes Operator is, in general** — already covered at
-[`../../../k8s_explorer/docs/crds-and-operators.md`](../../../k8s_explorer/docs/crds-and-operators.md):
+[`../../../k8s/k8s_explorer/docs/crds-and-operators.md`](../../../k8s/k8s_explorer/docs/crds-and-operators.md):
 a controller watching a Custom Resource Definition, reconciling the cluster's real state
 toward whatever the CRD declares. The OpenTelemetry Operator provides two CRDs
 specifically: `OpenTelemetryCollector` (declares and manages Collector instances) and
@@ -140,7 +140,7 @@ injection patterns for two different jobs, not one:**
   adds an `initContainers` entry that copies a language-specific agent (e.g., the OTel
   Java agent `.jar`) into a shared `emptyDir` volume, then exits — matching exactly [the
   "one-time setup, then exits" definition of a plain init container
-  already established](../../../k8s_explorer/docs/sidecar-containers.md#sidecar-vs-init-container-vs-ambassadoradapter),
+  already established](../../../k8s/k8s_explorer/docs/sidecar-containers.md#sidecar-vs-init-container-vs-ambassadoradapter),
   not the "runs for the Pod's whole lifetime" definition of a sidecar. The webhook then
   also injects environment variables into the *main* application container
   (`JAVA_TOOL_OPTIONS=-javaagent:/otel-auto-instrumentation/javaagent.jar`) that make the

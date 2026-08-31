@@ -1,8 +1,8 @@
 # Getting logs and metrics out of an app with no logging or metrics code
 
-Worked example: [`rust-sqlite-api`](../public_docker_images/rust-api) (the pod is still
+Worked example: [`rust-sqlite-api`](../../public_docker_images/rust-api) (the pod is still
 named `rust-sqlite-api-0` on this cluster from before the rename — see
-[`rust-sqlite-api-stack`](../rust-sqlite-api-stack)). As of image `1.0.0` it exposes **no
+[`rust-sqlite-api-stack`](../../rust-sqlite-api-stack)). As of image `1.0.0` it exposes **no
 `/metrics` endpoint at all** — that layer was deliberately removed. The question this
 answers: can Grafana still show something useful for it, and does an app need to expose
 anything for that to work?

@@ -47,9 +47,9 @@ receiver. It's also published as its own standalone chart
 (`prometheus-community/alertmanager`) for setups that want Prometheus,
 Alertmanager, and Grafana as independently versioned/installed pieces
 instead of one bundle — used this way in
-[`k8s_observability/streaming-drift-detection/05-dashboards-alerts/`](../../../../k8s_observability/streaming-drift-detection/05-dashboards-alerts/),
+[`k8s/k8s_observability/practice/streaming-drift-detection/05-dashboards-alerts/`](../../../../k8s/k8s_observability/practice/streaming-drift-detection/05-dashboards-alerts/),
 where Prometheus lives in a different chart
-([`04-metrics-export/`](../../../../k8s_observability/streaming-drift-detection/04-metrics-export/))
+([`04-metrics-export/`](../../../../k8s/k8s_observability/practice/streaming-drift-detection/04-metrics-export/))
 than Alertmanager and Grafana do — `kube-prometheus-stack`'s all-in-one
 bundling would have put Alertmanager in the wrong stage of that project's
 5-stage pipeline split (see that project's README for the full reasoning).

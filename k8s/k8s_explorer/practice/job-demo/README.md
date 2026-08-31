@@ -1,6 +1,6 @@
 # job-demo
 
-Hands-on companion to the Job section of [`docs/workload-types.md`](../docs/workload-types.md).
+Hands-on companion to the Job section of [`docs/workload-types.md`](../../docs/workload-types.md).
 Three manifests, each isolating one behavior of `Job` that's easy to describe but more
 convincing to watch happen: run-to-completion, retry-on-failure, and parallel work-splitting.
 

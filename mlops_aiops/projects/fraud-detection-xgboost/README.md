@@ -13,7 +13,7 @@ baseline), pandas/numpy, MLflow (tracking + registry, SQLite backend),
 **Feast** (feature store — local provider, file registry, SQLite online
 store), Evidently, FastAPI/Pydantic/Uvicorn, requests (Zenodo ingestion),
 pytest, uv. Optional integration with the
-[`k8n_mlops/evidently_stack`](../../../k8n_mlops/README.md) Helm chart. Full
+[`k8s/k8s_mlops/practice/evidently_stack`](../../../k8s/k8s_mlops/README.md) Helm chart. Full
 breakdown in [`FAQ.md`](FAQ.md)'s tools table.
 
 ## About the dataset
@@ -237,7 +237,7 @@ NLTK_DISABLE_IMPORT_SECURITY=1 uv run pytest
 `monitor.py` checks `EVIDENTLY_SERVER_URL` and, if set, pushes the drift
 report there via `RemoteWorkspace` instead of only saving it locally — this
 plugs directly into
-[`k8n_mlops/evidently_stack`](../../../k8n_mlops/README.md), the Helm chart
+[`k8s/k8s_mlops/practice/evidently_stack`](../../../k8s/k8s_mlops/README.md), the Helm chart
 that runs a self-hosted Evidently server in-cluster:
 
 ```bash
@@ -276,5 +276,5 @@ NLTK_DISABLE_IMPORT_SECURITY=1 uv run python scripts/explore_feature_store.py --
   the full Evidently write-up.
 - [`projects/evidently-monitoring-demo/`](../evidently-monitoring-demo/) —
   a smaller, synthetic-data version of the same drift-monitoring pattern.
-- [`k8n_mlops/`](../../../k8n_mlops/) — the Kubernetes deployment of the
+- [`k8s/k8s_mlops/`](../../../k8s/k8s_mlops/) — the Kubernetes deployment of the
   Evidently server this project can optionally push reports to.

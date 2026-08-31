@@ -246,11 +246,11 @@ names) — same algorithm, different storage backing, same interface. Worth actu
 
 This turns Iteration 1's *stated* failure into an *observed*, then *fixed*, failure — the
 same "build it, break it, observe it" loop already established in
-[`k8s_explorer/`](../../../k8s_explorer/) for the observability practice track. A natural
+[`k8s/k8s_explorer/`](../../../k8s/k8s_explorer/) for the observability practice track. A natural
 next step after that session: deploy `ingress-nginx` with a `limit-rps` annotation in
-front of [`rust-api-observability-stack`](../../../k8s_explorer/rust-api-observability-stack/)'s
+front of [`rust-api-observability-stack`](../../../k8s/k8s_explorer/practice/rust-api-observability-stack/)'s
 API, drive burst traffic with
-[`docs/examples/observability-scenarios.sh traffic-spike`](../../../k8s_explorer/docs/examples/observability-scenarios.sh),
+[`docs/examples/observability-scenarios.sh traffic-spike`](../../../k8s/k8s_explorer/docs/examples/observability-scenarios.sh),
 and watch the resulting `429`s show up in the Grafana logs dashboard that stack already
 ships.
 

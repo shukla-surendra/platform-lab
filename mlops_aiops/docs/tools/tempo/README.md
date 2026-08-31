@@ -23,7 +23,7 @@ logs. Locally, that's typically [MinIO](../minio/README.md) standing in for S3.
 
 ## Deployment and usage — verified live against this repo's cluster
 
-Deployed via [`k8s_observability/trace-stack/`](../../../../k8s_observability/trace-stack/)
+Deployed via [`k8s/k8s_observability/practice/trace-stack/`](../../../../k8s/k8s_observability/practice/trace-stack/)
 (the `grafana-community/tempo` chart, single-binary mode — the older `grafana/tempo`
 chart at `grafana.github.io/helm-charts` is deprecated, migrated to
 `grafana-community/helm-charts`). Two separate ports matter and are easy to confuse:

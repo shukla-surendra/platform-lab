@@ -1,8 +1,8 @@
 # 04-metrics-export
 
-An [OpenTelemetry](../../mlops_aiops/docs/tools/opentelemetry/README.md)
+An [OpenTelemetry](../../../mlops_aiops/docs/tools/opentelemetry/README.md)
 Collector that receives drift metrics over OTLP from `03-drift-engine`, and
-a standalone [Prometheus](../../mlops_aiops/docs/tools/prometheus/README.md)
+a standalone [Prometheus](../../../mlops_aiops/docs/tools/prometheus/README.md)
 that scrapes them back out in Prometheus format. Stage 4 of
 [`../`](../): the bridge between "a Python process computed a number" and
 "that number is a time series Grafana can query."
@@ -57,5 +57,5 @@ helm install metrics-export . -n drift-detection --create-namespace
 - [`../../metrics-stack/`](../../metrics-stack/) — the `kube-prometheus-stack`
   wrapper this chart deliberately doesn't reuse (own cluster, own Prometheus
   — see `../README.md#why-this-doesnt-reuse-metrics-stacks-prometheusgrafana`).
-- [`../../mlops_aiops/docs/tools/opentelemetry/README.md`](../../mlops_aiops/docs/tools/opentelemetry/README.md),
-  [`.../prometheus/README.md`](../../mlops_aiops/docs/tools/prometheus/README.md).
+- [`../../../mlops_aiops/docs/tools/opentelemetry/README.md`](../../../mlops_aiops/docs/tools/opentelemetry/README.md),
+  [`.../prometheus/README.md`](../../../mlops_aiops/docs/tools/prometheus/README.md).

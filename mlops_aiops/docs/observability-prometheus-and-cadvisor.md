@@ -870,7 +870,7 @@ alerting**.
 
 They are complementary, not competing — a metrics alert tells you *that* something is
 wrong and roughly where; the logs (via Kibana, or Grafana+Loki as this repo's own
-[`log-stack/`](../../k8s_observability/log-stack/) chart uses instead) are usually
+[`log-stack/`](../../k8s/k8s_observability/practice/log-stack/) chart uses instead) are usually
 where you go next to find out *why*.
 
 ---
@@ -948,7 +948,7 @@ where you go next to find out *why*.
   `nvidia-smi` vs. DCGM, and how Triton fits alongside GPU monitoring.
 - [`observability-on-eks.md`](observability-on-eks.md) — where Prometheus/cAdvisor fit
   into the full EKS observability landscape (logs, traces, alerting included).
-- [`../../k8s_observability/metrics-stack/`](../../k8s_observability/metrics-stack/) —
+- [`../../k8s/k8s_observability/practice/metrics-stack/`](../../k8s/k8s_observability/practice/metrics-stack/) —
   this mental model, running: a `kube-prometheus-stack` install with a real
   scraped `/metrics` endpoint and cAdvisor/kube-state-metrics-backed Grafana panels,
   verified live against this repo's own `minikube` cluster.

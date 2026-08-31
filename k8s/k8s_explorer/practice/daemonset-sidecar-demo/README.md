@@ -1,8 +1,8 @@
 # daemonset-sidecar-demo
 
 Hands-on companion to the DaemonSet section of
-[`docs/workload-types.md`](../docs/workload-types.md) and to
-[`docs/sidecar-containers.md`](../docs/sidecar-containers.md) — a real Helm chart, two workload
+[`docs/workload-types.md`](../../docs/workload-types.md) and to
+[`docs/sidecar-containers.md`](../../docs/sidecar-containers.md) — a real Helm chart, two workload
 patterns, **three from-scratch local images** (no registry, no pull, nothing borrowed).
 
 Assumes a running, **multi-node** `minikube` cluster (`minikube status` — this repo's default

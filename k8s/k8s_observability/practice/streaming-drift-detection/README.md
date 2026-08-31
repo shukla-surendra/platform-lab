@@ -4,7 +4,7 @@ A five-stage MLOps pipeline for detecting data/prediction drift on a
 production-like event stream, scaffolded as five independently-deployable
 pieces under this directory — one per stage, mirroring the
 one-concern-per-chart split the sibling charts in
-[`k8s_observability/`](../README.md) already use, but wired together (they
+[`k8s/k8s_observability/`](../../README.md) already use, but wired together (they
 have to be, this is a pipeline, not three isolated signal demos).
 
 **Status: scaffolded, not yet installed on this repo's minikube cluster.**
@@ -55,7 +55,7 @@ got. Treat this as the map + first real code, not a working system yet.
 
 The sibling charts deliberately keep one Grafana per signal so no chart has
 to reconcile two subcharts fighting over `isDefault`/datasource UIDs (see
-[`../README.md`](../README.md#why-one-signal-per-chart-not-one-combined-chart)).
+[`../../README.md`](../../README.md#why-one-signal-per-chart-not-one-combined-chart)).
 This project applies the same instinct at a different boundary: it's one
 coupled system end-to-end (a broken Kafka topic name breaks stage 3, a
 renamed metric breaks stage 5's dashboards), so it gets its **own**
@@ -115,17 +115,17 @@ later blocks earlier stages from coming up.
 
 ## Related
 
-- [`../README.md`](../README.md) — the three-chart signal split
+- [`../../README.md`](../../README.md) — the three-chart signal split
   (`metrics-stack`/`log-stack`/`trace-stack`) this project deliberately
   diverges from, and why.
-- [`../../k8s_mlops/evidently_stack/`](../../k8s_mlops/evidently_stack/) —
+- [`../../k8s/k8s_mlops/evidently_stack/`](../../k8s/k8s_mlops/evidently_stack/) —
   the earlier, simpler single-chart Evidently demo (server + Jupyter client)
   that `03-drift-engine`'s batch mode builds on.
-- [`../../mlops_aiops/docs/tools/kafka/README.md`](../../mlops_aiops/docs/tools/kafka/README.md),
-  [`.../feast/README.md`](../../mlops_aiops/docs/tools/feast/README.md),
-  [`.../evidently/README.md`](../../mlops_aiops/docs/tools/evidently/README.md),
-  [`.../opentelemetry/README.md`](../../mlops_aiops/docs/tools/opentelemetry/README.md),
-  [`.../prometheus/README.md`](../../mlops_aiops/docs/tools/prometheus/README.md),
-  [`.../grafana/README.md`](../../mlops_aiops/docs/tools/grafana/README.md) —
+- [`../../../mlops_aiops/docs/tools/kafka/README.md`](../../../mlops_aiops/docs/tools/kafka/README.md),
+  [`.../feast/README.md`](../../../mlops_aiops/docs/tools/feast/README.md),
+  [`.../evidently/README.md`](../../../mlops_aiops/docs/tools/evidently/README.md),
+  [`.../opentelemetry/README.md`](../../../mlops_aiops/docs/tools/opentelemetry/README.md),
+  [`.../prometheus/README.md`](../../../mlops_aiops/docs/tools/prometheus/README.md),
+  [`.../grafana/README.md`](../../../mlops_aiops/docs/tools/grafana/README.md) —
   what each tool is and how it compares to the alternatives named in the
   original 5-stage spec (Pub/Sub, Kinesis, Tecton).

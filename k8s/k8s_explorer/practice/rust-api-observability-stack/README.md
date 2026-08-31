@@ -8,7 +8,7 @@ app and a Grafana already showing it: no manual dashboard import.
 
 Image: `surendrashukla29/rust-api:1.0.0`, pinned in `values.yaml` (also
 matches `Chart.yaml`'s `appVersion`). Built in
-[`../../public_docker_images/rust-api/`](../../public_docker_images/rust-api/)
+[`../../../../public_docker_images/rust-api/`](../../../../public_docker_images/rust-api/)
 — that directory owns the image, this one owns everything Kubernetes.
 
 **Renamed and rewritten.** This chart used to deploy `rust-sqlite-api` — an

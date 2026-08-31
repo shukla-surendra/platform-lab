@@ -1,6 +1,6 @@
 # Service types: `ClusterIP`, `NodePort`, `LoadBalancer`, headless, `ExternalName`
 
-Hands-on companion: [`services-demo/`](../services-demo). One shared Deployment, five
+Hands-on companion: [`services-demo/`](../practice/services-demo). One shared Deployment, five
 Services in front of it, one per type below.
 
 A `Service` is a stable address plus a rule for picking which Pod actually answers. `type`
@@ -42,7 +42,7 @@ another way in from further outside.
 **All of these can be active at the same time.** `type` is a property of one Service
 *object*, not a cluster-wide setting — nothing stops you creating five separately-named
 Services, each a different `type`, all with the same `selector` pointing at the same
-Pods. That's exactly what [`services-demo/`](../services-demo) does: after working
+Pods. That's exactly what [`services-demo/`](../practice/services-demo) does: after working
 through all five parts, `web-clusterip`, `web-nodeport`, `web-loadbalancer`,
 `web-headless`, and `web-external` all exist simultaneously, all routing to the same 3
 backend Pods — five phone lines into the same office, each with its own reach.
@@ -113,7 +113,7 @@ carries none of the health-checking or load-balancing the other types have.
 
 ## Usage — everyday `kubectl` commands
 
-The five manifests in [`services-demo/`](../services-demo) are the declarative (YAML)
+The five manifests in [`services-demo/`](../practice/services-demo) are the declarative (YAML)
 way to create a Service. Day to day you'll also touch Services imperatively — creating one
 quickly, inspecting why it isn't working, or changing its `type` in place.
 
@@ -192,5 +192,5 @@ kubectl delete -f 01-clusterip.yaml
 | Headless (`clusterIP: None`) | No | No | No — DNS returns every Pod IP directly |
 | `ExternalName` | No | N/A — DNS alias to something already external | No — no Pods involved |
 
-See [`services-demo/`](../services-demo) to apply all five and compare them against a live
+See [`services-demo/`](../practice/services-demo) to apply all five and compare them against a live
 cluster.

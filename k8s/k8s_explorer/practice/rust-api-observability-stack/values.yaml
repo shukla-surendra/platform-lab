@@ -40,7 +40,7 @@ config:
   # and the request-rate/status/latency panels on the main dashboard, which
   # are computed FROM those request-tracing lines via LogQL — are permanently
   # empty and look broken when they are merely accurate. See
-  # ../docs/metrics-and-logs-without-instrumentation.md for why those panels
+  # ../../docs/metrics-and-logs-without-instrumentation.md for why those panels
   # can exist at all without the app exposing a /metrics endpoint.
   rustLog: info,tower_http=debug
 
@@ -98,7 +98,7 @@ affinity: {}
 # ---------------------------------------------------------------------------
 #
 # rust-api has NO /metrics endpoint — see
-# ../docs/metrics-and-logs-without-instrumentation.md for the full reasoning,
+# ../../docs/metrics-and-logs-without-instrumentation.md for the full reasoning,
 # verified live against this exact deployment. In short:
 #   - logs need nothing from the app: stdout capture is automatic (Promtail)
 #   - pod-level metrics (CPU, memory, restarts) come from cAdvisor and
@@ -246,7 +246,7 @@ loki-stack:
       # panel is empty with no error shown anywhere.
       #
       # This exact failure is on record for this cluster already — see
-      # ../grafana-log-viewer/README.md and ../docs/incidents.md.
+      # ../grafana-log-viewer/README.md and ../../docs/incidents.md.
       #
       # The key is config.clients[0].url (not lokiAddress, which is the newer
       # standalone promtail chart's spelling and is silently ignored here).

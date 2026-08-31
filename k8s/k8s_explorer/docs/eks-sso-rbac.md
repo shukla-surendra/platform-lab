@@ -5,7 +5,7 @@ Identity Center and a real EKS cluster both cost money and need real AWS org set
 here was actually provisioned. What *is* verified, on the free local minikube cluster this repo
 already uses everywhere else, is the piece both paths below terminate in — Kubernetes RBAC only
 ever sees a username/group set, never how it was established. That proof lives in
-[`../identity-to-rbac-demo/`](../identity-to-rbac-demo); read it alongside this doc, not
+[`../practice/identity-to-rbac-demo/`](../practice/identity-to-rbac-demo); read it alongside this doc, not
 instead of it.
 
 Cross-references: [`rbac.md`](./rbac.md) (the Kubernetes-side RBAC this connects to),
@@ -65,7 +65,7 @@ aws eks associate-access-policy \
 ```
 
 The `--kubernetes-groups eks-platform-team` value is exactly the group name
-[`../identity-to-rbac-demo/`](../identity-to-rbac-demo) binds a RoleBinding to — this
+[`../practice/identity-to-rbac-demo/`](../practice/identity-to-rbac-demo) binds a RoleBinding to — this
 API call is the *only* thing Path 1 adds on top of ordinary Kubernetes RBAC; everything
 downstream of "the identity now has this group" is identical to any other cluster.
 
@@ -143,13 +143,13 @@ roles) to reach for Path 2.
 
 | Claim | Verification status |
 |---|---|
-| RBAC only sees username/groups, identical regardless of source | **Verified** — [`../identity-to-rbac-demo/`](../identity-to-rbac-demo), real `kubectl auth can-i` output on live minikube |
+| RBAC only sees username/groups, identical regardless of source | **Verified** — [`../practice/identity-to-rbac-demo/`](../practice/identity-to-rbac-demo), real `kubectl auth can-i` output on live minikube |
 | Impersonation itself requires RBAC `impersonate` permission | **Verified** — same demo, a real `Forbidden` error from a genuinely restricted identity |
 | `aws eks create-access-entry` / `associate-access-policy` syntax | Reference only — no AWS account exercised this |
 | `associate-identity-provider-config` + `kubelogin` flow | Reference only — no external IdP was stood up against a real cluster |
 
 The gap between these two rows is exactly the boundary named in
-[`../identity-to-rbac-demo/README.md`](../identity-to-rbac-demo#what-problem-does-it-solve):
+[`../practice/identity-to-rbac-demo/README.md`](../practice/identity-to-rbac-demo#what-problem-does-it-solve):
 everything above the RBAC layer (IAM Identity Center, Access Entries, an OIDC IdP) is genuinely
 untested here; everything at or below it is proven, because that part needs no cloud account to
 verify at all.

@@ -16,7 +16,7 @@ dependencies:
   # Brings Prometheus, Grafana, Alertmanager, node-exporter, kube-state-metrics, and
   # the CRDs (ServiceMonitor, PodMonitor, PrometheusRule) in one chart. Same dependency
   # version already proven out on this cluster in
-  # ../../k8s_explorer/rust-api-observability-stack/Chart.yaml.
+  # ../../k8s/k8s_explorer/rust-api-observability-stack/Chart.yaml.
   - name: kube-prometheus-stack
     version: "88.2.0"
     repository: "https://prometheus-community.github.io/helm-charts"

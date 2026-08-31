@@ -1,6 +1,6 @@
 # affinity-demo
 
-Hands-on companion to [`docs/pod-and-node-affinity.md`](../docs/pod-and-node-affinity.md).
+Hands-on companion to [`docs/pod-and-node-affinity.md`](../../docs/pod-and-node-affinity.md).
 Plain manifests (no Helm) — apply them one at a time, watch what the scheduler actually does,
 `kubectl describe` the result, then move to the next one. Everything here uses `nginx:alpine` as
 a throwaway workload; the point is scheduling behavior, not the app.

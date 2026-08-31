@@ -1,12 +1,12 @@
 # Values for the metrics-stack wrapper chart. Deploys kube-prometheus-stack ONLY —
 # Alertmanager, node-exporter, and kube-state-metrics stay on (they're metrics, not
 # logs/traces); Loki/Promtail are never pulled in here at all. For logs, see the
-# separate ../../k8s_explorer/grafana-log-viewer/ chart instead.
+# separate ../../k8s/k8s_explorer/grafana-log-viewer/ chart instead.
 #
 # This profile (Alertmanager off, control-plane scrape targets off,
 # serviceMonitorSelectorNilUsesHelmValues false, emptyDir storage) is the same one
 # already proven out on this repo's minikube cluster in
-# ../../k8s_explorer/rust-api-observability-stack/values.yaml — carried over rather
+# ../../k8s/k8s_explorer/rust-api-observability-stack/values.yaml — carried over rather
 # than re-derived from scratch.
 kube-prometheus-stack:
   # Off by default: nothing on a practice cluster routes anywhere, and it's a

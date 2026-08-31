@@ -3,9 +3,9 @@
 All five ultimately create Pods; the difference is the *identity and lifecycle guarantee* each
 one gives those Pods. Grounded in real workloads already in this repo.
 
-Hands-on companions for the Job/CronJob sections below: [`job-demo/`](../job-demo) — three
+Hands-on companions for the Job/CronJob sections below: [`job-demo/`](../practice/job-demo) — three
 manifests covering run-to-completion, retry via `backoffLimit`, and parallel fan-out via
-`completions`/`parallelism` — and [`cronjob-demo/`](../cronjob-demo), a scheduled CronJob built
+`completions`/`parallelism` — and [`cronjob-demo/`](../practice/cronjob-demo), a scheduled CronJob built
 on top of it. Both include `kubectl` commands to watch it happen live.
 
 ## Deployment — identical, interchangeable replicas
@@ -27,7 +27,7 @@ lost without it:
    kill, a node losing power, a spot instance getting reclaimed mid-run. The ReplicaSet's whole
    reconcile loop is "does actual replica count match desired," so a Pod disappearing for *any*
    reason gets a replacement within seconds, with no on-call page needed. This is the same
-   reconcile-loop mechanism [`../toy-controller/`](../toy-controller) builds by hand for a
+   reconcile-loop mechanism [`../practice/toy-controller/`](../practice/toy-controller) builds by hand for a
    Namespace's `ResourceQuota` — a ReplicaSet is that same pattern, applied to Pod replica count.
 2. **Rolling updates without downtime.** This is the actual reason the ReplicaSet layer exists at
    all rather than Deployment editing Pods in place: on a new image, Deployment creates a
@@ -45,7 +45,7 @@ lost without it:
    replica count the whole time, even though individual Pods are actively churning underneath.
 5. **High availability across failure domains, combined with anti-affinity.** Spread 3 replicas
    across 3 AZs with pod anti-affinity (see [`pod-and-node-affinity.md`](./pod-and-node-affinity.md),
-   worked hands-on in [`../affinity-demo/`](../affinity-demo)) and lose a whole AZ — 2 replicas
+   worked hands-on in [`../practice/affinity-demo/`](../practice/affinity-demo)) and lose a whole AZ — 2 replicas
    keep serving, and once capacity returns, the ReplicaSet is what actually creates the missing
    replica again. Anti-affinity only decides *where* replacements can go; the ReplicaSet is what
    notices one is needed and creates it.
@@ -105,7 +105,7 @@ kube-system   kube-proxy   2         2         2       2            2          k
 
 Used for node-level agents: anything that needs to run on *every* node, automatically added/
 removed as nodes join/leave, rather than a chosen replica count. Try it hands-on in
-[`daemonset-sidecar-demo/`](../daemonset-sidecar-demo) — no `replicas` field at all (there isn't
+[`daemonset-sidecar-demo/`](../practice/daemonset-sidecar-demo) — no `replicas` field at all (there isn't
 one on the DaemonSet spec), a real 2-node cluster produces exactly 2 Pods, and each one learns
 which node it landed on via the Downward API rather than any per-node image/config.
 
@@ -119,7 +119,7 @@ nodes can't compensate for.
    plugin Pod to set up Pod networking on that node specifically. Without it, no Pod scheduled
    there gets a network at all — this isn't optional infrastructure, it's the thing that makes
    the node usable for scheduling anything.
-2. **Service routing — `kube-proxy` above, same cluster.** [`../kube-proxy-packet-path-demo/`](../kube-proxy-packet-path-demo)
+2. **Service routing — `kube-proxy` above, same cluster.** [`../practice/kube-proxy-packet-path-demo/`](../practice/kube-proxy-packet-path-demo)
    traced exactly what this Pod does: program the `iptables`/IPVS rules that turn a ClusterIP
    into a real Pod IP. A node without its own kube-proxy Pod can't route Service traffic at all —
    again, per-node, not a cluster-wide replica count that could be satisfied by Pods elsewhere.
@@ -139,7 +139,7 @@ nodes can't compensate for.
    given node has to run on that node — [`eks-setup.md`](./eks-setup.md)'s EBS CSI driver ships
    its node-level component as a DaemonSet for exactly this reason; a Pod requesting a volume on
    a node with no CSI node-plugin there just sits stuck.
-7. **GPU device plugins** — [`../gpu-scheduling-demo/`](../gpu-scheduling-demo) covers the
+7. **GPU device plugins** — [`../practice/gpu-scheduling-demo/`](../practice/gpu-scheduling-demo) covers the
    scheduling side of this; the real NVIDIA/AMD device plugin that *advertises* those extended
    resources to the kubelet runs as a DaemonSet, one per GPU-equipped node, because GPU discovery
    is inherently local to whatever hardware is physically in that node.
@@ -169,7 +169,7 @@ to `backoffLimit` attempts). The `helm.sh/hook` annotations aren't a Kubernetes 
 Helm's mechanism for running this Job at a specific point in the install/upgrade lifecycle
 (after install, before upgrade) rather than as a normal templated resource.
 
-Try it hands-on in [`job-demo/`](../job-demo) — including what a failed attempt and a parallel
+Try it hands-on in [`job-demo/`](../practice/job-demo) — including what a failed attempt and a parallel
 fan-out actually look like in `kubectl get pods`, not just in the YAML.
 
 ## CronJob — a Job, on a schedule
@@ -194,7 +194,7 @@ missed run. Trigger one on demand for testing without waiting for the schedule:
 kubectl create job --from=cronjob/<release>-db-backup manual-backup-1 -n <namespace>
 ```
 
-Try it hands-on in [`cronjob-demo/`](../cronjob-demo).
+Try it hands-on in [`cronjob-demo/`](../practice/cronjob-demo).
 
 ## Choosing between them
 

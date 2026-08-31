@@ -1,6 +1,6 @@
 # services-demo
 
-Hands-on companion to [`docs/service-types.md`](../docs/service-types.md). One shared
+Hands-on companion to [`docs/service-types.md`](../../docs/service-types.md). One shared
 Deployment, five Services in front of it — apply them one at a time and see exactly how
 each `type` changes reachability. Every Pod serves its own hostname on `/`, so `curl`ing a
 Service repeatedly shows the load-balancing (or lack of it) directly in the response body.

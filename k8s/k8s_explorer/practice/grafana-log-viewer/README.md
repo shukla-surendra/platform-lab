@@ -11,7 +11,7 @@ tuned for a local practice cluster.
 - **Cluster:** `minikube` profile
 - **Namespace:** `log-viewer` (dedicated — kept out of `default` so it can be
   audited/removed as one unit; see
-  [`docs/cluster-inventory-and-cleanup.md`](../docs/cluster-inventory-and-cleanup.md)
+  [`docs/cluster-inventory-and-cleanup.md`](../../docs/cluster-inventory-and-cleanup.md)
   for why that matters on this cluster)
 - **Release name:** `log-viewer`
 - **Method:** local chart wrapping `grafana/loki-stack` (Helm), not raw manifests/kustomize
@@ -20,7 +20,7 @@ tuned for a local practice cluster.
   a stuck `StatefulSet` revision, a transient Loki readiness `503`, and a broken default
   Promtail→Loki URL that silently dropped every log line until fixed; full
   writeup in
-  [`docs/incidents.md`](../docs/incidents.md#2026-07-21-grafana-log-viewer-stuck-pending-insufficient-cpu)
+  [`docs/incidents.md`](../../docs/incidents.md#2026-07-21-grafana-log-viewer-stuck-pending-insufficient-cpu)
 
 ## Values files
 
@@ -28,12 +28,12 @@ Two settings profiles, kept as separate files rather than one file you edit back
 
 | File | CPU requests/limits | Use when |
 |---|---|---|
-| `values.yaml` (default, always loaded) | None — memory-bounded only | This repo's `minikube` profile, or any cluster with little/no free CPU. Default because it's what actually schedules here — see [`docs/incidents.md`](../docs/incidents.md#2026-07-21-grafana-log-viewer-stuck-pending-insufficient-cpu) for what happened when CPU limits were set on this cluster. |
+| `values.yaml` (default, always loaded) | None — memory-bounded only | This repo's `minikube` profile, or any cluster with little/no free CPU. Default because it's what actually schedules here — see [`docs/incidents.md`](../../docs/incidents.md#2026-07-21-grafana-log-viewer-stuck-pending-insufficient-cpu) for what happened when CPU limits were set on this cluster. |
 | `values-with-cpu-limits.yaml` (opt-in overlay) | Explicit `requests`/`limits` for loki/promtail/grafana | A cluster with real CPU headroom, where you want the usual scheduling guarantees instead of "whatever's free." |
 
 Layer the overlay on top with `-f` — **don't** edit `values.yaml` to add `limits.cpu` without
 also adding `requests.cpu`: a limits-only container gets its request silently defaulted to the
-limit by the API server (see [`resource-management.md`](../docs/resource-management.md)), which
+limit by the API server (see [`resource-management.md`](../../docs/resource-management.md)), which
 is exactly the mistake `values-with-cpu-limits.yaml` avoids by setting both explicitly.
 
 ```bash
@@ -118,7 +118,7 @@ auto-provisioned by `templates/dashboard-nginx-logs.yaml`, a Logs panel already 
 labeled `grafana_dashboard: "1"` — that's how `templates/dashboard-nginx-logs.yaml` gets
 picked up automatically on every install/upgrade, no manual import. Full mechanism (how the
 sidecar actually gets a ConfigMap onto Grafana's disk, and how to add more dashboards) in
-[`docs/grafana-dashboard-provisioning.md`](../docs/grafana-dashboard-provisioning.md).
+[`docs/grafana-dashboard-provisioning.md`](../../docs/grafana-dashboard-provisioning.md).
 
 **Explore** (ad-hoc queries): go to **Explore**, pick the **Loki** datasource, and query by
 namespace/pod/container label, e.g.:

@@ -2,7 +2,7 @@
 # server, and a Jupyter pod that computes a report and pushes it to that
 # server over the network. One chart (not two) because both pods are always
 # installed/removed together for this demo and neither is independently
-# useful without the other -- see ../README.md for the fuller reasoning.
+# useful without the other -- see ../../README.md for the fuller reasoning.
 #
 # Because both live in one release, jupyter-client's EVIDENTLY_SERVER_URL is
 # *not* a value you set here -- it's computed from the evidently-server

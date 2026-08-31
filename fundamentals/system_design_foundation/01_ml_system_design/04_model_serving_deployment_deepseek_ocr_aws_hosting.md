@@ -13,7 +13,7 @@ mechanics underpinning the vLLM-based options below, see
 [6. RAG + LLM-Serving at Scale's serving deep-dive](06_rag_llm_serving_at_scale.md#deep-dive-llm-serving-internals-vllm-on-triton).
 Runnable pieces this design draws on live elsewhere in this repo:
 [vLLM](../../../mlops_aiops/docs/tools/vllm/README.md) and
-[`k8n_explorer/kserve-inference`](../../../k8n_explorer/kserve-inference/README.md).
+[`k8s/k8s_explorer/kserve-inference`](../../../k8s/k8s_explorer/practice/kserve-inference/README.md).
 
 ## Clarify
 
@@ -135,7 +135,7 @@ knowing *why* an option is disqualified is worth more than knowing it's availabl
 | **SageMaker Real-Time Endpoint** (BYOC vLLM container) | g5, g6, g6e, p4d, p5/p5e | Low — managed autoscaling, health checks, deployment | Interactive path if the org wants managed simplicity over the last mile of cost efficiency |
 | **SageMaker Async Inference** | Same instance families as real-time | Low — same managed layer, plus built-in queueing and scale-to-zero | **Strong fit for this use case** — OCR's latency tolerance matches async's queue-based model almost exactly, and idle-time scale-to-zero matters for bursty customer upload patterns |
 | **SageMaker Batch Transform** | Same instance families | Low — no persistent endpoint, reads/writes S3 directly | The bulk overnight path — no idle endpoint cost, built for exactly this shape |
-| **EKS + KServe + vLLM** (HuggingFace `ServingRuntime`, vLLM backend) | Any EC2 GPU instance the node group runs | High — you operate the cluster | Best $/throughput at genuinely high sustained volume, if the org already runs EKS well; see [`k8n_explorer/kserve-inference`](../../../k8n_explorer/kserve-inference/README.md) for the exact chart pattern and [vLLM](../../../mlops_aiops/docs/tools/vllm/README.md) for the backend |
+| **EKS + KServe + vLLM** (HuggingFace `ServingRuntime`, vLLM backend) | Any EC2 GPU instance the node group runs | High — you operate the cluster | Best $/throughput at genuinely high sustained volume, if the org already runs EKS well; see [`k8s/k8s_explorer/kserve-inference`](../../../k8s/k8s_explorer/practice/kserve-inference/README.md) for the exact chart pattern and [vLLM](../../../mlops_aiops/docs/tools/vllm/README.md) for the backend |
 | **Plain EC2 + vLLM + ALB + Auto Scaling Group** | Any EC2 GPU instance | Highest — you own health checks, autoscaling, patching | Cheapest at sustained high utilization (stacks with Savings Plans/Spot), but only worth the ops cost if SageMaker's management premium (below) is a real line item at your volume |
 
 **Worth prototyping, not the default bet:**
@@ -333,4 +333,4 @@ later.
 (the I/O-bound mirror image of this GPU-bound workload) ·
 [10. Cost, Security & Multi-Region](10_cost_security_multiregion.md) ·
 [vLLM](../../../mlops_aiops/docs/tools/vllm/README.md) ·
-[`k8n_explorer/kserve-inference`](../../../k8n_explorer/kserve-inference/README.md)
+[`k8s/k8s_explorer/kserve-inference`](../../../k8s/k8s_explorer/practice/kserve-inference/README.md)

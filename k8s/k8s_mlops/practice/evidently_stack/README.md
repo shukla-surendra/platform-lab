@@ -1,10 +1,10 @@
 # evidently-stack (Helm chart)
 
-One chart, two Deployments: a self-hosted [Evidently](../../mlops_aiops/docs/tools/evidently/README.md)
+One chart, two Deployments: a self-hosted [Evidently](../../../../mlops_aiops/docs/tools/evidently/README.md)
 monitoring server (`evidently ui`), and a Jupyter pod whose notebook computes
 a report and pushes it to that server over the network. One chart because
 both pods are always installed/removed together for this demo and neither
-is independently useful without the other — see [`../README.md`](../README.md)
+is independently useful without the other — see [`../../README.md`](../../README.md)
 for the full architecture.
 
 ## Build both images

@@ -3,7 +3,7 @@
 **Finish line by tonight:** Deploy a FastAPI/Rust API service on K8s with Prometheus + Grafana + Loki, then walk through incident scenarios until you can diagnose problems without cheat sheets.
 
 **Your existing assets:**
-- [`../rust-api-observability-stack/`](../rust-api-observability-stack/) — complete Helm chart, ready to deploy
+- [`../practice/rust-api-observability-stack/`](../practice/rust-api-observability-stack/) — complete Helm chart, ready to deploy
 - `mlops_aiops/docs/observability-on-eks.md` — architecture/tool decisions
 - `mlops_aiops/docs/production-logging-guidelines.md` — logging best practices
 - `mlops_aiops/docs/observability-terminology.md` — vocabulary
@@ -86,7 +86,7 @@ kubectl get nodes
 ### Deploy the Helm chart
 
 ```bash
-cd ~/projects/2026/platform-lab/k8s_explorer/rust-api-observability-stack
+cd ~/projects/2026/platform-lab/k8s/k8s_explorer/rust-api-observability-stack
 
 # First time only: fetch dependencies
 helm dependency build
@@ -390,7 +390,7 @@ If you want to add distributed tracing (traces, not just logs/metrics):
 3. Point the collector at Tempo (trace backend)
 4. Add Tempo as a Grafana datasource
 
-The [`rust-api-observability-stack`](../rust-api-observability-stack/) doesn't include Tempo yet, but the docs on OTEL are in `mlops_aiops/docs/observability-otel-collector-and-datadog.md`.
+The [`rust-api-observability-stack`](../practice/rust-api-observability-stack/) doesn't include Tempo yet, but the docs on OTEL are in `mlops_aiops/docs/observability-otel-collector-and-datadog.md`.
 
 ---
 
@@ -428,7 +428,7 @@ kubectl delete namespace observability
 - Full architecture guide: `mlops_aiops/docs/observability-on-eks.md`
 - Terminology: `mlops_aiops/docs/observability-terminology.md`
 - Production logging: `mlops_aiops/docs/production-logging-guidelines.md`
-- Working Helm chart: [`../rust-api-observability-stack/`](../rust-api-observability-stack/)
+- Working Helm chart: [`../practice/rust-api-observability-stack/`](../practice/rust-api-observability-stack/)
 - Public Docker image: `surendrashukla29/rust-api:1.0.0` (no build step needed)
 
 ---

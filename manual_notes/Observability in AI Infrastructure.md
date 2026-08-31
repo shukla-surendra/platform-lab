@@ -749,7 +749,7 @@ notice a change against how much load scraping itself puts on targets and storag
 
 *(In production Kubernetes, `static_configs` with hardcoded targets like this is the
 exception rather than the rule — see [Part 1's Kubernetes service discovery
-note](#part-1--why-monitoring-ai-systems-matters) and the `k8s_observability/`
+note](#part-1--why-monitoring-ai-systems-matters) and the `k8s/k8s_observability/`
 charts in this repo for the actual mechanism: Prometheus discovering pods dynamically
 via `ServiceMonitor`/`PodMonitor` rather than a static target list that would need
 manual edits every time something scales.)*
@@ -1014,7 +1014,7 @@ than one visualization type to tell the full story.
   namespace-based segregation for multi-tenant clusters.
 - **Pro tip:** the **kube-prometheus-stack** Helm chart deploys Prometheus, Grafana,
   and a set of default dashboards together, pre-wired with sane defaults — this is
-  exactly the chart [`k8s_observability/metrics-stack/`](../k8s_observability/metrics-stack/)
+  exactly the chart [`k8s/k8s_observability/practice/metrics-stack/`](../k8s/k8s_observability/practice/metrics-stack/)
   in this repo wraps, tuned for a local `minikube` cluster and verified live rather
   than left as an abstract description here.
 

@@ -660,31 +660,31 @@ The "Pipeline Architecture" section above (Kafka/Pub-Sub/Kinesis → Feast/Tecto
 → EvidentlyAI → Prometheus/OpenTelemetry → Grafana/Alertmanager) isn't just
 a diagram in this repo — it's scaffolded stage-by-stage as five Helm charts
 in
-[`k8s_observability/streaming-drift-detection/`](../k8s_observability/streaming-drift-detection/),
+[`k8s/k8s_observability/practice/streaming-drift-detection/`](../k8s/k8s_observability/practice/streaming-drift-detection/),
 one chart per stage, matching this exact architecture 1:1:
 
 | Stage (from the diagram above) | This repo's chart | Real tech pinned |
 | ----- | ----- | ----- |
-| 1. Data Ingestion | [`01-ingestion/`](../k8s_observability/streaming-drift-detection/01-ingestion/) | Kafka (Bitnami OCI chart, KRaft mode) + a synthetic producer that injects a real distribution shift mid-stream |
-| 2. Feature Store / Preprocessing | [`02-feature-store/`](../k8s_observability/streaming-drift-detection/02-feature-store/) | Self-hosted Feast — one `FeatureView` serving both an offline `FileSource` (batch reference) and a `PushSource` (streaming online writes), so training and serving can't silently diverge |
-| 3. Drift Detection Engine | [`03-drift-engine/`](../k8s_observability/streaming-drift-detection/03-drift-engine/) | Evidently, in **both** modes: a `CronJob` (batch, scheduled window comparison) and a long-running `Deployment` (streaming, continuous sliding-window comparison) — sharing one reference dataset and one metrics emitter |
-| 4. Metrics Export | [`04-metrics-export/`](../k8s_observability/streaming-drift-detection/04-metrics-export/) | OpenTelemetry Collector (OTLP receiver → Prometheus exporter) + standalone Prometheus |
-| 5. Dashboards & Alerts | [`05-dashboards-alerts/`](../k8s_observability/streaming-drift-detection/05-dashboards-alerts/) | Grafana (a drift-score dashboard) + standalone Alertmanager, with the alert rule itself (`drift_detected == 1`) |
+| 1. Data Ingestion | [`01-ingestion/`](../k8s/k8s_observability/practice/streaming-drift-detection/01-ingestion/) | Kafka (Bitnami OCI chart, KRaft mode) + a synthetic producer that injects a real distribution shift mid-stream |
+| 2. Feature Store / Preprocessing | [`02-feature-store/`](../k8s/k8s_observability/practice/streaming-drift-detection/02-feature-store/) | Self-hosted Feast — one `FeatureView` serving both an offline `FileSource` (batch reference) and a `PushSource` (streaming online writes), so training and serving can't silently diverge |
+| 3. Drift Detection Engine | [`03-drift-engine/`](../k8s/k8s_observability/practice/streaming-drift-detection/03-drift-engine/) | Evidently, in **both** modes: a `CronJob` (batch, scheduled window comparison) and a long-running `Deployment` (streaming, continuous sliding-window comparison) — sharing one reference dataset and one metrics emitter |
+| 4. Metrics Export | [`04-metrics-export/`](../k8s/k8s_observability/practice/streaming-drift-detection/04-metrics-export/) | OpenTelemetry Collector (OTLP receiver → Prometheus exporter) + standalone Prometheus |
+| 5. Dashboards & Alerts | [`05-dashboards-alerts/`](../k8s/k8s_observability/practice/streaming-drift-detection/05-dashboards-alerts/) | Grafana (a drift-score dashboard) + standalone Alertmanager, with the alert rule itself (`drift_detected == 1`) |
 
 The real streaming consumer (the actual, fuller version of the
 `while True: consume_from_kafka(...)` sketch a few lines up) is
-[`03-drift-engine/streaming/run_streaming_drift_check.py`](../k8s_observability/streaming-drift-detection/03-drift-engine/streaming/run_streaming_drift_check.py):
+[`03-drift-engine/streaming/run_streaming_drift_check.py`](../k8s/k8s_observability/practice/streaming-drift-detection/03-drift-engine/streaming/run_streaming_drift_check.py):
 it keeps a sliding `deque` window, pushes every consumed event into Feast's
 online store (so a real serving system reading through Feast sees the same
 events the drift check does), and re-runs the Evidently comparison every
 `CHECK_INTERVAL_SECONDS` — with the batch counterpart
-([`03-drift-engine/batch/run_batch_drift_check.py`](../k8s_observability/streaming-drift-detection/03-drift-engine/batch/run_batch_drift_check.py))
+([`03-drift-engine/batch/run_batch_drift_check.py`](../k8s/k8s_observability/practice/streaming-drift-detection/03-drift-engine/batch/run_batch_drift_check.py))
 running the same comparison on a `CronJob` schedule instead, so a drift
 score computed by either mode is directly comparable in Grafana — same
 metric names, only `mode="batch"` vs `mode="streaming"` differs. Full
 architecture, data-flow diagram, and the "why one shared namespace, why not
 reuse the observability stack's own Prometheus" design reasoning:
-[`streaming-drift-detection/README.md`](../k8s_observability/streaming-drift-detection/README.md).
+[`streaming-drift-detection/README.md`](../k8s/k8s_observability/practice/streaming-drift-detection/README.md).
 
 # **Prometheus/Grafana Integration**
 
@@ -1261,14 +1261,14 @@ If it needs to run somewhere without real cloud credentials (a laptop, a
 local Kubernetes cluster), Kafka is the only one of the three that's
 realistically self-hostable — Pub/Sub and Kinesis are managed-only.
 That's the exact reasoning
-[`k8s_observability/streaming-drift-detection/01-ingestion/README.md`](../k8s_observability/streaming-drift-detection/01-ingestion/README.md)
+[`k8s/k8s_observability/practice/streaming-drift-detection/01-ingestion/README.md`](../k8s/k8s_observability/practice/streaming-drift-detection/01-ingestion/README.md)
 gives for picking Kafka.
 
 **Q: Feast or Tecton for the feature store stage?**
 Same logic as Kafka vs. Pub/Sub/Kinesis: Tecton is SaaS-only, no
 self-hosted tier, so it can't run on a local cluster at all. Feast is fully
 open-source and self-hostable — see
-[`02-feature-store/README.md`](../k8s_observability/streaming-drift-detection/02-feature-store/README.md).
+[`02-feature-store/README.md`](../k8s/k8s_observability/practice/streaming-drift-detection/02-feature-store/README.md).
 
 ## **Operating This in Production**
 
@@ -1286,7 +1286,7 @@ Too small → noisy false alarms; too big → real drift detected too late.
 Match it to the domain's actual time scale (the doc's own guidance: ~1hr
 for fraud, ~24hrs for retail recommendations) rather than picking one
 number for every model. In
-[`03-drift-engine/streaming/`](../k8s_observability/streaming-drift-detection/03-drift-engine/streaming/),
+[`03-drift-engine/streaming/`](../k8s/k8s_observability/practice/streaming-drift-detection/03-drift-engine/streaming/),
 this is `WINDOW_SIZE` (event count) + `CHECK_INTERVAL_SECONDS` (how often
 the window is re-evaluated), both `values.yaml`-configurable per
 deployment rather than hardcoded.
@@ -1307,11 +1307,11 @@ section builds.)
 **Q: How does this repo's implementation decide when to actually alert someone?**
 Via a Prometheus alerting rule evaluating `drift_detected == 1` for 2+
 minutes, routed through a standalone Alertmanager — see
-[`04-metrics-export/values.yaml`](../k8s_observability/streaming-drift-detection/04-metrics-export/values.yaml)'s
+[`04-metrics-export/values.yaml`](../k8s/k8s_observability/practice/streaming-drift-detection/04-metrics-export/values.yaml)'s
 `serverFiles.alerting_rules.yml` (why the rule *definition* has to live in
 the Prometheus-owning chart, not the Alertmanager-owning one, is explained
 in
-[`05-dashboards-alerts/README.md`](../k8s_observability/streaming-drift-detection/05-dashboards-alerts/README.md)).
+[`05-dashboards-alerts/README.md`](../k8s/k8s_observability/practice/streaming-drift-detection/05-dashboards-alerts/README.md)).
 No real receiver (Slack/PagerDuty) is wired up in this repo's version — see
 that same README for exactly what's left as a next step.
 
@@ -1321,8 +1321,8 @@ that same README for exactly what's left as a next step.
 | ----- | ----- |
 | Batch drift detection, synthetic data, XGBoost, both drift types, real numbers | [`mlops_aiops/projects/batch-drift-detection-xgboost/`](../mlops_aiops/projects/batch-drift-detection-xgboost/) |
 | Every drift type from the taxonomy, isolated, one notebook cell each | [`mlops_aiops/projects/evidently-monitoring-demo/drift_types_with_evidently.ipynb`](../mlops_aiops/projects/evidently-monitoring-demo/drift_types_with_evidently.ipynb) |
-| The full 5-stage streaming pipeline from "Pipeline Architecture" above, as real Helm charts | [`k8s_observability/streaming-drift-detection/`](../k8s_observability/streaming-drift-detection/) |
+| The full 5-stage streaming pipeline from "Pipeline Architecture" above, as real Helm charts | [`k8s/k8s_observability/practice/streaming-drift-detection/`](../k8s/k8s_observability/practice/streaming-drift-detection/) |
 | The conceptual taxonomy this whole FAQ draws from, in more depth | [`mlops_aiops/docs/tools/evidently/drift-detection-concepts.md`](../mlops_aiops/docs/tools/evidently/drift-detection-concepts.md) |
-| A self-hosted Evidently server + Jupyter client, deployed on Kubernetes | [`k8s_mlops/evidently_stack/`](../k8s_mlops/evidently_stack/) |
+| A self-hosted Evidently server + Jupyter client, deployed on Kubernetes | [`k8s/k8s_mlops/practice/evidently_stack/`](../k8s/k8s_mlops/practice/evidently_stack/) |
 | The same drift-monitoring pattern against a real (not synthetic) fraud dataset | [`mlops_aiops/projects/fraud-detection-xgboost/`](../mlops_aiops/projects/fraud-detection-xgboost/) |
 

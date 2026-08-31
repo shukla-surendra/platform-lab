@@ -1,4 +1,4 @@
-site_name: k8n_explorer docs
+site_name: k8s_explorer docs
 site_description: Kubernetes practice notes and install logs
 docs_dir: docs
 site_dir: site

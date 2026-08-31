@@ -2,4 +2,4 @@
 .venv-docs
 site/
 __pycache__
-kuberay-demo/model.joblib
+practice/kuberay-demo/model.joblib

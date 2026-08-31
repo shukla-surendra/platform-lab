@@ -1,6 +1,6 @@
 # kube-proxy-packet-path-demo
 
-Companion to [`docs/service-types.md`](../docs/service-types.md), which covers what a `ClusterIP`
+Companion to [`docs/service-types.md`](../../docs/service-types.md), which covers what a `ClusterIP`
 *is* and how to use one. This project answers the question that doc doesn't: when something
 `curl`s a `ClusterIP`, what actually moves the packet to a real Pod — is there a proxy process
 in the middle, a load balancer, what? Traced end to end against this repo's real minikube

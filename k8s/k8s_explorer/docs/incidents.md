@@ -8,7 +8,7 @@ resolution.
 
 ### Symptom
 
-Installed the [`grafana-log-viewer`](../grafana-log-viewer) chart (Loki + Promtail + Grafana)
+Installed the [`grafana-log-viewer`](../practice/grafana-log-viewer) chart (Loki + Promtail + Grafana)
 onto the `minikube` cluster. All three pods sat in `Pending` indefinitely:
 
 ```
@@ -239,7 +239,7 @@ clients:
 `grafana/loki-stack`'s chart default for this field is the Go template string
 `http://{{ .Release.Name }}:3100/loki/api/v1/push` — it assumes the Loki **Service** name
 equals the **release** name. That's only true if you name the release `loki`; the chart
-actually creates the Service as `<release>-loki`. This repo's [`grafana-log-viewer/`](../grafana-log-viewer)
+actually creates the Service as `<release>-loki`. This repo's [`grafana-log-viewer/`](../practice/grafana-log-viewer)
 install docs deliberately name the release `log-viewer` (so it reads clearly, matching the
 namespace) — which is exactly the case this default breaks.
 Every log line Promtail ever tailed was tried, failed to send, and retried into the void from
@@ -262,7 +262,7 @@ checksum of its config Secret, so the `DaemonSet` restarted its pod on its own, 
 
 ### Verifying it, with a real application
 
-Deployed [`sample-nginx`](../sample-nginx) (already in this repo, `app: nginx` label) purely
+Deployed [`sample-nginx`](../practice/sample-nginx) (already in this repo, `app: nginx` label) purely
 to have something with its own log stream to check end-to-end, rather than trusting platform
 noise:
 

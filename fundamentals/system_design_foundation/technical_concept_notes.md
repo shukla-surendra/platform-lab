@@ -496,7 +496,7 @@ safety net for events a watch stream silently dropped (a resource-version expiry
 disconnect) — the resync tick is what actually makes the "self-healing" property real, not the
 watch loop.
 
-Grounding example — `platform-lab/k8s_explorer/toy-controller/`, built and verified live against
+Grounding example — `platform-lab/k8s/k8s_explorer/practice/toy-controller/`, built and verified live against
 a real 3-node minikube cluster specifically to see this mechanism, not just read about it: a
 `ResourceQuota` was deleted by hand from a managed namespace, and it came back ~20s later with
 **no new watch event involved at all** — the controller's logs showed a scheduled
@@ -543,7 +543,7 @@ reason. MIG and time-slicing device plugins exist specifically to make **one phy
 itself as several whole extended-resource units** (`nvidia.com/gpu: 4` on a single card, sliced
 four ways) — because making the request itself fractional was never on the table.
 
-Grounding example — `platform-lab/k8s_explorer/gpu-scheduling-demo/`: patched a real minikube
+Grounding example — `platform-lab/k8s/k8s_explorer/practice/gpu-scheduling-demo/`: patched a real minikube
 node's status to advertise 2 units of a fake `example.com/toygpu` resource, requested 3 Pods at 1
 unit each, and watched the real scheduler put 2 `Running` (bin-packed onto the one node that had
 the resource at all — the other two nodes were "insufficient" in exactly the same way as a node

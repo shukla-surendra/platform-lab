@@ -1,6 +1,6 @@
 # Helm Tutorial — every core command, worked against a real chart
 
-A command-by-command walkthrough of Helm using [`sample-helm-chart/`](../sample-helm-chart/)
+A command-by-command walkthrough of Helm using [`sample-helm-chart/`](../practice/sample-helm-chart/)
 (`my-nginx` — one Deployment, one Service) as the example project. Every command below was run
 live against this repo's `minikube` cluster; the output shown is the actual output, not
 illustrative. [`helm-vs-kustomize.md`](./helm-vs-kustomize.md) covers *why* Helm exists next to
@@ -80,7 +80,7 @@ Before installing anything, see exactly what Helm *would* create — this substi
 and `.Release` and prints plain YAML, no API calls made:
 
 ```bash
-cd k8s_explorer/sample-helm-chart
+cd k8s/k8s_explorer/sample-helm-chart
 helm template my-nginx .
 ```
 
@@ -349,7 +349,7 @@ defined in its own `templates/`. Most real-world charts in this repo instead **w
 upstream chart:
 
 ```yaml
-# k8s_observability/metrics-stack/Chart.yaml
+# k8s/k8s_observability/practice/metrics-stack/Chart.yaml
 dependencies:
   - name: kube-prometheus-stack
     version: "88.2.0"
@@ -368,9 +368,9 @@ After that, `install`/`upgrade`/`uninstall`/`rollback` all work exactly as above
 difference is that `values.yaml` now nests everything under the dependency's name
 (`kube-prometheus-stack:` as a top-level key) to configure the subchart instead of top-level
 keys configuring templates you own. See
-[`../../k8s_observability/metrics-stack`](../../k8s_observability/metrics-stack) (its
+[`../../k8s/k8s_observability/practice/metrics-stack`](../../k8s/k8s_observability/practice/metrics-stack) (its
 `README.md`) for that chart's full install walkthrough, and
-[`../grafana-log-viewer`](../grafana-log-viewer) (its `README.md`) for a second worked example
+[`../practice/grafana-log-viewer`](../practice/grafana-log-viewer) (its `README.md`) for a second worked example
 (wrapping `loki-stack`) including the `helm dependency update` vs. `helm dependency build`
 distinction (`update` re-resolves versions against `Chart.yaml`; `build` trusts the existing
 `Chart.lock` — prefer `build` once a `Chart.lock` exists, so a dependency doesn't silently move

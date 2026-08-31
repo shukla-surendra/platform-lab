@@ -136,5 +136,5 @@ is why: multi-node LLM serving, running on a Kubernetes-managed GPU fleet.
   this repo's existing Ollama-based GenAI demos and the KServe inference chart.
   Doesn't currently cover the Ray backend mechanism above — this doc is the more
   detailed source for that specific question until it's merged in there.
-- **[`k8s_explorer/kuberay-demo/`](../../../../k8s_explorer/kuberay-demo/README.md)**
+- **[`k8s/k8s_explorer/kuberay-demo/`](../../../../k8s/k8s_explorer/practice/kuberay-demo/README.md)**
   — the actual runnable KubeRay demo referenced above, on minikube.

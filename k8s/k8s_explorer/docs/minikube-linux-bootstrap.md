@@ -127,7 +127,7 @@ minikube node add
 Adds one more worker node/container to the **already-running** cluster — useful for testing
 things that only show up with more than one node, e.g. the pod anti-affinity scenario in
 [`pod-and-node-affinity.md`](./pod-and-node-affinity.md) (worked hands-on in
-[`affinity-demo/`](../affinity-demo)'s Part 3b).
+[`affinity-demo/`](../practice/affinity-demo)'s Part 3b).
 
 ```bash
 minikube delete
@@ -169,11 +169,11 @@ profile at `minikube start` time, not live-adjustable settings. The only fix is
 
 Rather than a generic checklist, these already exist here and build on each other:
 
-1. [`sample-nginx/`](../sample-nginx) — a Deployment, exposing it, adding an Ingress.
-2. [`services-demo/`](../services-demo) — every Service `type` (`ClusterIP`, `NodePort`,
+1. [`sample-nginx/`](../practice/sample-nginx) — a Deployment, exposing it, adding an Ingress.
+2. [`services-demo/`](../practice/services-demo) — every Service `type` (`ClusterIP`, `NodePort`,
    `LoadBalancer`, headless, `ExternalName`) side by side, whose README includes a command/
    flag glossary for exactly this kind of "what does this flag mean" question.
-3. [`affinity-demo/`](../affinity-demo) — node/pod affinity and anti-affinity, including the
+3. [`affinity-demo/`](../practice/affinity-demo) — node/pod affinity and anti-affinity, including the
    multi-node scenario `minikube node add` (above) sets up for.
 4. [`configmaps-and-secrets.md`](./configmaps-and-secrets.md) and
    [`probes-and-health-checks.md`](./probes-and-health-checks.md) — rounds out config and

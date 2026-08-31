@@ -1,6 +1,6 @@
 # etcd-internals-demo
 
-Companion to [`docs/cluster-architecture.md`](../docs/cluster-architecture.md), which maps
+Companion to [`docs/cluster-architecture.md`](../../docs/cluster-architecture.md), which maps
 `kube-apiserver`/`etcd`/`kube-scheduler`/`kube-controller-manager` as boxes on a diagram. This
 project opens the etcd box: every `kubectl` object you've ever created in this repo is,
 underneath, one key in a single key-value store — this proves it directly, against the real

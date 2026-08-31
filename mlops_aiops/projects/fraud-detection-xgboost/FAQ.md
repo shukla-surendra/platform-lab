@@ -20,7 +20,7 @@ claim against the source.
 | Data ingestion | **requests** against Zenodo's public REST/file API | `data.py` |
 | Testing | **pytest** + `unittest.mock` | `tests/` |
 | Environment/dependency management | **uv** (`pyproject.toml` + `uv.lock`) | project root |
-| Optional deployment target | **Kubernetes + Helm** (`k8n_mlops/evidently_stack`) — `monitor.py` can push reports there via `RemoteWorkspace` | `../../../k8n_mlops/` |
+| Optional deployment target | **Kubernetes + Helm** (`k8s/k8s_mlops/practice/evidently_stack`) — `monitor.py` can push reports there via `RemoteWorkspace` | `../../../k8s/k8s_mlops/` |
 | Environment quirk fix | `NLTK_DISABLE_IMPORT_SECURITY=1` — NLTK 3.10+'s import-security guard false-positives on Evidently's transitive NLTK dependency under uv/Jupyter | see `docs/tools/evidently/README.md` |
 
 ---
@@ -518,7 +518,7 @@ first creates (or reuses) a project via the server's API, the second
 serializes the already-computed `Snapshot` and `POST`s it to the server,
 which stores it in its own workspace (backed by whatever storage that
 particular server was configured with — see
-`k8n_mlops/evidently_stack`'s PVC-backed `/workspace`) and renders it in its
+`k8s/k8s_mlops/practice/evidently_stack`'s PVC-backed `/workspace`) and renders it in its
 UI. The compute-vs-storage split matters: `include_data=False` means the
 underlying `X_train`/`X_test` rows themselves are never uploaded, only the
 report's computed statistics — relevant given this project's whole premise

@@ -152,7 +152,7 @@ two different questions, two different data sources, both essential, easy to con
 "just Kubernetes metrics" if the distinction isn't made explicit. This exact zero-code
 combination (cAdvisor + kube-state-metrics, no application changes at all) is worked
 through concretely, against a real deployed app with no `/metrics` endpoint of its own, in
-[`../../../k8s_explorer/docs/metrics-and-logs-without-instrumentation.md`](../../../k8s_explorer/docs/metrics-and-logs-without-instrumentation.md).
+[`../../../k8s/k8s_explorer/docs/metrics-and-logs-without-instrumentation.md`](../../../k8s/k8s_explorer/docs/metrics-and-logs-without-instrumentation.md).
 
 ## How the Cloud Providers Do This — the Same Underlying Split, Three Names
 
@@ -332,7 +332,7 @@ and only if a human or a tool outside the cluster needs to reach it directly. Th
 exactly the same pattern already used hands-on with Grafana in this project's own
 observability practice session
 (`kubectl port-forward svc/rsa-grafana 3000:80` —
-[`../../../k8s_explorer/docs/observability-practice-walkthrough.md`](../../../k8s_explorer/docs/observability-practice-walkthrough.md)):
+[`../../../k8s/k8s_explorer/docs/observability-practice-walkthrough.md`](../../../k8s/k8s_explorer/docs/observability-practice-walkthrough.md)):
 `kubectl port-forward svc/<prometheus-service> 9090:9090` reaches Prometheus's own query
 UI the identical way, temporarily and without permanently exposing anything — the same
 answer applies to *any* in-cluster service someone occasionally needs to reach from
@@ -484,7 +484,7 @@ to the motorcycle, along for the identical journey, carrying something extra the
 motorcycle itself doesn't. **Full depth, a real worked example (Grafana's own dashboard-
 provisioning sidecar, verified live on a cluster), and native sidecars (Kubernetes
 1.29+'s formalized ordering guarantees) are already covered in
-[`../../../k8s_explorer/docs/sidecar-containers.md`](../../../k8s_explorer/docs/sidecar-containers.md)** —
+[`../../../k8s/k8s_explorer/docs/sidecar-containers.md`](../../../k8s/k8s_explorer/docs/sidecar-containers.md)** —
 this is the short version needed to follow Thanos's own use of the pattern below.
 
 **Placed against the other two related concepts this document already covers**: a
@@ -529,7 +529,7 @@ thing:
 
 **The general lesson, not just a Thanos-specific fact**: reach for a sidecar specifically
 when a helper needs the main container's own local disk or `localhost` network access to
-do its job (exactly [`sidecar-containers.md`](../../../k8s_explorer/docs/sidecar-containers.md)'s
+do its job (exactly [`sidecar-containers.md`](../../../k8s/k8s_explorer/docs/sidecar-containers.md)'s
 own "why put a helper in the same Pod" reasoning, applied here) — reach for an ordinary,
 independently-scaled Deployment when the relationship is already a network call, since
 co-location buys nothing a network hop wasn't already doing.
@@ -751,7 +751,7 @@ afterward, the cloud provider operates the long-term storage layer instead of yo
   assumption that old data is examined for trends, not moment-to-moment precision.
 - **sidecar** (n.) — a helper container sharing a main container's Pod (network and
   optionally storage), co-located specifically because it needs that local access; see
-  [`sidecar-containers.md`](../../../k8s_explorer/docs/sidecar-containers.md) for the
+  [`sidecar-containers.md`](../../../k8s/k8s_explorer/docs/sidecar-containers.md) for the
   full pattern and a live worked example.
 
 ---

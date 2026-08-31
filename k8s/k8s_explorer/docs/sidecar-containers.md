@@ -2,12 +2,12 @@
 
 A sidecar is a **second container in the same Pod** that helps the main container without being
 part of the application's own code. This repo already runs one for real — Grafana's dashboard/
-datasource sidecar in [`grafana-log-viewer`](../grafana-log-viewer), covered end-to-end in
+datasource sidecar in [`grafana-log-viewer`](../practice/grafana-log-viewer), covered end-to-end in
 [`grafana-dashboard-provisioning.md`](./grafana-dashboard-provisioning.md). This page is the
 general concept; that page is the worked example.
 
 For the specific, most common sidecar shape — a **log-shipping sidecar** reading whatever the
-main container already writes to disk — see [`daemonset-sidecar-demo/`](../daemonset-sidecar-demo)
+main container already writes to disk — see [`daemonset-sidecar-demo/`](../practice/daemonset-sidecar-demo)
 instead: two from-scratch local images sharing one `emptyDir`, with a real, load-bearing finding
 that isn't obvious until you see it — `kubectl logs` on the *main* container comes back
 completely empty, because it writes to a file, not stdout. The sidecar reading that file is the
@@ -85,7 +85,7 @@ and resource requests/limits.
 
 ## What happens when one container gets killed?
 
-Verified against [`../daemonset-sidecar-demo/`](../daemonset-sidecar-demo)'s real running Pod —
+Verified against [`../practice/daemonset-sidecar-demo/`](../practice/daemonset-sidecar-demo)'s real running Pod —
 stopped the `log-tailer` container directly at the container-runtime level (`crictl stop` on the
 node, not a signal from inside — a signal doesn't work here: PID 1 inside a container is immune
 to unhandled signals, *even* `SIGKILL`, a real documented Linux PID-namespace behavior, confirmed
@@ -125,7 +125,7 @@ crash-looping doesn't take the real application down with it.
 
 | Pattern | What it does | Example |
 |---|---|---|
-| Config/secret sync | Watches the K8s API for labeled resources, writes matches to a shared volume | `grafana-sc-dashboard` in this repo's [`grafana-log-viewer`](../grafana-log-viewer) — see [`grafana-dashboard-provisioning.md`](./grafana-dashboard-provisioning.md) |
+| Config/secret sync | Watches the K8s API for labeled resources, writes matches to a shared volume | `grafana-sc-dashboard` in this repo's [`grafana-log-viewer`](../practice/grafana-log-viewer) — see [`grafana-dashboard-provisioning.md`](./grafana-dashboard-provisioning.md) |
 | Logging | Tails the app's log files from a shared volume, ships them elsewhere | Fluent Bit/Filebeat sidecar shipping to Loki |
 | Service mesh proxy | Intercepts all in/out traffic for mTLS, retries, metrics | Envoy (Istio), Linkerd's proxy |
 | Ambassador | Proxies outbound calls on the main container's behalf | Local proxy fronting an external DB/API |

@@ -6,7 +6,7 @@ Builds on [`15_gpu_fleet_lifecycle.md`](15_gpu_fleet_lifecycle.md)'s MONITOR sta
 of DCGM. This chapter assumes Prometheus/Grafana fundamentals are already solid from
 [`platform-lab/mlops_aiops/docs/observability-prometheus-and-cadvisor.md`](../../../mlops_aiops/docs/observability-prometheus-and-cadvisor.md)
 (pull model, TSDB, `remote_write`, Kubernetes service discovery) and
-[`k8n_mlops/`](../../../k8s_mlops/) — it covers only the GPU-specific metric catalog and
+[`k8s_mlops/`](../../../k8s/k8s_mlops/) — it covers only the GPU-specific metric catalog and
 dashboard design on top of that general stack, the same scoping this track applies to
 Kubernetes in Phase 4. The DCGM Exporter → Prometheus pipeline mechanics specifically
 (and how Triton/vLLM/KServe fit alongside GPU metrics) are covered in

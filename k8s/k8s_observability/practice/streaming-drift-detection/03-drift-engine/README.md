@@ -2,7 +2,7 @@
 
 The core of [`../`](../): two ways of asking the same question — "does the
 `amount` feature in the current event stream look like the reference
-distribution?" — using [Evidently](../../mlops_aiops/docs/tools/evidently/README.md).
+distribution?" — using [Evidently](../../../mlops_aiops/docs/tools/evidently/README.md).
 This is where the batch/streaming experimentation the project was scoped
 around actually lives.
 
@@ -10,7 +10,7 @@ around actually lives.
 and [`streaming/run_streaming_drift_check.py`](streaming/run_streaming_drift_check.py)
 use the real `evidently==0.7.21` API (`Dataset.from_pandas` /
 `DataDefinition` / `Report` / `ValueDrift`, confirmed against
-[`../../k8s_mlops/evidently_stack/notebooks/evidently_client_demo.ipynb`](../../k8s_mlops/evidently_stack/notebooks/evidently_client_demo.ipynb),
+[`../../k8s/k8s_mlops/evidently_stack/notebooks/evidently_client_demo.ipynb`](../../k8s/k8s_mlops/evidently_stack/notebooks/evidently_client_demo.ipynb),
 the one place in this repo Evidently has actually been run), but neither
 script has been executed yet — `extract_drift_score()` in particular guesses
 at `snapshot.dict()`'s shape and is flagged inline as unverified. Run it
@@ -72,8 +72,8 @@ helm install drift-engine . -n drift-detection --create-namespace
   cross-chart addressing this chart's `values.yaml` depends on
   (`ingestion-kafka:9092`, `feature-store-feast:6566`,
   `metrics-export-otel-collector:4317`).
-- [`../../k8s_mlops/evidently_stack/`](../../k8s_mlops/evidently_stack/) —
+- [`../../k8s/k8s_mlops/evidently_stack/`](../../k8s/k8s_mlops/evidently_stack/) —
   the simpler, already-verified single-run Evidently demo this stage's
   Evidently usage is drawn from.
-- [`../../mlops_aiops/docs/tools/evidently/README.md`](../../mlops_aiops/docs/tools/evidently/README.md),
-  [`.../opentelemetry/README.md`](../../mlops_aiops/docs/tools/opentelemetry/README.md).
+- [`../../../mlops_aiops/docs/tools/evidently/README.md`](../../../mlops_aiops/docs/tools/evidently/README.md),
+  [`.../opentelemetry/README.md`](../../../mlops_aiops/docs/tools/opentelemetry/README.md).

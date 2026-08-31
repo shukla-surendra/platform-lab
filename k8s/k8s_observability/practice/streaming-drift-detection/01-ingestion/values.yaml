@@ -36,7 +36,7 @@ kafka:
 # mid-stream so both 03-drift-engine's batch and streaming modes have
 # something real to detect. Image built locally (no official image fits a
 # repo-specific schema), same "build the Dockerfile in this dir" pattern as
-# ../../../k8s_mlops/evidently_stack/.
+# ../../../k8s/k8s_mlops/evidently_stack/.
 # ---------------------------------------------------------------------------
 producer:
   enabled: true

@@ -14,9 +14,9 @@ keywords:
 
 dependencies:
   # Same dependency, same version already proven out on this cluster in
-  # ../../k8s_explorer/grafana-log-viewer/Chart.yaml — carried over rather than
+  # ../../k8s/k8s_explorer/grafana-log-viewer/Chart.yaml — carried over rather than
   # re-derived from scratch, including the known Promtail->Loki URL gotcha (see
-  # values.yaml) documented in ../../k8s_explorer/docs/incidents.md.
+  # values.yaml) documented in ../../k8s/k8s_explorer/docs/incidents.md.
   - name: loki-stack
     version: "2.10.3"
     repository: "https://grafana.github.io/helm-charts"

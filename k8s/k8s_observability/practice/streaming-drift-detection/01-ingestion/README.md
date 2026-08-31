@@ -22,7 +22,7 @@ so picking either would mean this project needs real cloud credentials just
 to run stage 1. Kafka is the one of the three that's realistically
 self-hostable, and it's what the rest of this repo already leans on
 conceptually (see
-[`../../mlops_aiops/docs/tools/kafka/README.md`](../../mlops_aiops/docs/tools/kafka/README.md)).
+[`../../../mlops_aiops/docs/tools/kafka/README.md`](../../../mlops_aiops/docs/tools/kafka/README.md)).
 
 ## Why Bitnami's OCI chart, not the legacy `charts.bitnami.com/bitnami` repo
 
@@ -68,5 +68,5 @@ helm install ingestion . -n drift-detection --create-namespace
 
 - [`../README.md`](../README.md) — the full 5-stage pipeline and why these
   charts share one namespace.
-- [`../../mlops_aiops/docs/tools/kafka/README.md`](../../mlops_aiops/docs/tools/kafka/README.md),
-  [`.../kafka-vs-rabbitmq.md`](../../mlops_aiops/docs/tools/kafka-vs-rabbitmq.md).
+- [`../../../mlops_aiops/docs/tools/kafka/README.md`](../../../mlops_aiops/docs/tools/kafka/README.md),
+  [`.../kafka-vs-rabbitmq.md`](../../../mlops_aiops/docs/tools/kafka-vs-rabbitmq.md).

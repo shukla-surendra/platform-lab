@@ -74,5 +74,5 @@ can run it with **vLLM** as the backend for real serving throughput
 (PagedAttention + continuous batching), instead of a naive one-request-
 at-a-time server. Same autoscaling/scale-to-zero behavior, same chart —
 just a different `modelFormat`/`runtime`. See
-[`docs/tools/vllm/README.md`](../../mlops_aiops/docs/tools/vllm/README.md)
+[`docs/tools/vllm/README.md`](../../../../mlops_aiops/docs/tools/vllm/README.md)
 for the details.

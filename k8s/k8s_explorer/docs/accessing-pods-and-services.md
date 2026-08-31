@@ -1,6 +1,6 @@
 # Accessing a Pod from a browser — port-forward vs. the production way
 
-Worked example using [`sample-nginx/`](../sample-nginx), verified against the `fullstack`
+Worked example using [`sample-nginx/`](../practice/sample-nginx), verified against the `fullstack`
 minikube cluster.
 
 ## `kubectl port-forward` — what it actually is
@@ -123,4 +123,4 @@ a Gateway API `Gateway`/`HTTPRoute` on newer clusters) for the actual internet-f
 point.
 
 See [`service-types.md`](./service-types.md) for the full set of Service `type`s, including
-headless and `ExternalName`, with a runnable demo in [`services-demo/`](../services-demo).
+headless and `ExternalName`, with a runnable demo in [`services-demo/`](../practice/services-demo).

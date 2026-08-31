@@ -51,7 +51,7 @@ API at all.
   base-URL change, since both speak an OpenAI-compatible-ish API surface
   (Ollama's own API, or its OpenAI-compatible endpoint) — the agent/graph
   code itself doesn't need to change.
-- **`k8n_explorer/kserve-inference`** already demos KServe's
+- **`k8s/k8s_explorer/practice/kserve-inference`** already demos KServe's
   `InferenceService` pattern for a plain sklearn model
   (`modelFormat: sklearn`). That exact same Helm chart pattern generalizes
   directly to LLM serving: KServe ships a built-in Hugging Face

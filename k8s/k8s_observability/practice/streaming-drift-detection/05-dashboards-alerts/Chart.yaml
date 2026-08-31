@@ -14,7 +14,7 @@ dependencies:
   # grafana pinned to the same version already verified working elsewhere in
   # this repo (../../trace-stack/Chart.yaml — also on grafana-community
   # since grafana.github.io/helm-charts' own grafana chart is deprecated,
-  # see ../../README.md#chart-provenance-note-as-of-this-writing).
+  # see ../../../README.md#chart-provenance-note-as-of-this-writing).
   # alertmanager version confirmed live against its own Chart.yaml on GitHub
   # as of 2026-08-25.
   - name: grafana

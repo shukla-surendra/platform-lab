@@ -79,7 +79,7 @@ is used or needed** — logging to MLflow plus the `ml_monitoring.drift_history`
 Delta table already solves the trend-over-time problem without adopting
 either of these.
 
-**Running `evidently ui` in Kubernetes**: [`k8n_mlops/evidently_stack/`](../../../../k8n_mlops/README.md)
+**Running `evidently ui` in Kubernetes**: [`k8s/k8s_mlops/practice/evidently_stack/`](../../../../k8s/k8s_mlops/practice/evidently_stack/README.md)
 is a single Helm chart deploying two Deployments — the server (NodePort
 Service + PVC for the workspace directory) and a Jupyter pod whose notebook
 computes a `Report` locally and pushes the resulting `Snapshot` to the

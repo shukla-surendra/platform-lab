@@ -16,7 +16,7 @@ and a set of httpbin-shaped test endpoints. Nothing else.
   stays on Docker Hub exactly where it was published. This is a *new* tag
   target, `surendrashukla29/rust-api`, not a Hub-side rename (Docker Hub has no
   such operation); nothing has been pushed there yet.
-- Not renamed: `k8s_explorer/rust-sqlite-api-stack/` and everything in it. That
+- Not renamed: `k8s/k8s_explorer/rust-sqlite-api-stack/` and everything in it. That
   chart already needs a rewrite for the `1.0.0` stateless design (noted below,
   unchanged from `0.4.0`) — renaming it now would be relabelling code that is
   about to be rebuilt anyway.
@@ -71,7 +71,7 @@ and a set of httpbin-shaped test endpoints. Nothing else.
 - Image: **18.6 MB**, down from 23.5 MB.
 - `AppState`/`Extension<Arc<...>>` replaced the connection-pool state with a
   single request counter, used only so the heartbeat has a number that moves.
-- `helm dependency build` in `k8s_explorer/rust-sqlite-api-stack/` is now
+- `helm dependency build` in `k8s/k8s_explorer/rust-sqlite-api-stack/` is now
   built around functionality this image no longer has (SQLite persistence,
   OTLP ingest, telemetry metrics/alerts, the Grafana dashboards that read
   them). **Not updated as part of this change** — flagged, not fixed.

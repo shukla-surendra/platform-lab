@@ -10,7 +10,7 @@ scheduler (honoring affinity) decides which node each replica lands on.
 No production chart in this repo uses affinity (`grep -r affinity` across `full-stack-app`,
 `my-app`, etc. turns up nothing), so the examples below are illustrative rather than pulled from
 one of those. For a hands-on version you can actually apply and watch the scheduler act on, see
-[`affinity-demo/`](../affinity-demo) — five manifests plus a walkthrough covering every rule
+[`affinity-demo/`](../practice/affinity-demo) — five manifests plus a walkthrough covering every rule
 below on a real (`minikube`) cluster, including the two "gotchas" (unsatisfiable anti-affinity
 on a single node, and the `IgnoredDuringExecution` label-drift behavior) proven live rather than
 just described.

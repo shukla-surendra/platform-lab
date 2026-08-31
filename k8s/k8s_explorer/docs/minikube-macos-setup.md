@@ -142,11 +142,11 @@ Only `kube-system` pods — `etcd`, `kube-apiserver`, `kube-controller-manager`,
 Kubernetes' own control-plane and networking components, not leftover workloads — a cluster
 with *zero* pods isn't a smaller cluster, it's not a working cluster at all. See
 [`cluster-architecture.md`](./cluster-architecture.md) for what each of these actually does, and
-[`etcd-internals-demo/`](../etcd-internals-demo) to look inside the etcd one directly.
+[`etcd-internals-demo/`](../practice/etcd-internals-demo) to look inside the etcd one directly.
 
 ## Next steps in this repo
 
-This 2-node cluster is a clean base for anything else in `k8s_explorer/` that assumes a running
+This 2-node cluster is a clean base for anything else in `k8s/k8s_explorer/` that assumes a running
 minikube — most demos only need 1 node, but the ones that specifically exercise cross-node
 behavior (`kube-proxy-packet-path-demo/`'s load-balancing-across-endpoints demo,
 `gpu-scheduling-demo/`'s node-targeted resource patch, `affinity-demo/`) are the ones where a

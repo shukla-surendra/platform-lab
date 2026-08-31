@@ -1,7 +1,7 @@
 # cronjob-demo
 
 Hands-on companion to the CronJob section of
-[`docs/workload-types.md`](../docs/workload-types.md). One manifest: a CronJob that runs every
+[`docs/workload-types.md`](../../docs/workload-types.md). One manifest: a CronJob that runs every
 minute and prints a timestamp.
 
 A CronJob is really just a template for creating `Job`s on a schedule — if the mechanics of a

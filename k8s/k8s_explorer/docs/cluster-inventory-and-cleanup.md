@@ -30,8 +30,8 @@ install brings in every namespace above as a package; you don't get Istio and Kn
 independently, KServe running in `Serverless` mode *requires* them.
 
 **This is not documented anywhere in this repo.** Two install docs *do* exist —
-[`kubeflow-pipeline-sample/`](../kubeflow-pipeline-sample)'s `INSTALL-KUBEFLOW.md`
-and [`kserve-inference/`](../kserve-inference)'s `INSTALL-KSERVE.md` — but both
+[`kubeflow-pipeline-sample/`](../practice/kubeflow-pipeline-sample)'s `INSTALL-KUBEFLOW.md`
+and [`kserve-inference/`](../practice/kserve-inference)'s `INSTALL-KSERVE.md` — but both
 describe smaller, standalone installs (KFP alone; KServe alone in `Standard`/raw mode, no
 Istio/Knative) targeted at the **`fullstack`** profile, not `minikube`. Checking the live
 cluster against those docs:

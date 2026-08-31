@@ -35,9 +35,9 @@ tiered VPC (public/app/data subnets) where app and data tiers are **never** supp
 be reachable from the internet — NAT is there because that "never" needs to be a real
 network property, not a security-group promise.
 
-## Example 2: `k8s_explorer/aws-kubeadm-cluster/terraform/` — skips NAT entirely, because it's a sandbox
+## Example 2: `k8s/k8s_explorer/practice/aws-kubeadm-cluster/terraform/` — skips NAT entirely, because it's a sandbox
 
-[`../../../../k8s_explorer/aws-kubeadm-cluster/terraform/network.tf`](../../../../k8s_explorer/aws-kubeadm-cluster/terraform/network.tf)
+[`../../../../k8s/k8s_explorer/practice/aws-kubeadm-cluster/terraform/network.tf`](../../../../k8s/k8s_explorer/practice/aws-kubeadm-cluster/terraform/network.tf)
 has no `aws_nat_gateway` resource at all. Every node sits in one public subnet with
 `map_public_ip_on_launch = true`, and the route table sends `0.0.0.0/0` straight to the
 Internet Gateway:
@@ -55,7 +55,7 @@ throwaway kubeadm cluster you SSH into directly, spin up for a session, and
 `terraform destroy` when done. There's no "data tier" needing structural isolation — the
 entire cluster *is* meant to be directly reachable by exactly one person. What actually
 protects it is
-[`security_group.tf`](../../../../k8s_explorer/aws-kubeadm-cluster/terraform/security_group.tf):
+[`security_group.tf`](../../../../k8s/k8s_explorer/practice/aws-kubeadm-cluster/terraform/security_group.tf):
 SSH (22) and the NodePort range (30000-32767) are both scoped to a single `/32` — your
 own IP, passed in as a required Terraform variable with no default, specifically so you
 can't accidentally apply this with `0.0.0.0/0`. That's the config-could-be-wrong side of

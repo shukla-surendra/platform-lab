@@ -106,7 +106,7 @@ architectural ceiling to work around.
 ## How: The Real Pipeline, End to End — Already Verified Live in This Repo
 
 Not a hypothetical — this is the exact, confirmed-working pipeline documented for
-[`rust-api-observability-stack`](../../../k8s_explorer/rust-api-observability-stack/README.md#how-logs-actually-reach-grafana)
+[`rust-api-observability-stack`](../../../k8s/k8s_explorer/practice/rust-api-observability-stack/README.md#how-logs-actually-reach-grafana)
 earlier in this workspace's own observability practice:
 
 ```mermaid

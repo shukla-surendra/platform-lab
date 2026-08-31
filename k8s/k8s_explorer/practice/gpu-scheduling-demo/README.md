@@ -3,7 +3,7 @@
 Closes the biggest named-but-unbuilt gap in this repo's Kubernetes content: GPU scheduling
 (`ml-platform-engineer-roadmap.md` §5, Track 3's "GPU/resource scheduling on K8s" line) is
 explicitly VMware's differentiator angle (GPU virtualization/vGPU, VMware Private AI), and
-nothing in `k8s_explorer/` touched it before this — for the honest reason that there's no local
+nothing in `k8s/k8s_explorer/` touched it before this — for the honest reason that there's no local
 GPU to run a real NVIDIA device plugin against.
 
 This demo simulates the *scheduling mechanics* a real GPU device plugin relies on, without any

@@ -98,7 +98,7 @@ kubectl -n kuberay port-forward svc/raycluster-demo-head-svc 8265:8265
 ```
 
 Full runnable copy (with a troubleshooting log) lives at
-[`k8s_explorer/kuberay-demo/`](../../../../k8s_explorer/kuberay-demo/README.md).
+[`k8s/k8s_explorer/kuberay-demo/`](../../../../k8s/k8s_explorer/practice/kuberay-demo/README.md).
 
 **Gotchas worth knowing:**
 - Head and worker must run the *same* Ray version. A mismatch fails at worker

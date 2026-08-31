@@ -46,9 +46,9 @@ All three show up in Prometheus's target list as separate entries under the same
 
 ## Usage — verified live against this repo's cluster
 
-Deployed via [`k8s_observability/metrics-stack/`](../../../../k8s_observability/metrics-stack/)
+Deployed via [`k8s/k8s_observability/practice/metrics-stack/`](../../../../k8s/k8s_observability/practice/metrics-stack/)
 (a `kube-prometheus-stack` install), queried building the
-[`demo-app` Grafana dashboard](../../../../k8s_observability/metrics-stack/dashboards/demo-app.json):
+[`demo-app` Grafana dashboard](../../../../k8s/k8s_observability/practice/metrics-stack/dashboards/demo-app.json):
 
 ```promql
 sum(rate(container_cpu_usage_seconds_total{namespace=~"$namespace", pod=~".*demo-app.*"}[5m])) by (pod)

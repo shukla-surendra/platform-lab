@@ -3,7 +3,7 @@
 # separate ../metrics-stack/ chart instead.
 #
 # Memory-bounded, CPU-unbounded — the profile that actually schedules on this repo's
-# minikube cluster (see ../../k8s_explorer/docs/incidents.md,
+# minikube cluster (see ../../k8s/k8s_explorer/docs/incidents.md,
 # 2026-07-21-grafana-log-viewer-stuck-pending-insufficient-cpu, for what happened when
 # CPU limits were set with no free CPU on the node). For a cluster with real CPU
 # headroom, add explicit cpu requests/limits to each block below rather than editing
@@ -43,8 +43,8 @@ loki-stack:
       # errors at default verbosity) and posts every batch into the void — Loki holds
       # zero streams and every Grafana log panel is empty with no error shown anywhere.
       # This exact failure is on record for this cluster already: see
-      # ../../k8s_explorer/grafana-log-viewer/README.md and
-      # ../../k8s_explorer/docs/incidents.md. Templated on `.Release.Name` (via `tpl`)
+      # ../../k8s/k8s_explorer/grafana-log-viewer/README.md and
+      # ../../k8s/k8s_explorer/docs/incidents.md. Templated on `.Release.Name` (via `tpl`)
       # rather than hardcoded, so it's correct under any release name, not just one
       # specific one.
       clients:

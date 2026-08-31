@@ -50,4 +50,4 @@ helm install dashboards-alerts . -n drift-detection --create-namespace
 - [`../README.md`](../README.md) — the full pipeline.
 - [`../04-metrics-export/`](../04-metrics-export/) — where the alert rule
   itself actually lives, and why.
-- [`../../mlops_aiops/docs/tools/grafana/README.md`](../../mlops_aiops/docs/tools/grafana/README.md).
+- [`../../../mlops_aiops/docs/tools/grafana/README.md`](../../../mlops_aiops/docs/tools/grafana/README.md).

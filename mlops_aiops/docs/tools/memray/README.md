@@ -69,7 +69,7 @@ memray flamegraph --leaks output.bin
 
 Not yet run hands-on against anything in this repo — logged from a conceptual
 discussion. A natural place to reach for it here: the Ray Serve deployments under
-[`../../../../k8s_explorer/kuberay-demo/`](../../../../k8s_explorer/kuberay-demo/README.md)
+[`../../../../k8s/k8s_explorer/practice/kuberay-demo/`](../../../../k8s/k8s_explorer/practice/kuberay-demo/README.md)
 (`serve_model.py`) if a long-running replica's memory ever needs diagnosing, since
 that's exactly the "native-extension-heavy long-running Python process" shape
 Memray is built for (scikit-learn's `RandomForestClassifier` holding native tree

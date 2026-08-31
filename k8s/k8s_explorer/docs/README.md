@@ -29,7 +29,7 @@ browsable site (search, dark mode).
   vs. the production way (Service + Ingress), worked through with `sample-nginx/`.
 - [`service-types.md`](./service-types.md) — `ClusterIP`/`NodePort`/`LoadBalancer`/headless/
   `ExternalName` compared, plus everyday `kubectl` usage (expose, patch, troubleshoot no
-  endpoints); worked hands-on with [`services-demo/`](../services-demo).
+  endpoints); worked hands-on with [`services-demo/`](../practice/services-demo).
 - [`multiple-services-same-port.md`](./multiple-services-same-port.md) — why N services all
   listening on the same port (e.g. 8080) don't conflict, and the few places port reuse
   actually does (same-Pod containers, `hostPort`, explicit `NodePort` — cross-namespace too).
@@ -40,7 +40,7 @@ browsable site (search, dark mode).
 
 - [`workload-types.md`](./workload-types.md) — Deployment vs StatefulSet vs DaemonSet vs Job
   vs CronJob, and when each one is the right choice; DaemonSet worked hands-on, local images,
-  with [`daemonset-sidecar-demo/`](../daemonset-sidecar-demo).
+  with [`daemonset-sidecar-demo/`](../practice/daemonset-sidecar-demo).
 - [`daemonset-sidecar-walkthrough.md`](./daemonset-sidecar-walkthrough.md) — real doubts from
   actually exploring `daemonset-sidecar-demo/` live: is a ReplicaSet a Pod, what the `READY`
   column means on a Pod vs. a controller, which containers are in the sidecar Pod, how to find
@@ -51,7 +51,7 @@ browsable site (search, dark mode).
   ResourceQuota, HorizontalPodAutoscaler, PodDisruptionBudget, and how they interact.
 - [`pod-and-node-affinity.md`](./pod-and-node-affinity.md) — node affinity, pod affinity/
   anti-affinity, required vs. preferred, and why affinity (placement) is a different axis from
-  HPA/KEDA scaling (replica count); worked hands-on with [`affinity-demo/`](../affinity-demo).
+  HPA/KEDA scaling (replica count); worked hands-on with [`affinity-demo/`](../practice/affinity-demo).
 
 ## Security
 
@@ -59,7 +59,7 @@ browsable site (search, dark mode).
   practice, checking effective permissions with `kubectl auth can-i`.
 - [`eks-sso-rbac.md`](./eks-sso-rbac.md) — SSO (IAM Identity Center or an external OIDC
   provider) mapped onto the RBAC above; worked hands-on, no AWS needed, with
-  [`../identity-to-rbac-demo/`](../identity-to-rbac-demo).
+  [`../practice/identity-to-rbac-demo/`](../practice/identity-to-rbac-demo).
 
 ## Advanced
 
@@ -69,7 +69,7 @@ browsable site (search, dark mode).
   overlay/patch on plain YAML, and why this repo uses both.
 - [`helm-tutorial.md`](./helm-tutorial.md) — every core Helm command
   (`template`/`lint`/`install`/`upgrade`/`history`/`rollback`/`uninstall`) worked
-  command-by-command against [`sample-helm-chart/`](../sample-helm-chart/), with real output
+  command-by-command against [`sample-helm-chart/`](../practice/sample-helm-chart/), with real output
   from a live run, plus how dependency-wrapping charts like `metrics-stack` differ.
 - [`metrics-and-logs-without-instrumentation.md`](./metrics-and-logs-without-instrumentation.md) —
   does an app need a `/metrics` or logging endpoint to appear in Grafana? No — worked example
@@ -79,7 +79,7 @@ browsable site (search, dark mode).
 
 ## Observability Practice
 
-A guided, hands-on session against [`../rust-api-observability-stack/`](../rust-api-observability-stack/)
+A guided, hands-on session against [`../practice/rust-api-observability-stack/`](../practice/rust-api-observability-stack/)
 (Prometheus + Grafana + Loki via Helm) — deploy it, read the actual PromQL/LogQL each panel
 runs, then break it on purpose and diagnose from the dashboards. Builds on
 [`metrics-and-logs-without-instrumentation.md`](./metrics-and-logs-without-instrumentation.md)
@@ -113,7 +113,7 @@ already answered.
   different question from IRSA (`eks-setup.md` §4, Pods calling AWS, not humans calling
   Kubernetes). Reference for the AWS-side setup (unverified, same reason as `eks-setup.md`); the
   RBAC-side mechanism it maps onto is live-verified in
-  [`../identity-to-rbac-demo/`](../identity-to-rbac-demo) via `kubectl` impersonation —
+  [`../practice/identity-to-rbac-demo/`](../practice/identity-to-rbac-demo) via `kubectl` impersonation —
   no AWS account needed for that half.
 
 ## Install logs

@@ -239,7 +239,7 @@ downstream dependency, say) is understood, which is dramatically simpler to buil
 - Walk through deploying this design on an actual Kubernetes cluster instead of just
   diagramming it — [kubernetes_native_implementations.md](kubernetes_native_implementations.md)
   has the concrete manifests (Envoy global rate-limit service + Redis, per region) and a
-  hands-on exercise using this repo's own `k8s_explorer/` and `lld/05_rate_limiter/`.
+  hands-on exercise using this repo's own `k8s/k8s_explorer/` and `lld/05_rate_limiter/`.
 
 ## Articulate It: Interview Framing & Vocabulary
 

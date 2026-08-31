@@ -1,4 +1,4 @@
-# k8s_observability
+# k8s/k8s_observability
 
 Three independent Helm charts, one per observability signal, all on this repo's
 `minikube` cluster — each follows the same shape: **a demo app that actually produces
@@ -7,9 +7,9 @@ signals; that split is deliberate (see "Why one signal per chart" below).
 
 | Chart | Signal | Demo app | Backend | Grafana datasource |
 |---|---|---|---|---|
-| [`metrics-stack/`](metrics-stack/) | Metrics | `prometheus-example-app` (exposes `/metrics`) | Prometheus (`kube-prometheus-stack`) | Prometheus |
-| [`log-stack/`](log-stack/) | Logs | busybox loop writing JSON to stdout | Loki + Promtail (`loki-stack`) | Loki |
-| [`trace-stack/`](trace-stack/) | Traces | `xk6-client-tracing` (synthetic OTLP spans) | Tempo | Tempo |
+| [`practice/metrics-stack/`](practice/metrics-stack/) | Metrics | `prometheus-example-app` (exposes `/metrics`) | Prometheus (`kube-prometheus-stack`) | Prometheus |
+| [`practice/log-stack/`](practice/log-stack/) | Logs | busybox loop writing JSON to stdout | Loki + Promtail (`loki-stack`) | Loki |
+| [`practice/trace-stack/`](practice/trace-stack/) | Traces | `xk6-client-tracing` (synthetic OTLP spans) | Tempo | Tempo |
 
 Each chart's own README has the full install/upgrade/access/uninstall walkthrough,
 with commands verified against a real install on this cluster — this file is the map
@@ -19,7 +19,7 @@ between them, not a substitute for reading one directly.
 
 ```bash
 # Metrics
-cd metrics-stack
+cd practice/metrics-stack
 helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
 helm dependency build . && helm install metrics . -n metrics --create-namespace
 
@@ -41,7 +41,7 @@ that specific choice mattered).
 
 ## Why one signal per chart, not one combined chart
 
-[`k8s_explorer/rust-api-observability-stack/`](../k8s_explorer/rust-api-observability-stack/)
+[`k8s/k8s_explorer/rust-api-observability-stack/`](../k8s/k8s_explorer/practice/rust-api-observability-stack/)
 already shows the alternative: one chart bundling `kube-prometheus-stack` **and**
 `loki-stack` **and** an app, for when metrics+logs+app genuinely need to ship as one
 release. Its `values.yaml` is the honest accounting of what that costs — reconciling
@@ -53,7 +53,7 @@ backend. The tradeoff is the opposite one: three separate `helm install`s and th
 separate Grafanas instead of one — worth it here because the point was learning each
 signal's pipeline in isolation, not minimizing release count.
 
-[`k8s_explorer/grafana-log-viewer/`](../k8s_explorer/grafana-log-viewer/) is the
+[`k8s/k8s_explorer/grafana-log-viewer/`](../k8s/k8s_explorer/practice/grafana-log-viewer/) is the
 same idea `log-stack/` follows, written earlier and independently — both wrap
 `loki-stack`, both hit the same Promtail→Loki URL gotcha (see `log-stack/README.md`),
 kept as two separate charts rather than merged since they serve different demo
@@ -69,7 +69,7 @@ demo-app **Service** silently serving traffic from `log-stack`'s pod too — pur
 matching, no concept of "which Helm release owns this" anywhere in Kubernetes' object
 model. Fixed by adding `release: {{ .Release.Name }}` to every demo app's
 Deployment/Service/ServiceMonitor selector, in all three charts — see
-[`metrics-stack/README.md`](metrics-stack/README.md#a-real-bug-this-chart-shipped-with-found-once-log-stacktrace-stack-existed)
+[`metrics-stack/README.md`](practice/metrics-stack/README.md#a-real-bug-this-chart-shipped-with-found-once-log-stacktrace-stack-existed)
 for the full writeup, including why fixing it required deleting the old Deployment
 objects first (`spec.selector` is immutable — `helm upgrade` alone rejects the change).
 Worth knowing before copying any of these `templates/demo-app-*.yaml` files as a
@@ -89,27 +89,27 @@ specifics.
 
 ## A fourth, different kind of project in this directory
 
-[`streaming-drift-detection/`](streaming-drift-detection/) doesn't follow
+[`streaming-drift-detection/`](practice/streaming-drift-detection/) doesn't follow
 the one-signal-per-chart split above — it's five *coupled* charts (Kafka →
 Feast → Evidently → OTel/Prometheus → Grafana/Alertmanager) forming one
 MLOps drift-monitoring pipeline, sharing one namespace instead of one each.
-See [`streaming-drift-detection/README.md`](streaming-drift-detection/README.md#why-one-shared-namespace-not-five)
+See [`streaming-drift-detection/README.md`](practice/streaming-drift-detection/README.md#why-one-shared-namespace-not-five)
 for why that's the right call there and not here. Scaffolded, not yet
 installed.
 
 ## Related
 
-- [`mlops_aiops/docs/tools/prometheus/README.md`](../mlops_aiops/docs/tools/prometheus/README.md),
-  [`.../grafana/README.md`](../mlops_aiops/docs/tools/grafana/README.md),
-  [`.../loki/README.md`](../mlops_aiops/docs/tools/loki/README.md),
-  [`.../tempo/README.md`](../mlops_aiops/docs/tools/tempo/README.md),
-  [`.../cadvisor/README.md`](../mlops_aiops/docs/tools/cadvisor/README.md),
-  [`.../kube-state-metrics/README.md`](../mlops_aiops/docs/tools/kube-state-metrics/README.md) —
+- [`mlops_aiops/docs/tools/prometheus/README.md`](../../mlops_aiops/docs/tools/prometheus/README.md),
+  [`.../grafana/README.md`](../../mlops_aiops/docs/tools/grafana/README.md),
+  [`.../loki/README.md`](../../mlops_aiops/docs/tools/loki/README.md),
+  [`.../tempo/README.md`](../../mlops_aiops/docs/tools/tempo/README.md),
+  [`.../cadvisor/README.md`](../../mlops_aiops/docs/tools/cadvisor/README.md),
+  [`.../kube-state-metrics/README.md`](../../mlops_aiops/docs/tools/kube-state-metrics/README.md) —
   what each tool is, how it's normally deployed, and how it compares to alternatives.
-- [`k8s_explorer/grafana-log-viewer/`](../k8s_explorer/grafana-log-viewer/) — an earlier,
+- [`k8s/k8s_explorer/grafana-log-viewer/`](../k8s/k8s_explorer/practice/grafana-log-viewer/) — an earlier,
   independent Loki+Grafana chart (see above).
-- [`k8s_explorer/rust-api-observability-stack/`](../k8s_explorer/rust-api-observability-stack/) —
+- [`k8s/k8s_explorer/rust-api-observability-stack/`](../k8s/k8s_explorer/practice/rust-api-observability-stack/) —
   the one-chart-does-everything alternative these three charts deliberately don't follow.
-- [`k8s_explorer/docs/helm-tutorial.md`](../k8s_explorer/docs/helm-tutorial.md) — every
+- [`k8s/k8s_explorer/docs/helm-tutorial.md`](../k8s/k8s_explorer/docs/helm-tutorial.md) — every
   core Helm command (`install`/`upgrade`/`rollback`/`uninstall`/dependency management)
   explained against a minimal example chart, if any of the commands above are unfamiliar.
