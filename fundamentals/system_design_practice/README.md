@@ -60,6 +60,13 @@ service mesh, and multi-region active-active replication. Read this second.
 | 15 | [Ticket / Event Booking (Ticketmaster)](15_design_ticket_booking_system/tutorial.md) | Isolation levels/concurrency control under extreme contention, reservation TTLs, virtual waiting rooms |
 | 16 | [Notification System](16_design_notification_system/tutorial.md) | Priority-isolated fan-out, idempotent delivery, provider failover |
 | 17 | [Ad Click Aggregation](17_design_ad_click_aggregation/tutorial.md) | Exactly-once stream aggregation, watermarks, approximate counting at scale |
+| 18 | [Distributed Key-Value Store (DynamoDB)](18_design_key_value_store/tutorial.md) | Consistent hashing, tunable quorum consistency, vector clocks, anti-entropy |
+| 19 | [Distributed Unique ID Generator (Snowflake)](19_design_unique_id_generator/tutorial.md) | Coordination-free ID generation across machines, clock-drift handling |
+| 20 | [Proximity/Location Search (Yelp/Maps)](20_design_proximity_search/tutorial.md) | Geospatial indexing for a read-heavy query workload, quad-trees vs. geohash, density-aware sharding |
+| 21 | [Real-Time Leaderboard](21_design_realtime_leaderboard/tutorial.md) | Sorted-set/skip-list ranking at scale, exact vs. approximate rank under sharding |
+| 22 | [Distributed Logging & Metrics Pipeline](22_design_logging_metrics_pipeline/tutorial.md) | Logs vs. metrics storage shapes, cardinality explosion, tiered retention/downsampling |
+| 23 | [Real-Time Ad Auction / Bidding (RTB)](23_design_ad_auction_bidding/tutorial.md) | Hard sub-100ms latency budgets, second-price auction mechanics, fraud handled off the critical path |
+| 24 | [Content Delivery Network (CDN)](24_design_cdn/tutorial.md) | Nearest-edge routing, cache-key design, purge propagation at fleet scale |
 
 Each case study follows the same four-step structure from the staff-signal tutorial:
 clarify → high-level design → deep-dive → trade-offs, with an explicit staff-altitude

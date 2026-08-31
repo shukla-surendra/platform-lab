@@ -185,4 +185,4 @@ pipeline serve both needs and quietly failing one of them.
 
 ---
 
-**Previous:** [16. Notification System](../16_design_notification_system/tutorial.md)  |  **Next:** [Back to Overview](../README.md)
+**Previous:** [16. Notification System](../16_design_notification_system/tutorial.md)  |  **Next:** [18. Distributed Key-Value Store](../18_design_key_value_store/tutorial.md)
