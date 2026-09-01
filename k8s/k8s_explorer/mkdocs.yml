@@ -52,6 +52,7 @@ nav:
       - Pod & Node Affinity: pod-and-node-affinity.md
       - Sidecar Containers: sidecar-containers.md
       - "DaemonSet & Sidecar: Real Doubts, Answered Live": daemonset-sidecar-walkthrough.md
+      - "StatefulSet: Stable Identity, Verified Live": statefulset-walkthrough.md
   - Security:
       - RBAC: rbac.md
   - Advanced:

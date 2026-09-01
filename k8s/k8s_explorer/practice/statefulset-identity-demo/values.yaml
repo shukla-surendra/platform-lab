@@ -1,0 +1,14 @@
+# Local-only image (built via ./build-images.sh, never pushed anywhere) —
+# pullPolicy: Never is what makes that work, same as ../daemonset-sidecar-demo/.
+replicaCount: 3
+
+image:
+  repository: identity-server
+  tag: local
+  pullPolicy: Never
+
+storage:
+  size: 50Mi
+  # Leave unset to use the cluster's default StorageClass (minikube's default
+  # profile ships "standard"). Set explicitly only if you need a different one.
+  storageClassName: ""

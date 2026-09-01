@@ -90,6 +90,11 @@ isn't really exercised — the reason it's still a StatefulSet and not a Deploym
 per-replica PVC guarantee: even at one replica, that guarantee is what makes the data volume
 Postgres owns be *the same* volume across every restart.
 
+For all four guarantees actually exercised and verified against a real 3-replica cluster —
+ordered creation, per-replica DNS, a deleted Pod reattaching to its same PVC, reverse-order
+scale-down — see [`statefulset-walkthrough.md`](./statefulset-walkthrough.md) and its hands-on
+companion [`../practice/statefulset-identity-demo/`](../practice/statefulset-identity-demo).
+
 ## DaemonSet — exactly one Pod per node
 
 This cluster already runs some — real, verified, not hypothetical:

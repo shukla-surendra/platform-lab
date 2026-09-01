@@ -45,6 +45,11 @@ browsable site (search, dark mode).
   actually exploring `daemonset-sidecar-demo/` live: is a ReplicaSet a Pod, what the `READY`
   column means on a Pod vs. a controller, which containers are in the sidecar Pod, how to find
   which node a Pod landed on. Growing over time, not a one-shot writeup.
+- [`statefulset-walkthrough.md`](./statefulset-walkthrough.md) — the StatefulSet guarantees
+  `workload-types.md` describes but this repo's other StatefulSet (Postgres, `replicas: 1`)
+  never actually exercises, proven live at 3 replicas: ordered creation, per-replica DNS via a
+  headless Service, a deleted Pod reattaching to its same PVC, reverse-order scale-down; worked
+  hands-on with [`statefulset-identity-demo/`](../practice/statefulset-identity-demo).
 - [`probes-and-health-checks.md`](./probes-and-health-checks.md) — liveness vs readiness vs
   startup probes, and why a missing readiness probe breaks rollouts.
 - [`resource-management.md`](./resource-management.md) — requests/limits, LimitRange,

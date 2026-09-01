@@ -1,0 +1,53 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ .Release.Name }}-identity
+spec:
+  # Must name the headless Service in service.yaml exactly — this is what gives
+  # each Pod (<name>-0, <name>-1, ...) its own stable DNS record under that
+  # Service, rather than just a random Pod IP that changes on every reschedule.
+  serviceName: {{ .Release.Name }}-identity-headless
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: identity-server
+  template:
+    metadata:
+      labels:
+        app: identity-server
+    spec:
+      containers:
+        - name: identity-server
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - containerPort: 8080
+              name: http
+          env:
+            # Downward API: each replica learns its own stable name (identity-0,
+            # identity-1, ...) from Kubernetes itself, the same mechanism
+            # ../daemonset-sidecar-demo/ uses for NODE_NAME — one image, no
+            # per-replica config baked in.
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+          volumeMounts:
+            - name: data
+              mountPath: /data
+  # The actual StatefulSet-only mechanism: a Deployment has no volumeClaimTemplates
+  # field at all. Kubernetes creates one REAL PersistentVolumeClaim per replica
+  # ordinal here (data-<release>-identity-0, -1, -2 ...), and — critically — a
+  # replacement Pod for a given ordinal always reattaches to THAT SAME PVC, never
+  # a fresh one. That's the guarantee this demo's README verifies directly.
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        {{- if .Values.storage.storageClassName }}
+        storageClassName: {{ .Values.storage.storageClassName }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.storage.size }}

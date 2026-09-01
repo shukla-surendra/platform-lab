@@ -1,0 +1,4 @@
+apiVersion: v2
+name: statefulset-identity-demo
+version: 0.1.0
+description: A 3-replica StatefulSet (stable identity, headless-service DNS, one PVC per replica) built from a local image, no registry involved.

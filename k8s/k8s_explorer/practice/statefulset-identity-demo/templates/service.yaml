@@ -1,0 +1,18 @@
+# clusterIP: None is the entire mechanism — it's what makes this a "headless"
+# Service. A normal (non-headless) Service load-balances DNS/traffic across every
+# matching Pod as one virtual IP; a headless one instead makes DNS return each
+# matching Pod's own address individually, which is what gives every StatefulSet
+# replica its own stable name: <pod>.<this-service-name>.<namespace>.svc.cluster.local.
+# `serviceName` in statefulset.yaml must point at this exact Service by name — that's
+# the only thing that links the two objects together.
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-identity-headless
+spec:
+  clusterIP: None
+  selector:
+    app: identity-server
+  ports:
+    - port: 8080
+      name: http

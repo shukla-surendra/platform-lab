@@ -351,6 +351,41 @@ Production reality / gotchas:
   way, so it doesn't move the Chinchilla-optimal token math above at all, just splits the same
   budget across two machines instead of running it serially on one.
 
+**Update — this checklist is no longer hypothetical.** It was actually built and run on 2 real
+GPU boxes: `mini-llms-playground/from_scratch/custom-gpt-350m-ddp` (2026-08-31, 2×`g5.xlarge`).
+Two mechanism questions that checklist above glossed over, now answered from the real code:
+
+*How does one machine even find the other?* Not by any direct connection the training code
+opens itself — `torchrun` (not the Python script) does this. Launched with `--master_addr=<node
+0's private IP> --master_port=29500 --node_rank=<0|1> --nnodes=2` on each machine, `torchrun`
+sets `MASTER_ADDR`/`MASTER_PORT`/`RANK`/`WORLD_SIZE`/`LOCAL_RANK` as environment variables
+*before* the training script even starts. The script's own call,
+`dist.init_process_group(backend="nccl")` (`cli/train.py`), passes no address/rank arguments at
+all — that's PyTorch's default **`env://`** rendezvous, which reads exactly those env vars. Node
+0's process opens a `TCPStore` (a minimal shared key-value store) listening on
+`MASTER_ADDR:MASTER_PORT`; node 1's process, given that same address by `torchrun`, connects to
+it as a client. Both processes are blocked inside their own `init_process_group()` call until all
+`WORLD_SIZE` ranks have checked in — it isn't "master reaches out to worker," it's "worker
+connects to a known address, master's own call is what's listening there." Same store is then
+reused to exchange NCCL's internal setup handshake (unique IDs for the real GPU-to-GPU
+channels), so nothing about IP discovery is bespoke to this project — it's `torchrun` +
+PyTorch's default rendezvous, unmodified.
+
+*What actually happens on each "sync"?* `DistributedDataParallel(raw_model)` registers a
+backward hook on every parameter at wrap time — nothing about `.backward()` itself is special,
+the hook just fires as each parameter's gradient becomes available. The real trick is
+**`no_sync()`**, used for every micro-batch *except* the last one in a `grad_accum_steps` window
+(`trainer.py`'s `is_accum_boundary`/`sync_now`): inside `no_sync()`, `.backward()` computes and
+*locally accumulates* gradients into each parameter's `.grad` tensor without firing any
+all-reduce at all — pure local compute, zero network traffic, for 255 out of every 256
+micro-steps at this project's settings. On the 256th (boundary) micro-step, `no_sync()` is not
+used, so the hooks fire normally: gradients get bucketed and **all-reduced** (summed, then
+divided by world_size) across both machines over NCCL. Only after that single all-reduce does
+`optimizer.step()` run — and it runs identically on both machines, against the now-identical
+averaged gradient, which is the actual mechanism keeping both replicas bit-identical: not
+repeated weight syncing, just one shared gradient average per accumulation window, applied
+locally by an optimizer that was already deterministic given the same input.
+
 ### Q/K/V projection (turning a token embedding into something attention can use)
 
 A token's raw embedding is one vector — using it directly for attention would mean "what I'm

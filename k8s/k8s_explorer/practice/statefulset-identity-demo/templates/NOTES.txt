@@ -1,0 +1,18 @@
+{{ .Release.Name }} deployed:
+  - StatefulSet {{ .Release.Name }}-identity — {{ .Values.replicaCount }} replica(s), each with its own PVC
+  - Headless Service {{ .Release.Name }}-identity-headless — stable per-replica DNS
+
+Check it:
+
+  kubectl get statefulset,pvc,pods -l app=identity-server
+  kubectl exec {{ .Release.Name }}-identity-0 -- wget -qO- http://localhost:8080/identity.log
+
+Prove per-replica DNS from inside the cluster:
+
+  kubectl exec {{ .Release.Name }}-identity-0 -- nslookup {{ .Release.Name }}-identity-1.{{ .Release.Name }}-identity-headless
+
+Prove the PVC survives a Pod delete (same ordinal reattaches to the same disk):
+
+  kubectl delete pod {{ .Release.Name }}-identity-1
+  kubectl wait --for=condition=Ready pod/{{ .Release.Name }}-identity-1 --timeout=60s
+  kubectl exec {{ .Release.Name }}-identity-1 -- wget -qO- http://localhost:8080/identity.log
