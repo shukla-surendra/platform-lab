@@ -26,3 +26,11 @@ executed_output.ipynb
 .DS_Store
 .vscode/
 .idea/
+
+# Helm subchart dependency packages (helm dependency update/build output, e.g.
+# charts/loki-stack-2.10.3.tgz) — regenerable from Chart.yaml/Chart.lock, not source.
+# Was bare ".tgz", which only matches a file literally named ".tgz" and silently
+# ignored nothing real — one stray package (grafana-log-viewer/charts/loki-stack-*.tgz)
+# was already committed before this was caught, since being tracked bypasses gitignore
+# entirely regardless of the pattern.
+*.tgz
