@@ -106,6 +106,17 @@ Since each seeder truncates its own schema's tables first, you can also just
 re-run a seeder at any time to get a fresh random dataset for that domain
 without touching Postgres or Liquibase at all.
 
+## Related: `sql_postgres_practice/`
+
+`sql_postgres_practice/` (repo root) is a second, complementary Postgres
+practice environment — small, hand-crafted, deterministic fixtures (so
+every practice problem has a provable exact answer) plus theory notes and
+pattern-organized problems (joins, window functions, recursive CTEs, query
+optimization, MERGE/upsert), each solution actually executed with its real
+output captured. No Liquibase, no Faker — reach for *this* repo instead
+when you want realistic bulk data, schema migrations, or the `edu` domain
+this repo doesn't have.
+
 ## Liquibase cheatsheet
 
 The `liquibase` service in `docker-compose.yml` runs `update` by default. For

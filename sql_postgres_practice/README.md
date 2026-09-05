@@ -87,3 +87,21 @@ larger reference set, including a from-scratch `sql-tutorial-zero-to-hero.md`.
 That doc explicitly isn't run against a live database; this project is —
 treat them as theory-reference vs. hands-on-verified companions, not
 duplicates.
+
+## Related: `pg_explore/`
+
+`pg_explore/` (repo root) is a second, complementary Postgres practice
+environment, not a duplicate of this one:
+
+| | This project | `pg_explore/` |
+|---|---|---|
+| Schema management | Raw `schema.sql`, no versioning | **Liquibase** — versioned changesets with rollback |
+| Data | Small, hand-crafted, exact (so answers are provable) | **Faker**-generated bulk realistic data, with deliberately embedded known-answer scenarios (tied salaries, "bought X never Y" set-difference) |
+| Domains | ecommerce, org_hierarchy, event_log | hr, ecommerce, **edu** (students/courses/enrollments) |
+| Organization | one database per fixture | one database, one Postgres schema per domain |
+
+Reach for `pg_explore/` when a lesson genuinely needs volume this
+project's tiny deterministic fixtures can't provide — e.g. actually
+observing an index-scan-vs-seq-scan speedup (see `docs/05_indexing_and_query_plans.md`'s
+honest note about why that doesn't show up here) — or when practicing
+schema migrations themselves, which this project doesn't cover at all.
