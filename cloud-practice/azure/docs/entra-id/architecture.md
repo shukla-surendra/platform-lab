@@ -214,6 +214,55 @@ blocks (e.g. requiring MFA, restricting source IP) attached per-policy, or AWS I
 Center's own access policies once that's layered in — real capability, but not one unified
 policy engine sitting above every service by default the way Conditional Access does.
 
+### 3f. Worked example: a real role assignment from this workspace
+
+[Documented — this workspace's own Terraform, not generic]. `personal_assistant/terraform/keyvault/main.tf`
+wires up the backend's blob-storage access with exactly the three axes from §2, so this is
+what the abstract model looks like actually running rather than as a diagram:
+
+- **Identity**: `azurerm_user_assigned_identity.backend` — the "user-assigned" flavor from
+  §3c (an independent Entra ID object, not tied to one resource's lifecycle) — federated,
+  with no client secret anywhere, to the AKS cluster's own OIDC issuer via
+  `azurerm_federated_identity_credential.backend`, trusting one specific Kubernetes
+  ServiceAccount (`system:serviceaccount:<namespace>:<name>` as the token subject). This is
+  **Azure Workload Identity** — the same client-credential-free shape as AWS **IRSA** (IAM
+  Roles for Service Accounts) in EKS: a pod's ServiceAccount token gets exchanged for a
+  cloud credential with no secret stored on either side.
+- **Role definition**: `Storage Blob Data Contributor` — a **`DataActions`** grant (§3a), not
+  an `Actions` grant. It lets the identity read/write/delete blob *contents*; it grants
+  nothing over the storage account's own configuration (access keys, replication, network
+  rules) — that would need a separate `Actions`-bearing role like `Storage Account
+  Contributor` layered on top.
+- **Scope**: `azurerm_storage_account.avatars.id` — the individual storage account, not the
+  resource group or subscription it lives in. The same identity is *also* separately granted
+  `Key Vault Secrets User` on one specific vault a few lines earlier in the same file
+  (`azurerm_role_assignment.backend_kv_secrets_user`) — two independent role assignments, two
+  independent scopes, one identity, exactly the "role definition is dumb and reusable, scope
+  and assignment are what actually grant anything" point from §2.
+
+```hcl
+resource "azurerm_role_assignment" "backend_storage_blob_contributor" {
+  scope                = azurerm_storage_account.avatars.id                   # Scope
+  role_definition_name = "Storage Blob Data Contributor"                      # Role Definition (DataActions)
+  principal_id         = azurerm_user_assigned_identity.backend.principal_id  # Identity
+}
+```
+
+The three arguments on that one resource block are the three axes from §2, in the same
+order: identity, role definition, scope.
+
+**AWS equivalent, and exactly where the mapping breaks down**: the closest AWS shape is an
+IAM Role assumed via IRSA, with a policy scoped to one S3 bucket ARN
+(`Resource: arn:aws:s3:::this-bucket/*`) granting `s3:PutObject`/`s3:GetObject`/`s3:DeleteObject`.
+The mismatch worth naming: AWS expresses "scope" as a `Resource` ARN pattern written *inside*
+the policy document attached to the identity; Azure expresses scope as a *separate,
+first-class field* on the role-assignment object, entirely independent of which role
+definition is used. Practically: reusing `Storage Blob Data Contributor` across ten storage
+accounts means ten cheap role-assignment objects all referencing one unchanged role
+definition; the AWS equivalent means either one policy listing ten resource ARNs, or ten
+near-identical policy documents — there's no single object in AWS that stays constant while
+only "where" varies, the way an Azure role definition does.
+
 ---
 
 ## Distributed-systems / security concepts in play (preview of section-17 depth)
