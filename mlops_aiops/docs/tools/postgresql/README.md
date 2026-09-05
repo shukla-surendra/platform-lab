@@ -17,6 +17,16 @@ re-confirmed the way [`../kafka/README.md`](../kafka/README.md) or
 `docker run --name pg-lab -e POSTGRES_PASSWORD=postgres -p 5432:5432 -d postgres:15` gets a
 real instance running in under a minute.
 
+**Want to actually run queries against real data instead of reading
+mechanism explanations?** `sql_postgres_practice/` (repo root) is the
+hands-on, live-verified companion to this doc — a dockerized Postgres,
+three independent fixture databases (normalized e-commerce, a
+self-referencing org chart, an append-only event log), theory notes
+written example-first against that real data, and pattern-organized
+practice problems (joins, window functions, recursive CTEs, query
+optimization) with solutions actually executed and their real output
+captured — not just described.
+
 Eight files. If you're new to SQL itself, start with
 [`sql-tutorial-zero-to-hero.md`](sql-tutorial-zero-to-hero.md) — everything else here
 assumes the fluency it builds. The scope past that is calibrated to what a **principal
