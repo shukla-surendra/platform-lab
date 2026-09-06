@@ -1,69 +1,82 @@
-This builds on `minimul_aks/main.tf` by adding two new resources: an Azure Container Registry (ACR) and a separate user node pool.
+This builds on `minimul_aks_001/main.tf` by adding one new resource (plus a
+supporting data source and output): a static Public IP reserved ahead of
+time for whatever `LoadBalancer`-type Service ends up exposing the app
+publicly — see `helm/gridwork/PUBLIC_EXPOSURE_PLAN.md` for the three-level
+plan this feeds into.
 
-## ACR
+## Static Public IP
 
 ```
-resource "azurerm_container_registry" "acr" {
-  name                = "aksdevacr123"
-  resource_group_name = azurerm_resource_group.aks.name
-  location            = azurerm_resource_group.aks.location
-  sku                 = "Basic"
+data "azurerm_resource_group" "aks_node_rg" {
+  name = azurerm_kubernetes_cluster.aks.node_resource_group
+}
+
+resource "azurerm_public_ip" "ingress" {
+  name                = "pip-aks-dev-ingress"
+  resource_group_name = data.azurerm_resource_group.aks_node_rg.name
+  location            = data.azurerm_resource_group.aks_node_rg.location
+  allocation_method   = "Static"
+  sku                 = "Standard"
+}
+
+output "ingress_public_ip" {
+  value = azurerm_public_ip.ingress.ip_address
 }
 ```
 
-AKS doesn't build or store your application images — you need a registry for that. ACR is Azure's managed container registry.
+Without this, a `LoadBalancer` Service (or the ingress-nginx controller's own
+Service) gets Azure to hand it *whatever* public IP happens to be free at
+creation time — fine for a quick test, but that IP changes if the Service is
+ever deleted and recreated (a `helm uninstall`/reinstall, moving to a
+different ingress controller, etc.), which silently breaks any DNS record
+already pointed at the old one.
 
-ACR names must be globally unique and alphanumeric only (no hyphens/underscores) — that's why this is `aksdevacr123` instead of following the `rg-aks-dev` / `vnet-aks-dev` naming style used elsewhere in this setup.
+**Why a `data` source instead of just creating it in `rg-aks-dev` directly:**
+Kubernetes' cloud-controller-manager creates `LoadBalancer` IPs inside AKS's
+own auto-managed node resource group
+(`MC_rg-aks-dev_aks-dev_centralindia` — the one `minimul_aks_managed_rg.md`
+already documents), not the resource group Terraform itself defined. Terraform
+doesn't manage that resource group as one of its own resources — it's owned
+and named by AKS — so `data "azurerm_resource_group" "aks_node_rg"` reads its
+name off the cluster (`node_resource_group` is an attribute AKS exposes)
+rather than hardcoding the generated `MC_...` string. Creating the IP inside
+that same resource group means the eventual Kubernetes Service only needs a
+`loadBalancerIP: <ip>` annotation — no need for the extra
+`service.beta.kubernetes.io/azure-load-balancer-resource-group` annotation
+that cross-resource-group pinning would otherwise require.
 
-then push
+**Why `sku = "Standard"`, not `"Basic"`:** AKS provisions a Standard SKU Load
+Balancer by default for `LoadBalancer` Services on any reasonably current
+cluster, and Azure does not allow mixing Basic and Standard SKU IPs/LBs in
+the same setup — a Basic IP here would simply fail to attach.
 
+**Missing piece / what still has to happen for this IP to actually get
+used:** creating it here doesn't wire anything up by itself — the Kubernetes
+side (whichever Service ends up being `type: LoadBalancer`, either
+`gridwork-frontend` directly at Level 0, or the ingress-nginx controller's
+Service at Level 1) still needs:
+
+```yaml
+metadata:
+  annotations:
+    service.beta.kubernetes.io/azure-load-balancer-ipv4: <the reserved IP>
+spec:
+  type: LoadBalancer
+  loadBalancerIP: <the reserved IP>   # deprecated but still widely used; the
+                                       # annotation above is the newer form
 ```
-aksdevacr123.azurecr.io/frontend
-aksdevacr123.azurecr.io/backend
-```
 
-```
-ACR
-├── frontend
-│   └── image:tag
-└── backend
-    └── image:tag
-```
-
-Missing piece: creating the ACR doesn't let AKS pull from it. AKS's kubelet identity needs the `AcrPull` role on the registry (e.g. via `az aks update --attach-acr` or an `azurerm_role_assignment`), or pods referencing these images will fail with `ImagePullBackOff`.
-
-## User Node Pool
-
-```
-# 5.  A separate User Node Pool
-resource "azurerm_kubernetes_cluster_node_pool" "user" {
-
-  name = "userpool"
-  kubernetes_cluster_id = azurerm_kubernetes_cluster.aks.id
-  vm_size    = "Standard_D2s_v5"
-  node_count = 1
-  vnet_subnet_id = azurerm_subnet.aks.id
-
-}
-```
-
-Separates application workloads from the system node pool (`default_node_pool` in the cluster resource, running `Standard_D4s_v5`). Splitting them means:
-
-- Application pods don't compete with system pods (CoreDNS, metrics-server, etc.) for resources.
-- Each pool can use a different, independently-sized VM SKU — a smaller `Standard_D2s_v5` here vs. the system pool's `Standard_D4s_v5`.
-- Each pool scales independently.
-
-Missing piece: nothing here tells Kubernetes to actually schedule application pods onto this pool instead of the system one. That needs either a taint on the system pool (AKS's own convention is `CriticalAddonsOnly=true:NoSchedule`) with a matching toleration on system workloads, or a `nodeSelector`/affinity rule on your application deployments targeting this pool.
-
-## One thing to check
-
-`main.tf` still has `node_provisioning_profile { mode = "Auto" }` on the cluster (carried over from the base setup) at the same time this file adds a manually-defined `userpool`. That mode is AKS's Node Autoprovisioning (auto-creates/sizes/scales node pools for you, Karpenter-style) — worth confirming whether a manually-defined pool alongside it behaves the way you expect, or whether it's redundant with what NAP would provision on its own.
+Run `terraform apply` first, read the IP back with `terraform output
+ingress_public_ip`, then paste it into whichever Service manifest needs it.
 
 ## What else you could add here
 
-- **ACR → AKS role assignment** (`azurerm_role_assignment` granting `AcrPull` to the cluster's kubelet identity) — the single most impactful missing piece; without it the registry is unreachable from inside the cluster.
-- **Taint the system pool / label the user pool** so workloads land where you intend, rather than wherever the scheduler happens to place them.
-- **Autoscaling** (`enable_auto_scaling = true`, `min_count`/`max_count`) on the user pool at least — right now both pools are fixed at `node_count = 1`.
-- **Log Analytics workspace + `oms_agent` block** on the cluster — container insights/logs, the next item down from Node Pools/ACR in the original setup tree.
-- **Key Vault / Workload Identity**, if any workload will need secrets — also already called out as a later step in `minimul_aks_000.md`'s original tree.
-- **`output` blocks** — ACR login server, cluster name, kube_config — so later Terraform runs / CI can consume them without hardcoding.
+- **DNS as Terraform** (`azurerm_dns_zone` / `azurerm_dns_a_record`) pointing
+  a real subdomain at `ingress_public_ip` — currently this file only reserves
+  the IP, DNS itself is still a manual step (registrar UI, or a `nip.io`
+  placeholder per the exposure plan).
+- **A firewall/NSG rule restricting inbound to 80/443 only** — right now
+  nothing in this Terraform config defines NSG rules at all (AKS's
+  auto-managed one currently allows whatever the Kubernetes Service layer
+  opens); tightening that explicitly is a defense-in-depth step, not a
+  functional requirement.

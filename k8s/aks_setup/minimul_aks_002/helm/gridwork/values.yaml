@@ -35,6 +35,13 @@ frontend:
     pullPolicy: Always
   replicaCount: 1
   port: 80
+  service:
+    # LoadBalancer -> Azure provisions/attaches a real public-facing Standard
+    # Load Balancer. loadBalancerIP pins it to the static IP reserved in
+    # ../infra/main.tf (azurerm_public_ip.ingress) instead of Azure handing
+    # out a random one that would change on every Service recreate.
+    type: LoadBalancer
+    loadBalancerIP: "20.219.56.230"
 
 postgres:
   image: postgres:15

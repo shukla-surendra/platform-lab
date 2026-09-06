@@ -3,7 +3,16 @@ personal-assistant deployed as release "{{ .Release.Name }}" in namespace "{{ .R
 Schema migration ran as a Job (check its logs if the backend isn't coming up healthy):
   kubectl logs -n {{ .Release.Namespace }} job/{{ include "pa.fullname" . }}-migrate-{{ .Release.Revision }}
 
+{{- if eq .Values.frontend.service.type "LoadBalancer" }}
+The frontend Service is a LoadBalancer, pinned to the static IP reserved in
+../infra/main.tf ({{ .Values.frontend.service.loadBalancerIP }}). Reach it with:
+  curl http://{{ .Values.frontend.service.loadBalancerIP }}/
+or check the currently attached IP directly (it can lag a few seconds after
+install/upgrade):
+  kubectl get svc {{ include "pa.fullname" . }}-frontend
+{{- else }}
 The frontend Service is a NodePort. Reach it with:
   minikube service {{ include "pa.fullname" . }}-frontend --url
 or:
   kubectl port-forward svc/{{ include "pa.fullname" . }}-frontend 8080:80
+{{- end }}

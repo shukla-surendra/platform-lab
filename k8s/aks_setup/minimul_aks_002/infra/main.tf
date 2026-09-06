@@ -87,3 +87,29 @@ resource "azurerm_role_assignment" "aks_acr_pull" {
   scope                            = azurerm_container_registry.acr.id
   skip_service_principal_aad_check = true
 }
+
+# 8. Static Public IP for the future ingress/LoadBalancer Service
+#    (see helm/gridwork/PUBLIC_EXPOSURE_PLAN.md). Created directly in AKS's
+#    own auto-managed node resource group (MC_rg-aks-dev_aks-dev_...) since
+#    that's where Kubernetes' cloud-controller-manager creates LoadBalancer
+#    IPs by default -- matching that means the Kubernetes Service only needs
+#    a `loadBalancerIP` annotation, not also the
+#    "azure-load-balancer-resource-group" one to point it elsewhere.
+#    Reserving it here means it survives a helm uninstall/reinstall of
+#    whatever Service ends up requesting it, instead of getting handed a new
+#    IP each time.
+data "azurerm_resource_group" "aks_node_rg" {
+  name = azurerm_kubernetes_cluster.aks.node_resource_group
+}
+
+resource "azurerm_public_ip" "ingress" {
+  name                = "pip-aks-dev-ingress"
+  resource_group_name = data.azurerm_resource_group.aks_node_rg.name
+  location            = data.azurerm_resource_group.aks_node_rg.location
+  allocation_method   = "Static"
+  sku                 = "Standard"
+}
+
+output "ingress_public_ip" {
+  value = azurerm_public_ip.ingress.ip_address
+}

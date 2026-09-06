@@ -5,13 +5,21 @@ metadata:
   labels:
     {{- include "pa.labels" . | nindent 4 }}
     app: {{ include "pa.fullname" . }}-frontend
+  {{- if eq .Values.frontend.service.type "LoadBalancer" }}
+  annotations:
+    # Newer replacement for the deprecated spec.loadBalancerIP field --
+    # tells AKS's cloud-controller-manager to attach this exact existing
+    # Public IP (created in the node resource group by infra/main.tf)
+    # instead of provisioning a fresh one.
+    service.beta.kubernetes.io/azure-load-balancer-ipv4: {{ .Values.frontend.service.loadBalancerIP | quote }}
+  {{- end }}
 spec:
   selector:
     app: {{ include "pa.fullname" . }}-frontend
   ports:
     - port: 80
       targetPort: 80
-  type: NodePort
+  type: {{ .Values.frontend.service.type }}
 ---
 apiVersion: apps/v1
 kind: Deployment
