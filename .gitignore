@@ -34,3 +34,22 @@ executed_output.ipynb
 # was already committed before this was caught, since being tracked bypasses gitignore
 # entirely regardless of the pattern.
 *.tgz
+
+# Terraform — .tfstate/.tfstate.backup can embed live credentials (e.g. an AKS
+# admin kubeconfig: client cert/key/admin password) plus real subscription/tenant
+# IDs, and .terraform/ holds downloaded provider binaries (hundreds of MB, pure
+# build output). None of this belongs in a public repo or git history at all.
+**/.terraform/
+*.tfstate
+*.tfstate.backup
+*.tfstate.*.backup
+crash.log
+crash.*.log
+*.tfvars
+*.tfvars.json
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc
