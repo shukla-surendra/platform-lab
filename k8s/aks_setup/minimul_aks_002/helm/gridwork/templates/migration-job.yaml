@@ -1,0 +1,65 @@
+# Runs `alembic upgrade head` once per install/upgrade, separately from the
+# backend Deployment's own pod lifecycle. This is the actual point of moving
+# schema creation off the app's boot path (see PROGRESS notes / conftest.py
+# comments in assistant_backend/): a crash-looping pod or a routine rolling
+# update must never re-run (or worse, re-trigger a destructive rebuild of)
+# the schema. post-install (not pre-install) because the Postgres
+# StatefulSet is a normal chart resource, not a hook -- it doesn't exist yet
+# at pre-install time. pre-upgrade so schema changes land before the new
+# backend image's pods roll out on a later `helm upgrade`.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "pa.fullname" . }}-migrate-{{ .Release.Revision }}
+  labels:
+    {{- include "pa.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": post-install,pre-upgrade
+    "helm.sh/hook-weight": "0"
+    "helm.sh/hook-delete-policy": before-hook-creation
+spec:
+  backoffLimit: 3
+  template:
+    metadata:
+      labels:
+        {{- include "pa.labels" . | nindent 8 }}
+        app: {{ include "pa.fullname" . }}-migrate
+    spec:
+      restartPolicy: Never
+      initContainers:
+        - name: wait-for-postgres
+          image: postgres:15
+          command:
+            - sh
+            - -c
+            - |
+              until pg_isready -h {{ include "pa.fullname" . }}-postgres -p 5432 -U {{ .Values.postgres.user }}; do
+                echo "waiting for postgres..."
+                sleep 2
+              done
+      containers:
+        - name: migrate
+          image: "{{ .Values.backend.image.repository }}:{{ .Values.backend.image.tag }}"
+          imagePullPolicy: {{ .Values.backend.image.pullPolicy }}
+          command: ["alembic", "upgrade", "head"]
+          # Templated directly rather than envFrom: configMapRef -- pre-upgrade
+          # hooks run BEFORE Helm applies the rest of the release's resources,
+          # so envFrom would read the *previous* revision's ConfigMap, not the
+          # one this upgrade is about to create. Direct templating always
+          # reflects the values this exact helm command is running with.
+          env:
+            - name: ENVIRONMENT
+              value: {{ .Values.backend.env.environment | quote }}
+            - name: DB_HOST
+              value: {{ include "pa.fullname" . }}-postgres
+            - name: DB_PORT
+              value: "5432"
+            - name: DB_NAME
+              value: {{ .Values.postgres.database | quote }}
+            - name: DB_USER
+              value: {{ .Values.postgres.user | quote }}
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "pa.fullname" . }}-secrets
+                  key: POSTGRES_PASSWORD

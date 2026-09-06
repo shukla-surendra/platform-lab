@@ -1,0 +1,9 @@
+apiVersion: v2
+name: gridwork
+description: >
+  Backend (FastAPI) + frontend (React/nginx) + Postgres + Redis for the
+  personal_assistant app. Schema is Alembic-migration-managed (a pre-install/
+  pre-upgrade Job runs `alembic upgrade head`), not created by the app on boot.
+type: application
+version: 0.1.0
+appVersion: "1.0.0"

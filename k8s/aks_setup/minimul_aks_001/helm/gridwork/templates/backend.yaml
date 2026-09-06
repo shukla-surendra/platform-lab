@@ -1,0 +1,79 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "pa.fullname" . }}-backend
+  labels:
+    {{- include "pa.labels" . | nindent 4 }}
+    app: {{ include "pa.fullname" . }}-backend
+spec:
+  selector:
+    app: {{ include "pa.fullname" . }}-backend
+  ports:
+    - port: {{ .Values.backend.port }}
+      targetPort: {{ .Values.backend.port }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "pa.fullname" . }}-backend
+  labels:
+    {{- include "pa.labels" . | nindent 4 }}
+    app: {{ include "pa.fullname" . }}-backend
+spec:
+  replicas: {{ .Values.backend.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ include "pa.fullname" . }}-backend
+  template:
+    metadata:
+      labels:
+        app: {{ include "pa.fullname" . }}-backend
+      annotations:
+        # Forces a real rollout when the ConfigMap's data changes -- otherwise
+        # Kubernetes has no reason to restart existing pods just because a
+        # ConfigMap they reference changed content, and they'd keep running
+        # (or crash-looping) on stale config indefinitely.
+        checksum/config: {{ include (print $.Template.BasePath "/configmap-backend.yaml") . | sha256sum }}
+    spec:
+      containers:
+        - name: backend
+          image: "{{ .Values.backend.image.repository }}:{{ .Values.backend.image.tag }}"
+          imagePullPolicy: {{ .Values.backend.image.pullPolicy }}
+          # Overrides the image's own entrypoint.sh (migrate + run --reload,
+          # meant for local docker-compose dev): the migration Job already
+          # applied the schema, and --reload's file-watching has no purpose
+          # in an immutable container image.
+          command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "{{ .Values.backend.port }}"]
+          ports:
+            - containerPort: {{ .Values.backend.port }}
+          envFrom:
+            - configMapRef:
+                name: {{ include "pa.fullname" . }}-backend-config
+          env:
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "pa.fullname" . }}-secrets
+                  key: POSTGRES_PASSWORD
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "pa.fullname" . }}-secrets
+                  key: JWT_SECRET
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "pa.fullname" . }}-secrets
+                  key: OPENAI_API_KEY
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: {{ .Values.backend.port }}
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: {{ .Values.backend.port }}
+            initialDelaySeconds: 15
+            periodSeconds: 15

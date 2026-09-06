@@ -1,0 +1,59 @@
+# Defaults point at the ACR created in ../minimul_aks_001/main.tf
+# (aksdevacr123.azurecr.io) -- see README.md for the build+push steps.
+# pullPolicy: Always because the tag is the mutable "latest" -- with
+# IfNotPresent, a node that already cached an older "latest" would never
+# pull the new one after a rebuild. Fine for this kind of iterate-and-push
+# workflow; switch to real version tags + IfNotPresent once this matters.
+
+backend:
+  image:
+    repository: aksdevacr123.azurecr.io/backend
+    tag: latest
+    pullPolicy: Always
+  replicaCount: 1
+  port: 8000
+  env:
+    # NOT "production" -- config.py has a startup check that hard-requires
+    # SECRET_KEY (unused anywhere else in the codebase -- grepped, nothing
+    # reads settings.SECRET_KEY) and OPENAI_API_KEY (deliberately optional:
+    # chat_handler.py returns a clean 503 without one, by design) whenever
+    # ENVIRONMENT=="production". Flipping this to "production" honestly
+    # needs that check fixed first, not a fake SECRET_KEY value that
+    # wouldn't actually secure anything.
+    environment: development
+    storageType: postgresql
+    authType: jwt
+    allowedOrigins: "*"  # browser only ever talks to the frontend's own origin now
+                         # (nginx proxies /api/ server-side) -- this barely matters,
+                         # kept configurable rather than hardcoded.
+    openaiModel: gpt-3.5-turbo
+
+frontend:
+  image:
+    repository: aksdevacr123.azurecr.io/frontend
+    tag: latest
+    pullPolicy: Always
+  replicaCount: 1
+  port: 80
+
+postgres:
+  image: postgres:15
+  database: productify
+  user: postgres
+  storage: 1Gi
+
+redis:
+  image: redis:7
+
+# Secrets -- these are dev/demo defaults so the chart installs out of the box.
+# Override for anything beyond local experimentation, e.g.:
+#   helm upgrade --install gridwork ./helm/gridwork \
+#     --set secrets.openaiApiKey=$OPENAI_API_KEY \
+#     --set secrets.postgresPassword=$(openssl rand -hex 16) \
+#     --set secrets.jwtSecret=$(openssl rand -hex 32)
+# or pass -f values-secret.yaml (gitignored) with the same keys.
+secrets:
+  postgresPassword: postgres
+  jwtSecret: dev-only-change-me
+  # Empty -> chat's /completion endpoint returns a clean 503.
+  openaiApiKey: ""

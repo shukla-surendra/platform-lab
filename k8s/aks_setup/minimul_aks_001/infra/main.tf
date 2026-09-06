@@ -41,7 +41,7 @@ resource "azurerm_kubernetes_cluster" "aks" {
 
   default_node_pool {
     name           = "system"
-    vm_size        = "Standard_D4s_v5"
+    vm_size        = "Standard_D2s_v5"
     node_count     = 1
     vnet_subnet_id = azurerm_subnet.aks.id
   }
@@ -69,7 +69,7 @@ resource "azurerm_container_registry" "acr" {
   sku                 = "Basic"
 }
 
-# 5.  A separate User Node Pool
+# 6.  A separate User Node Pool
 resource "azurerm_kubernetes_cluster_node_pool" "user" {
 
   name = "userpool"
@@ -78,4 +78,12 @@ resource "azurerm_kubernetes_cluster_node_pool" "user" {
   node_count = 1
   vnet_subnet_id = azurerm_subnet.aks.id
 
+}
+
+# 7. Allow AKS nodes to pull images from ACR
+resource "azurerm_role_assignment" "aks_acr_pull" {
+  principal_id                     = azurerm_kubernetes_cluster.aks.kubelet_identity[0].object_id
+  role_definition_name             = "AcrPull"
+  scope                            = azurerm_container_registry.acr.id
+  skip_service_principal_aad_check = true
 }

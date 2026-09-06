@@ -1,0 +1,52 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "pa.fullname" . }}-frontend
+  labels:
+    {{- include "pa.labels" . | nindent 4 }}
+    app: {{ include "pa.fullname" . }}-frontend
+spec:
+  selector:
+    app: {{ include "pa.fullname" . }}-frontend
+  ports:
+    - port: 80
+      targetPort: 80
+  type: NodePort
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "pa.fullname" . }}-frontend
+  labels:
+    {{- include "pa.labels" . | nindent 4 }}
+    app: {{ include "pa.fullname" . }}-frontend
+spec:
+  replicas: {{ .Values.frontend.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ include "pa.fullname" . }}-frontend
+  template:
+    metadata:
+      labels:
+        app: {{ include "pa.fullname" . }}-frontend
+    spec:
+      containers:
+        - name: frontend
+          image: "{{ .Values.frontend.image.repository }}:{{ .Values.frontend.image.tag }}"
+          imagePullPolicy: {{ .Values.frontend.image.pullPolicy }}
+          ports:
+            - containerPort: 80
+          env:
+            # Consumed by nginx.conf.template's envsubst at container start --
+            # this is how the frontend reaches the backend without any URL
+            # baked into the JS bundle at build time.
+            - name: BACKEND_HOST
+              value: {{ include "pa.fullname" . }}-backend
+            - name: BACKEND_PORT
+              value: {{ .Values.backend.port | quote }}
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 3
+            periodSeconds: 10

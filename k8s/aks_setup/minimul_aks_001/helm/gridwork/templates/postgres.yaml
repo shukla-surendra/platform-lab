@@ -1,0 +1,77 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "pa.fullname" . }}-postgres
+  labels:
+    {{- include "pa.labels" . | nindent 4 }}
+    app: {{ include "pa.fullname" . }}-postgres
+spec:
+  clusterIP: None  # headless -- stable DNS for the StatefulSet pod, not load-balanced
+  selector:
+    app: {{ include "pa.fullname" . }}-postgres
+  ports:
+    - port: 5432
+      targetPort: 5432
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "pa.fullname" . }}-postgres
+  labels:
+    {{- include "pa.labels" . | nindent 4 }}
+    app: {{ include "pa.fullname" . }}-postgres
+spec:
+  serviceName: {{ include "pa.fullname" . }}-postgres
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ include "pa.fullname" . }}-postgres
+  template:
+    metadata:
+      labels:
+        app: {{ include "pa.fullname" . }}-postgres
+    spec:
+      containers:
+        - name: postgres
+          image: {{ .Values.postgres.image }}
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_DB
+              value: {{ .Values.postgres.database | quote }}
+            - name: POSTGRES_USER
+              value: {{ .Values.postgres.user | quote }}
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "pa.fullname" . }}-secrets
+                  key: POSTGRES_PASSWORD
+            # A freshly-provisioned PVC's filesystem root often isn't
+            # actually empty -- e.g. Azure Disk CSI formats new volumes with
+            # ext4, which always creates a lost+found directory at the root.
+            # initdb refuses to initialize into a non-empty directory (even
+            # if the only thing there is lost+found), so PGDATA points at a
+            # subdirectory Postgres creates itself instead of the mount root.
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", {{ .Values.postgres.user | quote }}]
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
+            exec:
+              command: ["pg_isready", "-U", {{ .Values.postgres.user | quote }}]
+            initialDelaySeconds: 15
+            periodSeconds: 10
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: {{ .Values.postgres.storage }}
