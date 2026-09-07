@@ -96,7 +96,7 @@ resource "azurerm_linux_virtual_machine" "vm" {
   name                  = "vm-demo"
   resource_group_name   = azurerm_resource_group.vm.name
   location              = azurerm_resource_group.vm.location
-  size                  = "Standard_B1s"
+  size                  = "Standard_D2s_v5"
   admin_username        = "azureuser"
   network_interface_ids = [azurerm_network_interface.vm.id]
 
