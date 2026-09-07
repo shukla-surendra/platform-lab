@@ -46,6 +46,13 @@ before the Interview Framework below. It's the shared vocabulary every tutorial 
 section — and in the [Distributed Systems Design track](../system_design_practice/README.md) — assumes
 without re-explaining.
 
+If terms like **bias-variance trade-off**, **backpropagation**, or **attention** aren't
+things you could explain from first principles yet, the separate **[ML
+Fundamentals](../ml_fundamentals/README.md)** primer (seven parts, classic ML through
+Transformers and LLM specifics) covers the *model-mechanism* layer this section's tutorials
+assume — this section covers the *systems* layer built on top of it (serving, feature
+stores, observability, LLMOps).
+
 ## How the core six map to the transition plan
 
 | Weeks | Tutorial | Anchor it to |

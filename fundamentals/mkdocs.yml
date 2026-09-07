@@ -196,6 +196,16 @@ nav:
       - "7. The Boot Process: Power-On to Kernel": os_concepts/07_boot_process_power_on_to_kernel.md
       - "8. Disk Layout: GPT, the ESP & Boot Entries": os_concepts/08_disk_layout_gpt_and_boot_entries.md
 
+  - ML Fundamentals:
+      - Overview: ml_fundamentals/README.md
+      - "1. Bias-Variance Trade-off & the ML Workflow": ml_fundamentals/01_bias_variance_and_the_ml_workflow.md
+      - "2. Linear & Logistic Regression": ml_fundamentals/02_linear_and_logistic_regression.md
+      - "3. Decision Trees, Bagging, and Boosting": ml_fundamentals/03_decision_trees_and_ensembles.md
+      - "4. Neural Networks & Backpropagation": ml_fundamentals/04_neural_networks_and_backpropagation.md
+      - "5. CNNs and RNNs — Architectures for Structure": ml_fundamentals/05_cnns_and_rnns.md
+      - "6. The Transformer Architecture": ml_fundamentals/06_transformer_architecture.md
+      - "7. LLM Fundamentals — Tokenization, Fine-Tuning, and Evaluation": ml_fundamentals/07_llm_fundamentals.md
+
   - System Design Foundation:
       - Overview: system_design_foundation/README.md
       - Prerequisite Concepts:
