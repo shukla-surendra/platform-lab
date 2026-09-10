@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import sys
 
-from mcp_client import MCPClient, MCPError
+from genai_lab.rag.mcp_from_scratch.mcp_client import MCPClient, MCPError
 
 
 def section(title: str) -> None:

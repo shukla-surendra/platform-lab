@@ -16,8 +16,8 @@ from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.graph import END, START, MessagesState, StateGraph
 from langgraph.prebuilt import ToolNode, tools_condition
 
-import config
-from tools import ALL_TOOLS
+import genai_lab.agentic.langgraph_ollama_agent.config as config
+from genai_lab.agentic.langgraph_ollama_agent.tools import ALL_TOOLS
 
 
 def build_llm() -> ChatOllama:

@@ -1,17 +1,15 @@
 #!/usr/bin/env python3
-"""CLI for the local LangGraph + Ollama Kubernetes on-call agent.
+"""CLI for the local LangGraph + Ollama agent.
 
 Single-shot:
-  python agent.py "What's unhealthy in the checkout namespace?"
+  python agent.py "What is 17 * 9, and save that as a note?"
 
-Multi-turn REPL (conversation persists across process restarts, keyed by --thread -
-this is the memory: ask a follow-up in a new process and it still remembers what it
-already found):
+Multi-turn REPL (conversation persists across process restarts, keyed by --thread):
   python agent.py
-  python agent.py --thread incident-42
+  python agent.py --thread alice
 
-Streaming (print each tool call/result as it happens, instead of just the final answer):
-  python agent.py --stream "Investigate the checkout namespace"
+Streaming (print each node's step as it happens, instead of just the final answer):
+  python agent.py --stream "Search the knowledge base for checkpointing"
 """
 
 from __future__ import annotations
@@ -23,8 +21,8 @@ from contextlib import contextmanager
 from langchain_core.messages import AIMessage, ToolMessage
 from langgraph.checkpoint.sqlite import SqliteSaver
 
-import config
-from graph import build_graph
+import genai_lab.agentic.langgraph_ollama_agent.config as config
+from genai_lab.agentic.langgraph_ollama_agent.graph import build_graph
 
 
 @contextmanager
@@ -60,7 +58,7 @@ def ask(app, prompt: str, thread_id: str, stream: bool) -> str:
 
 
 def repl(app, thread_id: str, stream: bool) -> None:
-    print(f"K8s on-call agent ({config.OLLAMA_MODEL}). Thread: '{thread_id}'. Ctrl-D to exit.")
+    print(f"Local LangGraph agent ({config.OLLAMA_MODEL}). Thread: '{thread_id}'. Ctrl-D to exit.")
     while True:
         try:
             prompt = input("\nyou> ").strip()
@@ -74,7 +72,7 @@ def repl(app, thread_id: str, stream: bool) -> None:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Local LangGraph + Ollama K8s on-call agent")
+    parser = argparse.ArgumentParser(description="Local LangGraph + Ollama agent")
     parser.add_argument("prompt", nargs="*", help="One-shot prompt. Omit to start a REPL.")
     parser.add_argument("--thread", default="default", help="Conversation thread id (default: 'default')")
     parser.add_argument("--stream", action="store_true", help="Print tool calls/results as they happen")
@@ -89,9 +87,8 @@ def main() -> int:
     except Exception as exc:
         print(f"Error: {exc}", file=sys.stderr)
         print(
-            "Make sure `ollama serve` is running, the model in .env / config.py is pulled "
-            f"(`ollama pull {config.OLLAMA_MODEL}`), and `kubectl get nodes` works against "
-            "the cluster you want this agent to investigate.",
+            "Make sure `ollama serve` is running and the model in .env / config.py is pulled "
+            f"(`ollama pull {config.OLLAMA_MODEL}`).",
             file=sys.stderr,
         )
         return 1

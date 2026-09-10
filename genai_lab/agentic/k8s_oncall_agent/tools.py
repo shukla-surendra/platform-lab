@@ -17,7 +17,7 @@ from kubernetes import client, config as kube_config
 from kubernetes.client.rest import ApiException
 from langchain_core.tools import tool
 
-import config
+import genai_lab.agentic.k8s_oncall_agent.config as config
 
 _loaded = False
 

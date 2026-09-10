@@ -19,7 +19,7 @@ from __future__ import annotations
 from kubernetes import client, config as kube_config
 from kubernetes.client.rest import ApiException
 
-import config
+import genai_lab.agentic.k8s_oncall_agent.config as config
 
 CRASH_MESSAGE = (
     "FATAL: cannot connect to payments-db at payments-db.checkout.svc.cluster.local:5432 "

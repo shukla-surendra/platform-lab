@@ -14,8 +14,8 @@ from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.graph import END, START, MessagesState, StateGraph
 from langgraph.prebuilt import ToolNode, tools_condition
 
-import config
-from tools import ALL_TOOLS
+import genai_lab.agentic.k8s_oncall_agent.config as config
+from genai_lab.agentic.k8s_oncall_agent.tools import ALL_TOOLS
 
 SYSTEM_PROMPT = (
     "You are a Kubernetes on-call assistant. You investigate real cluster state using the "

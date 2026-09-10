@@ -13,7 +13,7 @@ from datetime import datetime, timezone
 
 from langchain_core.tools import tool
 
-import config
+import genai_lab.agentic.langgraph_ollama_agent.config as config
 
 _ALLOWED_OPS = {
     ast.Add: operator.add,

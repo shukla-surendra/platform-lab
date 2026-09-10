@@ -10,7 +10,7 @@ import subprocess
 import sys
 from typing import Any
 
-from stdio_transport import read_message, trace, write_message
+from genai_lab.rag.mcp_from_scratch.stdio_transport import read_message, trace, write_message
 
 PROTOCOL_VERSION = "2025-06-18"
 CLIENT_INFO = {"name": "mcp-from-scratch-client", "version": "0.1.0"}
