@@ -7,7 +7,7 @@ from pathlib import Path
 from faker import Faker
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from db import get_conn  # noqa: E402
+from dbms_exploration.pg_explore.scripts.db import get_conn  # noqa: E402
 
 fake = Faker()
 Faker.seed(19)
