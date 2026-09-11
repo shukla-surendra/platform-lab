@@ -9,7 +9,7 @@ services:
       POSTGRES_DB: shard_lab
 
     ports:
-      - "5434:5432"
+      - "5432:5432"
 
     volumes:
       - coordinator_data:/var/lib/postgresql
@@ -22,6 +22,9 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: shard_lab
+    
+    ports:
+      - "5433:5432"
 
     volumes:
       - worker1_data:/var/lib/postgresql
@@ -34,6 +37,9 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: shard_lab
+
+    ports:
+      - "5434:5432"
 
     volumes:
       - worker2_data:/var/lib/postgresql
