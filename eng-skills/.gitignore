@@ -1,0 +1,7 @@
+source
+docs_html
+__pycache__
+.venv
+docs
+site
+.mdcustom
