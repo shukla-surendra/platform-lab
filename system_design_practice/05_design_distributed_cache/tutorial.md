@@ -36,7 +36,10 @@ flowchart TB
 
 Covered mechanically in the
 [foundations tutorial](../01_distributed_systems_foundations/tutorial.md#consistent-hashing-advanced-sharding)
-— here's how it actually shows up in a real cache cluster's design:
+— here's how it actually shows up in a real cache cluster's design. For a real 6-node
+Redis Cluster you can run and interrogate yourself — hash slots, gossip-based failover,
+live resharding, `MOVED`/`ASK`, CROSSSLOT — see
+[`mlops_aiops/docs/tools/redis/cluster/`](../../mlops_aiops/docs/tools/redis/cluster/README.md).
 
 - **Redis Cluster specifically uses a fixed 16384 "hash slots"** rather than a pure
   continuous ring — each key hashes to one of 16384 slots, and each node owns a range of

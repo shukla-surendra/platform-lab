@@ -13,7 +13,7 @@ Redis-the-cache as the starting point. This part asks the question underneath th
 Redis actually built out of, mechanically, that makes it the default answer to caching,
 leaderboards, rate limiting, locking, and lightweight pub/sub all at once — four genuinely
 different problems, one tool. (A companion hands-on lab —
-[`mlops_aiops/docs/tools/redis/`](../../../../mlops_aiops/docs/tools/redis/README.md) — runs
+[`mlops_aiops/docs/tools/redis/`](../../mlops_aiops/docs/tools/redis/README.md) — runs
 every command and pattern in this doc against a real Redis instance; this doc is the *why*,
 that lab is the *how*.)
 
@@ -160,7 +160,7 @@ the now-free lock; A finally finishes and calls a plain `DEL`, deleting **B's** 
 its own — two holders now believe they exclusively hold the same lock at the same time,
 which is the exact failure mutual exclusion exists to prevent. (The single-instance
 implementation and this exact race are worked through, executed, and asserted against in
-[`distributed_lock.py`](../../../../mlops_aiops/docs/tools/redis/examples/distributed_lock.py).)
+[`distributed_lock.py`](../../mlops_aiops/docs/tools/redis/examples/distributed_lock.py).)
 
 **Redlock, and why it's a genuinely open argument, not settled trivia**: the single-instance
 lock above has an obvious weak point — if that one Redis instance goes down, every lock it
@@ -209,7 +209,7 @@ decision, not a checkbox.
 Running both together — AOF for durability, RDB for fast recoverability and portable
 backups — is the common production default, and it's [the exact config the hands-on lab's
 Redis container starts with, with both mechanisms inspected on
-disk](../../../../mlops_aiops/docs/tools/redis/README.md#persistence-rdb-and-aof-actually-inspected).
+disk](../../mlops_aiops/docs/tools/redis/README.md#persistence-rdb-and-aof-actually-inspected).
 
 **Replication** is a separate axis, for read scaling and failover rather than durability: a
 primary streams its write stream to one or more replicas, **asynchronously by default** — a

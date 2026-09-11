@@ -274,13 +274,16 @@ limiter/priority-queue derivations, and why the multi-instance Redlock
 distributed-lock algorithm is genuinely contested rather than a settled
 default — is covered at interview depth in:
 
-- [`15_caching.md`](../../../../fundamentals/system_design_foundation/00_prerequisite_concepts/15_caching.md) —
+- [`15_caching.md`](../../../../system_design_foundation/00_prerequisite_concepts/15_caching.md) —
   caching patterns and invalidation in general (not Redis-specific).
-- [`25_redis_as_a_system_design_primitive.md`](../../../../fundamentals/system_design_foundation/00_prerequisite_concepts/25_redis_as_a_system_design_primitive.md) —
+- [`25_redis_as_a_system_design_primitive.md`](../../../../system_design_foundation/00_prerequisite_concepts/25_redis_as_a_system_design_primitive.md) —
   Redis's own data structures as system-design building blocks.
-- [`system_design_practice/05_design_distributed_cache/tutorial.md`](../../../../fundamentals/system_design_practice/05_design_distributed_cache/tutorial.md) —
+- [`cluster/`](cluster/README.md) — a real 6-node Redis Cluster (hands-on, this
+  repo, docker-compose) covering hash slots, gossip-based failover, live
+  resharding, and CROSSSLOT/hash tags at interview depth.
+- [`system_design_practice/05_design_distributed_cache/tutorial.md`](../../../../system_design_practice/05_design_distributed_cache/tutorial.md) —
   Redis Cluster sharding (hash slots) at scale.
-- [`system_design_practice/07_design_rate_limiter_at_scale/tutorial.md`](../../../../fundamentals/system_design_practice/07_design_rate_limiter_at_scale/tutorial.md) —
+- [`system_design_practice/07_design_rate_limiter_at_scale/tutorial.md`](../../../../system_design_practice/07_design_rate_limiter_at_scale/tutorial.md) —
   why "one Redis instance, one counter" breaks down at real scale.
 
 This README stays hands-on and operational on purpose — commands you can

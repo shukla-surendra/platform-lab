@@ -16,11 +16,15 @@
 # No global pip install and no per-folder venv/lockfile is needed: mkdocs + mkdocs-material
 # + pymdown-extensions are resolved on the fly via `uv run --with`, isolated from whatever
 # pyproject.toml/uv.lock that folder's own project may have (--no-project).
+#
+# `make run FILE=...` is separate: it uses the top-level uv project (root pyproject.toml,
+# root .venv) to run a standalone script — e.g. one that lives directly under a repo-root
+# folder like system_design_foundation/ rather than inside its own uv sub-project.
 
 MKDOCS_DEPS := mkdocs mkdocs-material pymdown-extensions
 UV_MKDOCS   := uv run --no-project $(foreach d,$(MKDOCS_DEPS),--with $(d)) mkdocs
 
-.PHONY: help docs serve build clean init _check-folder _require-mkdocs-yml
+.PHONY: help docs serve build clean init run _check-folder _require-mkdocs-yml _check-file
 
 help:
 	@echo "Usage: make <target> FOLDER=<folder-name>"
@@ -37,6 +41,11 @@ help:
 	@echo "installed globally or persisted into the folder's own venv."
 	@echo ""
 	@echo "Example: make docs FOLDER=cloud-practice"
+	@echo ""
+	@echo "  make run FILE=<path/to/script.py>  - run a standalone script with the"
+	@echo "                                        top-level uv venv (root pyproject.toml)"
+	@echo ""
+	@echo "Example: make run FILE=system_design_foundation/consistent_hashing/demo_consistent_hashing.py"
 
 docs: init serve
 
@@ -69,3 +78,14 @@ build: _require-mkdocs-yml
 
 clean: _check-folder
 	rm -rf "$(FOLDER)/site"
+
+_check-file:
+	@if [ -z "$(FILE)" ]; then \
+		echo "FILE is required, e.g.: make run FILE=system_design_foundation/consistent_hashing/demo_consistent_hashing.py"; exit 1; \
+	fi
+	@if [ ! -f "$(FILE)" ]; then \
+		echo "No such file: $(FILE)"; exit 1; \
+	fi
+
+run: _check-file
+	uv run python "$(FILE)"

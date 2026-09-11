@@ -1,0 +1,9 @@
+[project]
+name = "platform-lab"
+version = "0.1.0"
+description = "Top-level venv for standalone scripts that live directly under repo-root folders (e.g. system_design_foundation/, system_design_practice/) rather than inside their own uv sub-project."
+requires-python = ">=3.12"
+dependencies = []
+
+[tool.uv]
+package = false

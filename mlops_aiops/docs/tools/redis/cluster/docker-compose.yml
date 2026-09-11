@@ -1,0 +1,166 @@
+services:
+  redis-node-1: &redis-node
+    image: redis:7-alpine
+    container_name: redis-cluster-1
+    command: >
+      redis-server
+      --port 7001
+      --cluster-enabled yes
+      --cluster-config-file nodes.conf
+      --cluster-node-timeout 5000
+      --appendonly yes
+      --cluster-announce-ip 172.30.0.11
+      --cluster-announce-port 7001
+      --cluster-announce-bus-port 17001
+    ports:
+      - "7001:7001"
+      - "17001:17001"
+    networks:
+      redis-cluster-net:
+        ipv4_address: 172.30.0.11
+
+  redis-node-2:
+    <<: *redis-node
+    container_name: redis-cluster-2
+    command: >
+      redis-server
+      --port 7002
+      --cluster-enabled yes
+      --cluster-config-file nodes.conf
+      --cluster-node-timeout 5000
+      --appendonly yes
+      --cluster-announce-ip 172.30.0.12
+      --cluster-announce-port 7002
+      --cluster-announce-bus-port 17002
+    ports:
+      - "7002:7002"
+      - "17002:17002"
+    networks:
+      redis-cluster-net:
+        ipv4_address: 172.30.0.12
+
+  redis-node-3:
+    <<: *redis-node
+    container_name: redis-cluster-3
+    command: >
+      redis-server
+      --port 7003
+      --cluster-enabled yes
+      --cluster-config-file nodes.conf
+      --cluster-node-timeout 5000
+      --appendonly yes
+      --cluster-announce-ip 172.30.0.13
+      --cluster-announce-port 7003
+      --cluster-announce-bus-port 17003
+    ports:
+      - "7003:7003"
+      - "17003:17003"
+    networks:
+      redis-cluster-net:
+        ipv4_address: 172.30.0.13
+
+  redis-node-4:
+    <<: *redis-node
+    container_name: redis-cluster-4
+    command: >
+      redis-server
+      --port 7004
+      --cluster-enabled yes
+      --cluster-config-file nodes.conf
+      --cluster-node-timeout 5000
+      --appendonly yes
+      --cluster-announce-ip 172.30.0.14
+      --cluster-announce-port 7004
+      --cluster-announce-bus-port 17004
+    ports:
+      - "7004:7004"
+      - "17004:17004"
+    networks:
+      redis-cluster-net:
+        ipv4_address: 172.30.0.14
+
+  redis-node-5:
+    <<: *redis-node
+    container_name: redis-cluster-5
+    command: >
+      redis-server
+      --port 7005
+      --cluster-enabled yes
+      --cluster-config-file nodes.conf
+      --cluster-node-timeout 5000
+      --appendonly yes
+      --cluster-announce-ip 172.30.0.15
+      --cluster-announce-port 7005
+      --cluster-announce-bus-port 17005
+    ports:
+      - "7005:7005"
+      - "17005:17005"
+    networks:
+      redis-cluster-net:
+        ipv4_address: 172.30.0.15
+
+  redis-node-6:
+    <<: *redis-node
+    container_name: redis-cluster-6
+    command: >
+      redis-server
+      --port 7006
+      --cluster-enabled yes
+      --cluster-config-file nodes.conf
+      --cluster-node-timeout 5000
+      --appendonly yes
+      --cluster-announce-ip 172.30.0.16
+      --cluster-announce-port 7006
+      --cluster-announce-bus-port 17006
+    ports:
+      - "7006:7006"
+      - "17006:17006"
+    networks:
+      redis-cluster-net:
+        ipv4_address: 172.30.0.16
+
+  # One-shot: waits for all 6 nodes to be reachable, then wires them into a single
+  # cluster — 3 masters, each with 1 replica — and exits. `--cluster-yes` skips the
+  # interactive slot-allocation confirmation prompt.
+  cluster-init:
+    image: redis:7-alpine
+    container_name: redis-cluster-init
+    depends_on:
+      - redis-node-1
+      - redis-node-2
+      - redis-node-3
+      - redis-node-4
+      - redis-node-5
+      - redis-node-6
+    networks: [redis-cluster-net]
+    entrypoint:
+      - sh
+      - -c
+      - >-
+        sleep 5 &&
+        redis-cli --cluster create
+        172.30.0.11:7001 172.30.0.12:7002 172.30.0.13:7003
+        172.30.0.14:7004 172.30.0.15:7005 172.30.0.16:7006
+        --cluster-replicas 1 --cluster-yes
+
+  # A client that lives *inside* the cluster's own docker network, for python/redis-cli
+  # commands that must follow cross-node MOVED/ASK redirects by IP (each node announces
+  # its 172.30.0.x address — reachable from any container on this network, not from the
+  # host machine directly). See "Why a client container" in README.md.
+  client:
+    image: python:3.12-slim
+    container_name: redis-cluster-client
+    depends_on:
+      - cluster-init
+    networks: [redis-cluster-net]
+    volumes:
+      - ./examples:/examples:ro
+    working_dir: /examples
+    entrypoint: sh -c "pip install --quiet redis==5.* && tail -f /dev/null"
+
+networks:
+  redis-cluster-net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.30.0.0/24
