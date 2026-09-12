@@ -10,6 +10,19 @@ deployment -- see the note on retired alternatives below.
 > GB served + a small base charge; a nearly-idle demo like this one costs
 > very little but not $0. Run `terraform destroy` when done.
 
+> ⚠️ **Front Door is blocked on Free Trial / Student subscriptions.**
+> Hit this directly running `terraform apply` against a Free Trial
+> subscription: the resource group, storage account, static website, and
+> index.html blob all created fine, then
+> `azurerm_cdn_frontdoor_profile` failed with
+> `BadRequest: Free Trial and Student account is forbidden for Azure
+> Frontdoor resources.` This is an account-tier restriction Azure enforces
+> server-side, not a config problem — Front Door needs a Pay-As-You-Go (or
+> other non-trial) subscription. The storage static website half is
+> unaffected and independently useful — verified serving real content via
+> `curl` straight at `azurerm_storage_account.origin.primary_web_endpoint`
+> even while the Front Door resources above it failed to create.
+
 ## Usage
 
 ```bash
