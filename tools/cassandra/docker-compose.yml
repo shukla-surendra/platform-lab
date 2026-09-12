@@ -1,21 +1,24 @@
 x-cassandra-common: &cassandra-common
   image: cassandra:5.0
-  # Cassandra's SimpleSeedProvider does one DNS lookup for the seed
-  # hostname at startup with no retry. Hit "Seed provider couldn't lookup
-  # host cassandra-1" directly building this -- but the actual root cause
-  # was one level down: cassandra-1 had been OOM-killed (see mem_limit
-  # and MAX_HEAP_SIZE below), so its DNS entry legitimately stopped
-  # existing. restart: on-failure stays as cheap insurance against a
-  # genuine one-off DNS propagation race, but fixing the memory ceiling
-  # is what actually made this stable.
-  restart: on-failure:5
-  # Docker Desktop on a typical dev machine (~8GB total) OOM-killed
-  # cassandra-1 running 3 nodes with NO heap limit set -- Cassandra's JVM
-  # auto-sizes its heap off total (host) memory, not the container's
-  # limit, so each node tried to claim a large heap independently. Capping
-  # both the JVM heap AND the container's memory ceiling is what fixes it:
-  # the container limit is the hard backstop even if heap sizing logic
-  # ever changes.
+  # NOT restart: on-failure -- deliberately. If a node's Cassandra process
+  # exits during bootstrap, it has typically already flushed SOME local
+  # system-table state (system.local, system.peers) to its data directory
+  # before dying. Restarting the SAME container reuses that same,
+  # now-partially-written data dir -- confirmed hitting exactly this: a
+  # node that failed on a "Bootstrap Token collision" (see below) got
+  # auto-restarted, and its own half-registered prior gossip state then
+  # collided with itself ("A node with address ... already exists,
+  # cancelling join") -- a second, self-inflicted failure caused BY the
+  # auto-restart, not fixed by it. Leaving this off means a real failure
+  # surfaces once, clearly -- `docker compose down -v && docker compose
+  # up -d` (wiping data dirs via -v) is the correct retry, not an
+  # in-place restart.
+  #
+  # Docker Desktop on a typical dev machine (~8GB total) OOM-killed a node
+  # running with NO heap limit set -- Cassandra's JVM auto-sizes its heap
+  # off total host memory, not the container's limit, so each node tried
+  # to claim a large heap independently. mem_limit + MAX_HEAP_SIZE below
+  # fixes that.
   mem_limit: 1200m
   environment: &cassandra-common-env
     CASSANDRA_CLUSTER_NAME: lab-cluster
@@ -28,7 +31,15 @@ x-cassandra-common: &cassandra-common
     CASSANDRA_RACK: rack1
     CASSANDRA_ENDPOINT_SNITCH: GossipingPropertyFileSnitch
     MAX_HEAP_SIZE: 500M
-    HEAP_NEWSIZE: 100M
+    # Cassandra 5's replication-factor-aware vnode token allocation (on
+    # by default) can, rarely, generate the exact same token for two
+    # nodes bootstrapping close together when num_tokens is low --
+    # confirmed hitting "Bootstrap Token collision between ... (token ...)"
+    # directly at the default of 16. 256 (Cassandra's traditional
+    # pre-4.0 default) gives the allocator far more entropy to pick from,
+    # making that collision astronomically less likely -- purely a
+    # token-space-size fix, unrelated to node/cluster count.
+    CASSANDRA_NUM_TOKENS: 256
   healthcheck:
     # Healthy once nodetool reports at least one node Up/Normal -- for
     # cassandra-1 that's itself after its own bootstrap; for cassandra-2/3
