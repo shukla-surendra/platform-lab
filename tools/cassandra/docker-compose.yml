@@ -1,0 +1,94 @@
+x-cassandra-common: &cassandra-common
+  image: cassandra:5.0
+  # Cassandra's SimpleSeedProvider does one DNS lookup for the seed
+  # hostname at startup with no retry. Hit "Seed provider couldn't lookup
+  # host cassandra-1" directly building this -- but the actual root cause
+  # was one level down: cassandra-1 had been OOM-killed (see mem_limit
+  # and MAX_HEAP_SIZE below), so its DNS entry legitimately stopped
+  # existing. restart: on-failure stays as cheap insurance against a
+  # genuine one-off DNS propagation race, but fixing the memory ceiling
+  # is what actually made this stable.
+  restart: on-failure:5
+  # Docker Desktop on a typical dev machine (~8GB total) OOM-killed
+  # cassandra-1 running 3 nodes with NO heap limit set -- Cassandra's JVM
+  # auto-sizes its heap off total (host) memory, not the container's
+  # limit, so each node tried to claim a large heap independently. Capping
+  # both the JVM heap AND the container's memory ceiling is what fixes it:
+  # the container limit is the hard backstop even if heap sizing logic
+  # ever changes.
+  mem_limit: 1200m
+  environment: &cassandra-common-env
+    CASSANDRA_CLUSTER_NAME: lab-cluster
+    # Every node lists the same seed(s) -- seeds are only a bootstrap
+    # rendezvous point (how a new node finds the gossip ring at all), not
+    # a leader/coordinator. Once gossip has propagated, seed vs. non-seed
+    # makes no difference to how a node behaves.
+    CASSANDRA_SEEDS: cassandra-1
+    CASSANDRA_DC: dc1
+    CASSANDRA_RACK: rack1
+    CASSANDRA_ENDPOINT_SNITCH: GossipingPropertyFileSnitch
+    MAX_HEAP_SIZE: 500M
+    HEAP_NEWSIZE: 100M
+  healthcheck:
+    # Healthy once nodetool reports at least one node Up/Normal -- for
+    # cassandra-1 that's itself after its own bootstrap; for cassandra-2/3
+    # it's true once THEY finish joining the ring, not just once cassandra-1
+    # is reachable -- which is what depends_on: condition: service_healthy
+    # below actually waits on.
+    test: ["CMD-SHELL", "nodetool status 2>/dev/null | grep -q '^UN'"]
+    interval: 15s
+    timeout: 10s
+    retries: 30
+    start_period: 60s
+  networks: [cassandra-net]
+
+services:
+  # Bootstrapping nodes one at a time (via depends_on/service_healthy
+  # below) avoids every node racing to be the first to gossip -- Cassandra
+  # nodes CAN start concurrently, but sequential joins are the standard,
+  # boring, reliable way to bring up a fresh cluster.
+  cassandra-1:
+    <<: *cassandra-common
+    container_name: cassandra-lab-1
+    ports:
+      - "9042:9042"
+
+  cassandra-2:
+    <<: *cassandra-common
+    container_name: cassandra-lab-2
+    depends_on:
+      cassandra-1:
+        condition: service_healthy
+    ports:
+      - "9043:9042"
+
+  cassandra-3:
+    <<: *cassandra-common
+    container_name: cassandra-lab-3
+    depends_on:
+      cassandra-2:
+        condition: service_healthy
+    ports:
+      - "9044:9042"
+
+  # Same reason as the Redis Cluster lab's `client` service
+  # (../redis/cluster/README.md "Why a client container"): the Python
+  # driver discovers full cluster topology from one contact point, then
+  # opens connections to every node by the address THEY gossip about
+  # themselves -- inside this compose network, that's their container
+  # hostnames (cassandra-1/2/3), not reachable from the host machine.
+  client:
+    image: python:3.12-slim
+    container_name: cassandra-lab-client
+    depends_on:
+      cassandra-3:
+        condition: service_healthy
+    networks: [cassandra-net]
+    volumes:
+      - ./examples:/examples:ro
+    working_dir: /examples
+    entrypoint: sh -c "pip install --quiet cassandra-driver && tail -f /dev/null"
+
+networks:
+  cassandra-net:
+    driver: bridge
