@@ -4,6 +4,11 @@ RG + a Storage Account (the platform's own internal state, not your
 data) + a Consumption ("Y1") plan + a Linux Function App running the
 Node 18 stack, empty (no function code deployed).
 
+Coming from AWS Lambda? [`AWS_LAMBDA_CONTRAST.md`](AWS_LAMBDA_CONTRAST.md)
+covers where the two platforms actually differ — why Azure makes you
+choose a Service Plan at all, the Trigger-vs-Bindings split, packaging/
+deployment gotchas, and execution limits side by side.
+
 > ⚠️ **This creates billable resources**, though a Consumption plan
 > scales to zero and has a generous monthly free grant (1M executions) --
 > an idle demo app like this one should cost close to nothing, but the
