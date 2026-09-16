@@ -699,3 +699,62 @@ Hello, Alice! Welcome to the cluster.
 ```
 
 Reconcile-on-create and timer-based self-heal both work as designed.
+
+## The CRD naming convention: `metadata.name: <plural>.<group>` — and how it flows into everything else
+
+From `operators/greeting-operator/config/crd/greeting-crd.yaml`:
+
+```yaml
+metadata:
+  name: greetings.greeting.platformlab.dev
+spec:
+  group: greeting.platformlab.dev
+  scope: Namespaced
+  names:
+    kind: Greeting
+    listKind: GreetingList
+    plural: greetings
+    singular: greeting
+```
+
+**Why `metadata.name` must be exactly `<plural>.<group>`:** not a style
+choice — a hard requirement the API server enforces. Every
+`CustomResourceDefinition` is cluster-scoped (same category as `Namespace`
+— no per-namespace bucket to disambiguate), so its name must be globally
+unique across the *entire* cluster. `<plural>.<group>` guarantees that:
+two different vendors can each register a `widgets` plural because their
+groups differ (`widgets.acme.io` vs `widgets.example.com` never collide),
+and within one group the plural can't repeat either. `metadata.name:
+greetings` alone would be rejected outright.
+
+**Where each `spec.names` field is actually consumed downstream:**
+
+| Field | Where it shows up |
+|---|---|
+| `spec.group` + `versions[].name` | The `apiVersion` on every object: `greeting.platformlab.dev/v1alpha1` |
+| `names.kind` | The `kind:` field on the object, and what owner-references (`kopf.adopt()` / `controllerutil.SetControllerReference`) point at |
+| `names.plural` | The REST path (`/apis/<group>/<version>/namespaces/<ns>/<plural>/<name>`), `kubectl get greetings`, and RBAC `resources: [...]` |
+| `names.singular` | `kubectl get greeting alice` (singular form) |
+| `names.listKind` | The `kind` of the list response (`GreetingList`) — matters for typed clients (Go), irrelevant for kopf's untyped dicts |
+
+**RBAC always matches on `plural`, never `kind`:**
+```yaml
+- apiGroups: ["greeting.platformlab.dev"]      # spec.group
+  resources: ["greetings", "greetings/status"] # spec.names.plural (+ "/status" for the subresource)
+```
+
+**The operator code addresses the resource the same way RBAC does** — by
+group/version/plural, not by kind (`operator.py`):
+```python
+GROUP = "greeting.platformlab.dev"   # spec.group
+VERSION = "v1alpha1"                 # versions[].name
+PLURAL = "greetings"                 # spec.names.plural
+```
+
+**Ties back to the earlier "why doesn't `kubectl get all` show my CRD"
+question:** there's an optional `spec.names.categories` field (e.g.
+`categories: ["all"]`). Setting it is the actual mechanism that makes
+`kubectl get all` list a custom resource — `get all` isn't special-casing
+built-in types, it's querying every registered type whose `categories`
+includes `all`. Neither `WebApp` nor `Greeting` sets this, which is the
+precise reason both stayed invisible to `get all` earlier in this doc.

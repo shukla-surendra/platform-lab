@@ -1,1 +1,1 @@
-../mcp_from_scratch/README.md
+../rag/mcp_from_scratch/README.md

@@ -20,11 +20,22 @@
 # `make run FILE=...` is separate: it uses the top-level uv project (root pyproject.toml,
 # root .venv) to run a standalone script — e.g. one that lives directly under a repo-root
 # folder like system_design_foundation/ rather than inside its own uv sub-project.
+#
+# `make build-all` / `make serve-all` build every folder that already has its own
+# hand-curated mkdocs.yml (DOC_SITES below) in one shot and serve them all from a single
+# local HTTP server, with docs-index.html as the landing page linking to each. Deliberately
+# NOT --strict like `make build` — fundamentals/ and mini-llms-playground/ currently have
+# pre-existing dead-anchor-link warnings in their content (not a structural bug, just
+# content that needs a cleanup pass) that would abort a strict build; --strict is still
+# what CI/`make build FOLDER=x` should use per-folder when you're the one fixing that site.
+# eng-skills/ additionally needs its own docs/ symlink farm regenerated first (gitignored,
+# not committed) via its own scripts/link_mkdocs_docs.py.
 
 MKDOCS_DEPS := mkdocs mkdocs-material pymdown-extensions
 UV_MKDOCS   := uv run --no-project $(foreach d,$(MKDOCS_DEPS),--with $(d)) mkdocs
+DOC_SITES   := eng-skills fundamentals genai_lab k8s/k8s_explorer mini-llms-playground
 
-.PHONY: help docs serve build clean init run _check-folder _require-mkdocs-yml _check-file
+.PHONY: help docs serve build clean init run build-all serve-all _check-folder _require-mkdocs-yml _check-file
 
 help:
 	@echo "Usage: make <target> FOLDER=<folder-name>"
@@ -46,6 +57,9 @@ help:
 	@echo "                                        top-level uv venv (root pyproject.toml)"
 	@echo ""
 	@echo "Example: make run FILE=system_design_foundation/consistent_hashing/demo_consistent_hashing.py"
+	@echo ""
+	@echo "  make build-all              - build every doc site (see DOC_SITES) into <folder>/site/"
+	@echo "  make serve-all              - build-all, then serve everything at http://127.0.0.1:8000/docs-index.html"
 
 docs: init serve
 
@@ -89,3 +103,15 @@ _check-file:
 
 run: _check-file
 	uv run python "$(FILE)"
+
+build-all:
+	@python3 eng-skills/scripts/link_mkdocs_docs.py
+	@for f in $(DOC_SITES); do \
+		echo "=== building $$f ==="; \
+		(cd "$$f" && $(UV_MKDOCS) build) || exit 1; \
+	done
+
+serve-all: build-all
+	@echo ""
+	@echo "All sites built. Serving at http://127.0.0.1:8000/docs-index.html (Ctrl+C to stop)"
+	uv run --no-project python3 -m http.server 8000 --bind 127.0.0.1

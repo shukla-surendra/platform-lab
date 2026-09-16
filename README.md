@@ -1,44 +1,114 @@
-# mlops_aiops_toolkits
+# platform-lab
 
-A personal monorepo — this project's own MLOps/AIOps tooling work, plus
-several previously separate practice repos merged in with full commit
-history (via `git subtree`, not submodules — each folder below is native
-history in this repo now, not a reference to an external one).
+A personal monorepo — cloud/infra, Kubernetes, MLOps/GenAI, ML fundamentals,
+systems programming, and interview prep, each area self-contained in its own
+top-level folder. This file is the index: what's where, and where to start
+reading in each one.
 
-## Top-level folders
+## How to read this repo
+
+- Most areas follow the same internal shape: `docs/` (theory/reference) +
+  `practice/` or numbered example folders (runnable code), sometimes both
+  published as their own [MkDocs](https://www.mkdocs.org/) site.
+- **`make docs FOLDER=<name>`** (root `Makefile`) serves *any* top-level
+  folder's docs locally — `make init FOLDER=<name>` scaffolds an MkDocs site
+  for one that doesn't have one yet by symlinking its markdown-bearing
+  subdirectories into `<name>/docs/`, the same pattern `fundamentals/`
+  uses by hand. `make run FILE=<path>` runs a standalone script against the
+  root `pyproject.toml`/`uv.lock` venv — for scripts living directly under a
+  repo-root folder (`system_design_foundation/`, `system_design_practice/`)
+  rather than inside their own uv sub-project.
+- Folders with their own `pyproject.toml`/`uv.lock` (or `package.json`) are
+  independent projects — `cd` in and use their own tooling, not the root one.
+- **`make serve-all`** builds every folder with its own MkDocs site
+  (`fundamentals/`, `genai_lab/`, `k8s/k8s_explorer/`, `eng-skills/`,
+  `mini-llms-playground/`) and serves all of them from one local server —
+  open `http://127.0.0.1:8000/docs-index.html` and click into whichever one
+  you want. `make build-all` does the build step alone, no server.
+
+## Cloud & infrastructure
 
 | Folder | What's in it |
 |---|---|
-| **`mlops_aiops/`** | This repo's own content: `docs/` (tool write-ups — Evidently, MLflow, Feast, vLLM, Prometheus/Grafana/Loki, ELK/EFK, CloudWatch, observability on EKS) and `projects/` (runnable, uv-managed demos and pipelines for the tools documented in `docs/` — including `fraud-detection-xgboost/`, a full ingest→train→evaluate→monitor→serve MLOps pipeline). |
-| **`cloud-practice/`** | AWS/cloud practice notes and Terraform — VPC, EBS/EFS, SageMaker, Bedrock, SQS, and a full Terraform reference. |
-| **`k8s/`** | Kubernetes practice, three sub-repos merged under one parent, each split into `docs/` (theory/reference) + `practice/` (runnable demos): **`k8s_explorer/`** (pod/node affinity, service types, Jobs/CronJobs, Helm charts, a Kubeflow pipeline sample, a KServe inference example, a Grafana/Loki log-viewer demo — has its own MkDocs site), **`k8s_mlops/`** (one Helm chart, `evidently_stack/`, deploying a self-hosted Evidently monitoring server + a Jupyter pod that computes reports and pushes them to it), **`k8s_observability/`** (three independent Helm charts, one per signal — `metrics-stack/` for Prometheus+Grafana, `log-stack/` for Loki+Promtail+Grafana, `trace-stack/` for Tempo+Grafana — plus `streaming-drift-detection/`, a 5-stage MLOps drift-monitoring pipeline: Kafka → Feast → Evidently batch/streaming → OTel/Prometheus → Grafana/Alertmanager, scaffolded but not yet installed). |
-| **`genai_lab/`** | Agentic AI / LLM tooling practice — MCP (from scratch and official SDKs), FastMCP auth patterns, LangGraph + Ollama, vector DBs (FAISS, Qdrant, pgvector), RAG, and Bedrock AgentCore. Has its own MkDocs site. |
-| **`engineering_fundamentals/`** | Interview prep — DSA, system design (foundations + practice), low-level design, security engineering, behavioral. Has its own MkDocs site. |
-| **`local_llms/`** | Local LLM/vision-model experimentation — an Ollama-backed chat UI (`ollama-chatbox`), deepfake-detector tests, Vision Transformer experiments (PyTorch/Flax/JAX), and notebooks (Gemma exploration, OCR comparison). uv-managed Python project (`pyproject.toml`/`uv.lock`). |
+| [`cloud-practice/`](./cloud-practice) | AWS/Azure/GCP at architecture-internals depth — gated modules, one service at a time, plus a full Terraform reference. |
+| [`k8s/`](./k8s) | Kubernetes, five sub-projects: [`aks_crd_operator/`](./k8s/aks_crd_operator) (build a CRD + operator from scratch, Go and Python side by side — see [`operators/README.md`](./k8s/aks_crd_operator/operators/README.md)), [`aks_setup/`](./k8s/aks_setup) (deploy an app to AKS via Helm), [`k8s_explorer/`](./k8s/k8s_explorer) (affinity, Services, Jobs/CronJobs, Helm, Kubeflow, KServe — own MkDocs site), [`k8s_mlops/`](./k8s/k8s_mlops) (self-hosted Evidently monitoring), [`k8s_observability/`](./k8s/k8s_observability) (Prometheus/Loki/Tempo stacks + a streaming drift-detection pipeline). |
+| [`public_docker_images/`](./public_docker_images) | The *only* place images are built to be pushed to a public registry and pulled by strangers — kept separate so a Dockerfile elsewhere in the repo only ever has to work on this laptop. |
 
-## Why the split
+## MLOps, GenAI & agentic AI
 
-`cloud-practice`, `k8s/k8s_explorer`, `genai_lab`, `engineering_fundamentals`,
-and `local_llms` were each their own repo, each already self-contained —
-merging them in with `git subtree` preserved that structure and their full
-commit history rather than flattening everything into one undifferentiated
-tree. `mlops_aiops/` is where this repo's own work happens going forward.
+| Folder | What's in it |
+|---|---|
+| [`mlops/`](./mlops) | `docs/` — tool write-ups (Evidently, MLflow, Feast, vLLM, observability stacks); `projects/` — runnable pipelines (`fraud-detection-xgboost/`, `batch-drift-detection-xgboost/`, `evidently-monitoring-demo/`, `feast-demo/`). |
+| [`genai_lab/`](./genai_lab) | Agentic AI / LLM tooling — `agentic/` (MCP from scratch and official SDKs, LangGraph+Ollama, Bedrock AgentCore, a k8s on-call agent), `rag/` (FAISS, Qdrant, pgvector, FastMCP auth patterns), `docs/`. Own MkDocs site. |
 
-## Claude Code skills
+## Machine learning & deep learning
 
-All skills — whether written for this repo or inherited from a merged
-folder — live in one place at the repo root, `.claude/skills/`:
+| Folder | What's in it |
+|---|---|
+| [`pytorch_exploration/`](./pytorch_exploration) | From-first-principles PyTorch: tensors → autograd → `nn.Module` → losses/optimizers → a full training loop. |
+| [`mini-llms-playground/`](./mini-llms-playground) | Small-LM experiments, three tracks: `from_scratch/` (train a GPT-style model from zero), `fine_tuning/` (LoRA on a pretrained model), and serving an unmodified checkpoint as a baseline. |
+| [`local_llms/`](./local_llms) | Local LLM/vision experimentation — `ollama-chatbox/` (chat UI), `deepfake-detector/`, `vit/` (Vision Transformer, PyTorch/Flax/JAX), and notebooks (Gemma, OCR). |
 
-| Skill | Scope | What it does |
-|---|---|---|
-| `tech-log` | Whole repo | Passively documents tools/technologies discussed in chat into `mlops_aiops/docs/tools/` |
-| `commit-policy` | Whole repo | Never commits unless explicitly asked; never adds an AI-attribution trailer |
-| `engineering-fundamentals` | `engineering_fundamentals/` content | Two modes: Mode 1 adds/refreshes the "Articulate It" interview-framing section on that repo's tutorial docs (and covers authoring a new first-principles concept-primer doc); Mode 2 runs a live mock system design interview using that repo's tutorials as the answer key |
+## Databases
 
-`engineering-fundamentals` was merged from two originally separate skills
-(`articulate-it` and `system-design-interview`, inherited from that repo's
-own `.claude/`) — same content tree and audience, so one file now covers
-both instead of duplicating the directory/doc-convention context twice.
-It still references `engineering_fundamentals/`-specific paths
-(`system_design/`, `dsa_prep/`, its own MkDocs config) explicitly, since
-it lives outside that folder now.
+| Folder | What's in it |
+|---|---|
+| [`dbms_exploration/`](./dbms_exploration) | `pg_explore/` (disposable Postgres + Liquibase + Faker sandbox), `sql_postgres_practice/` (SQL/Postgres interview prep, fixture DBs), `extending_pg_lab/` (sharding/partitioning/replication/consistent-hashing design notes). |
+
+## Systems programming
+
+| Folder | What's in it |
+|---|---|
+| [`cpp_cuda_prep/`](./cpp_cuda_prep) | C++ fundamentals for CUDA, progressively, plus a `cuda_fundamentals/` track. |
+| [`rust_dsa_practice/`](./rust_dsa_practice) | DSA problems in Rust — one Cargo crate per topic, one binary per problem under `src/bin/`. |
+
+## Interview & CS fundamentals
+
+| Folder | What's in it |
+|---|---|
+| [`fundamentals/`](./fundamentals) | One MkDocs site (`make docs FOLDER=fundamentals`) covering `dsa_prep/` (LeetCode-pattern algorithms), `os_concepts/`, `lld/` (**object-oriented** design problems — parking lot, elevator, vending machine, LRU cache, rate limiter), `security/`, `ml_fundamentals/`, `gpu_infrastructure/`, `behavioral/` (STAR framework), `interview_qa_bank/`. Also pulls in the next two folders via symlink for its nav. |
+| [`system_design_foundation/`](./system_design_foundation) | ML/LLM systems design track — prerequisite concepts + tutorials. Lives at repo root (not nested in `fundamentals/`) so its standalone scripts can use the root uv venv; shows up inside `fundamentals/`'s MkDocs nav via a symlink. |
+| [`system_design_practice/`](./system_design_practice) | General distributed-systems design case studies (consensus, sharding, rate limiting, ...) at staff-engineer depth — same repo-root-plus-symlink setup as above. |
+| [`low-level-design/`](./low-level-design) | **Concurrency correctness** problems (buggy version → fix → test), following the Hello Interview LLD-concurrency path. Not the same thing as `fundamentals/lld/` above — that's object-oriented design, this is concurrency bugs. Easy to mix up by name; that's the whole reason for this note. |
+
+## Language & data practice
+
+Interview-prep notebooks: markdown explanations paired with runnable code.
+
+| Folder | What's in it |
+|---|---|
+| [`python_fundamental/`](./python_fundamental) | Core Python (async fundamentals, numbered examples). |
+| [`pandas_practice/`](./pandas_practice) | Series/DataFrame, I/O, indexing/merging, groupby/window ops, performance. |
+| [`spark_practice/`](./spark_practice) | Spark core/SQL + `pyspark.ml`, architecture through structured streaming. |
+| [`fastapi_practice/`](./fastapi_practice) | Routing/validation, Pydantic, DI/middleware, async, data-engineering-flavored API patterns. |
+
+## Career & communication
+
+| Folder | What's in it |
+|---|---|
+| [`eng-skills/`](./eng-skills) | English/communication toolkit — vocab, phrasal verbs, idioms (own MkDocs site), plus `Communication-Mastery/`, `Project_Management/`, `Book-Summaries/`. Distinct from `fundamentals/behavioral/`, which is interview-specific (STAR stories). |
+| [`manual_notes/`](./manual_notes) | Loose standalone notes not yet folded into a bigger track — GPU compute, Kubernetes for AI, drift/observability, distributed training. |
+
+## Reference library
+
+| Folder | What's in it |
+|---|---|
+| [`tools/`](./tools) | ~47 individual technology write-ups (Kafka, Redis, Airflow, Grafana, Ray, Zookeeper, ...) plus a couple of head-to-head comparison docs (`kafka-vs-rabbitmq.md`, `airflow-vs-alternatives.md`). No index yet — browse by folder name or `grep`. |
+
+## Repo plumbing
+
+- **`Makefile`** — the `make docs/init/serve/build/clean/run` driver described above.
+- **`pyproject.toml` / `uv.lock` / `.python-version`** — root venv, only for standalone scripts under repo-root folders that don't have their own uv sub-project.
+- **[`scripts/mkdocs_init.sh`](./scripts/mkdocs_init.sh)** — what `make init` runs; scaffolds a folder's `docs/` symlinks + a default `mkdocs.yml`.
+- **`.claude/`** — local Claude Code settings only; no repo-specific skills are checked in at present.
+
+## Known naming traps
+
+- `fundamentals/lld/` (object-oriented design) vs. top-level `low-level-design/`
+  (concurrency correctness problems) — different content, confusingly similar
+  names. See the Interview & CS fundamentals table above.
+- `system_design_foundation/` and `system_design_practice/` look like they
+  should live inside `fundamentals/` (its own `README.md` describes them as
+  part of that site) but are deliberately repo-root siblings instead — see
+  the root `Makefile`/`pyproject.toml` comments for why, and the "How to read
+  this repo" section above.
