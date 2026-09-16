@@ -1,0 +1,9 @@
+apiVersion: webapp.platformlab.dev/v1alpha1
+kind: WebApp
+metadata:
+  name: hello-webapp
+  namespace: default
+spec:
+  image: nginxdemos/hello:plain-text
+  replicas: 2
+  port: 80

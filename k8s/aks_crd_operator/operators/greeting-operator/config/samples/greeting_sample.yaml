@@ -1,0 +1,7 @@
+apiVersion: greeting.platformlab.dev/v1alpha1
+kind: Greeting
+metadata:
+  name: alice
+spec:
+  name: Alice
+  message: "Hello, {name}! Welcome to the cluster."

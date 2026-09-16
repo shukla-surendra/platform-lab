@@ -1,0 +1,19 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: greeting-operator
+  namespace: greeting-operator-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: greeting-operator
+  template:
+    metadata:
+      labels:
+        app: greeting-operator
+    spec:
+      serviceAccountName: greeting-operator
+      containers:
+        - name: operator
+          image: REPLACE_ME/greeting-operator:v0.1.0

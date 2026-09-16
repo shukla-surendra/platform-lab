@@ -1,0 +1,19 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: webapp-operator-python
+  namespace: webapp-operator-python-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: webapp-operator-python
+  template:
+    metadata:
+      labels:
+        app: webapp-operator-python
+    spec:
+      serviceAccountName: webapp-operator-python
+      containers:
+        - name: operator
+          image: REPLACE_ME/webapp-operator-python:v0.1.0
