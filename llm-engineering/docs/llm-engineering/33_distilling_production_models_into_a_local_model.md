@@ -61,9 +61,9 @@ consumes.
 **The zero-risk version of this exact exercise** — fully aligned with this repo's own
 "build a local model" goal, since the point was never to depend on a hosted API long-term
 — is to distill from a teacher **you already run locally in this repo**:
-[`base_models/tinyllama-1.1b-base-serving`](../../base_models/tinyllama-1.1b-base-serving/)
+[`serving/tinyllama-1.1b-base-serving`](../../serving/tinyllama-1.1b-base-serving/)
 (`TinyLlama/TinyLlama-1.1B-Chat-v1.0`, served on `:8002`) or
-[`base_models/smollm2-135m-base-serving`](../../base_models/smollm2-135m-base-serving/)
+[`serving/smollm2-135m-base-serving`](../../serving/smollm2-135m-base-serving/)
 (`HuggingFaceTB/SmolLM2-135M`, served on `:8003`). No data leaves your machine, no
 provider's usage terms apply, and — because you have the actual model weights, not just an
 API — real soft-label distillation ([Chapter 32](32_knowledge_distillation_mechanism_by_mechanism.md))
@@ -81,7 +81,7 @@ is identical either way; only which HTTP endpoint you call changes.
 
 2. QUERY THE TEACHER
    For each prompt, call the teacher (a commercial API, or — the zero-risk path
-   above — this repo's own base_models/*/api_server.py) and save its response.
+   above — this repo's own serving/*/api_server.py) and save its response.
    This is sequence-level distillation (Chapter 32): only the generated TEXT is
    captured, nothing internal.
 
@@ -174,12 +174,12 @@ DatasetSource(
 | Teacher choice | Upside | Cost |
 |---|---|---|
 | Commercial API (Claude, GPT, Gemini, etc.) | Highest-quality, most capable responses available | Provider usage-terms restrictions on training derivative models (verify current terms before building a real pipeline); per-request API cost; rate limits; no logits, so only sequence-level distillation is possible |
-| This repo's own local base models (`base_models/*`) | Zero terms-of-service exposure, free, unlimited queries, real logit access enables soft-label distillation (Chapter 32) too | Bounded by that model's own capability — a 1.1B-parameter teacher won't teach a student what it doesn't itself know |
+| This repo's own local base models (`serving/*`) | Zero terms-of-service exposure, free, unlimited queries, real logit access enables soft-label distillation (Chapter 32) too | Bounded by that model's own capability — a 1.1B-parameter teacher won't teach a student what it doesn't itself know |
 | Open-weight models generally | Often permissively licensed for this use — but **check the specific model's license**, since some (certain Llama-family releases, for example) have historically carried their own restrictions on using outputs to train other models | License terms vary per model/version; requires reading the actual license, not assuming "open-weight" implies unrestricted |
 
 ## Try It Yourself
 
-- Start `base_models/tinyllama-1.1b-base-serving`'s server (`uv run api_server.py`, port
+- Start `serving/tinyllama-1.1b-base-serving`'s server (`uv run api_server.py`, port
   `8002`) and, using the `generate_teacher_response` pattern above, generate 20-50
   synthetic (prompt, response) pairs from a small hand-written prompt list. Run them
   through `is_quality_text()`-style filtering (or reuse `data/prepare.py`'s existing

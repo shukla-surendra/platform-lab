@@ -40,7 +40,7 @@ flag.
 cd serving/vllm-qwen2.5-7b-instruct
 make install   # auto-detects: mlx-lm on Apple Silicon, vllm on CUDA, else CPU fallback
 make check     # print the backend/model it would use
-make serve     # start it (default port 8005)
+make serve     # start it (default port 8006)
 ```
 
 Or force a specific backend: `make serve-mps` / `make serve-cuda` / `make serve-cpu`.
@@ -48,7 +48,7 @@ Or force a specific backend: `make serve-mps` / `make serve-cuda` / `make serve-
 Test it once it's up:
 
 ```bash
-curl -s http://127.0.0.1:8005/v1/chat/completions \
+curl -s http://127.0.0.1:8006/v1/chat/completions \
   -H 'Content-Type: application/json' \
   -d '{"messages": [{"role": "user", "content": "Say hello in one sentence."}], "max_tokens": 30}'
 ```

@@ -96,7 +96,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--backend", choices=("auto", "cuda", "mps", "cpu"), default="auto")
     parser.add_argument("--host", default=os.environ.get("HOST", "127.0.0.1"))
-    parser.add_argument("--port", type=int, default=int(os.environ.get("PORT", "8005")))
+    parser.add_argument("--port", type=int, default=int(os.environ.get("PORT", "8006")))
     parser.add_argument("--check", action="store_true", help="Print the chosen backend without starting it.")
     args = parser.parse_args()
 

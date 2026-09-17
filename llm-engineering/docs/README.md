@@ -95,14 +95,18 @@ unmistakable difference rather than an incremental one.
 | [`docs/TRAINING_RESULTS.md`](../fine_tuning/smollm2-135m-dolly-lora/docs/TRAINING_RESULTS.md) | The real training run: loss curve, timing |
 | [`docs/BEFORE_AFTER_COMPARISON.md`](../fine_tuning/smollm2-135m-dolly-lora/docs/BEFORE_AFTER_COMPARISON.md) | Real, unedited generated output — base model vs. fine-tuned, same prompts |
 
-## Base-models track
+## Serving track
 
-Serves each fine-tuning experiment's **original, unmodified author checkpoint** as its
-own standalone FastAPI endpoint — no LoRA adapter, no training — so the base model is a
-first-class, independently runnable thing in this repo, not only ever the "before" half
-of a comparison baked into another project.
+Two kinds of project live here, merged into one track since both are ways of *serving*
+an already-trained checkpoint rather than training/fine-tuning one:
+**base-model serving** (`*-base-serving/`) — hand-rolled FastAPI endpoints for each
+fine-tuning experiment's **original, unmodified author checkpoint**, no LoRA adapter, no
+training, so the base model is a first-class, independently runnable thing, not only ever
+the "before" half of a comparison — and **vLLM serving** (`vllm-*/`) — OpenAI-compatible
+endpoints, typically for instruction-tuned checkpoints, with automatic CUDA/Metal/CPU
+backend selection.
 
-### [`tinyllama-1.1b-base-serving`](../base_models/tinyllama-1.1b-base-serving/)
+### [`tinyllama-1.1b-base-serving`](../serving/tinyllama-1.1b-base-serving/)
 
 Serves the **original** `TinyLlama/TinyLlama-1.1B-Chat-v1.0` checkpoint — no LoRA
 adapter — as its own FastAPI endpoint (port `8002`), separate from `tinyllama-1.1b-lora`'s
@@ -110,10 +114,10 @@ adapter-loaded server (port `8001`).
 
 | Doc | Covers |
 |---|---|
-| [`README.md`](../base_models/tinyllama-1.1b-base-serving/README.md) | Quickstart, original-author repo/paper/license details, why it's kept separate from the LoRA server |
-| [`docs/MODEL_DETAILS.md`](../base_models/tinyllama-1.1b-base-serving/docs/MODEL_DETAILS.md) | Full architecture (verified against the checkpoint's own `config.json`), tokenizer/chat-template details, pretraining data & procedure, the SFT+DPO recipe behind `-Chat-v1.0`, reported benchmarks, known limitations |
+| [`README.md`](../serving/tinyllama-1.1b-base-serving/README.md) | Quickstart, original-author repo/paper/license details, why it's kept separate from the LoRA server |
+| [`docs/MODEL_DETAILS.md`](../serving/tinyllama-1.1b-base-serving/docs/MODEL_DETAILS.md) | Full architecture (verified against the checkpoint's own `config.json`), tokenizer/chat-template details, pretraining data & procedure, the SFT+DPO recipe behind `-Chat-v1.0`, reported benchmarks, known limitations |
 
-### [`smollm2-135m-base-serving`](../base_models/smollm2-135m-base-serving/)
+### [`smollm2-135m-base-serving`](../serving/smollm2-135m-base-serving/)
 
 Serves the **original** `HuggingFaceTB/SmolLM2-135M` base checkpoint — no LoRA adapter,
 no chat template, plain-text completion only — as its own FastAPI endpoint (port `8003`),
@@ -121,8 +125,27 @@ separate from `smollm2-135m-dolly-lora`'s fine-tuned server.
 
 | Doc | Covers |
 |---|---|
-| [`README.md`](../base_models/smollm2-135m-base-serving/README.md) | Quickstart, original-author repo/paper/license details, why this endpoint has no chat template |
-| [`docs/MODEL_DETAILS.md`](../base_models/smollm2-135m-base-serving/docs/MODEL_DETAILS.md) | Full architecture (verified against the checkpoint's own `config.json`), tokenizer/special-token details, pretraining data & procedure, why there's no chat template, reported benchmarks, known limitations |
+| [`README.md`](../serving/smollm2-135m-base-serving/README.md) | Quickstart, original-author repo/paper/license details, why this endpoint has no chat template |
+| [`docs/MODEL_DETAILS.md`](../serving/smollm2-135m-base-serving/docs/MODEL_DETAILS.md) | Full architecture (verified against the checkpoint's own `config.json`), tokenizer/special-token details, pretraining data & procedure, why there's no chat template, reported benchmarks, known limitations |
+
+### [`smollm2-1.7b-base-serving`](../serving/smollm2-1.7b-base-serving/)
+
+Serves the **original** `HuggingFaceTB/SmolLM2-1.7B` base checkpoint — the flagship
+SmolLM2 size, same no-chat-template/plain-text-completion situation as the 135M sibling
+— as its own FastAPI endpoint (port `8007`). Meaningfully bigger load than the other two
+— see its own `README.md` for the RAM requirements before running it.
+
+| Doc | Covers |
+|---|---|
+| [`README.md`](../serving/smollm2-1.7b-base-serving/README.md) | Quickstart, RAM requirements (`float32` vs. `float16` on CPU), original-author repo/paper/license details |
+| [`docs/MODEL_DETAILS.md`](../serving/smollm2-1.7b-base-serving/docs/MODEL_DETAILS.md) | Full architecture, pretraining data/hardware/cost (including the SmolLM2 paper's one real disclosed compute-cost figure, `~$250K`/`~1e23 FLOPs` — specifically about this model), benchmarks, known limitations |
+
+### `vllm-smollm2-135m`, `vllm-tinyllama-1.1b`, `vllm-qwen2.5-7b-instruct`, `vllm-qwen3-30b-a3b-multi-gpu`
+
+OpenAI-compatible vLLM servers, each with its own `README.md` and (for the first two)
+`docs/VLLM_SERVING_GUIDE.md` — see [`../serving/vllm-smollm2-135m/`](../serving/vllm-smollm2-135m/)
+for the fullest write-up of vLLM internals, GPU memory/scheduling, and troubleshooting,
+shared conceptually across all four.
 
 ## Comparing the two tracks directly
 
@@ -142,9 +165,9 @@ or dataset, without re-deriving the architecture.
 
 ## Adding a new experiment
 
-All three tracks are meant to hold more than one experiment over time. To add one:
+Every track is meant to hold more than one experiment over time. To add one:
 
-1. Create a new subfolder under `from_scratch/`, `fine_tuning/`, or `base_models/`, named
+1. Create a new subfolder under `from_scratch/`, `fine_tuning/`, or `serving/`, named
    for the model/approach (matching the existing `custom-gpt-153m/`,
    `tinyllama-1.1b-lora/`, and `tinyllama-1.1b-base-serving/` convention).
 2. Give it its own `README.md`, `requirements.txt`, and any scripts it needs — keep it

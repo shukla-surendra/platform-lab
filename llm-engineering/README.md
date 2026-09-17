@@ -14,7 +14,7 @@ fixed project, it's a home for many small, runnable LLM experiments.
 |---|---|---|
 | [`from_scratch/`](from_scratch/) | Custom architecture, custom training loop, trained on conversation data from zero | [`from_scratch/custom-gpt-153m/README.md`](from_scratch/custom-gpt-153m/README.md) |
 | [`fine_tuning/`](fine_tuning/) | Adapting an existing pretrained model (LoRA) to a new dataset/behavior | [`fine_tuning/tinyllama-1.1b-lora/README.md`](fine_tuning/tinyllama-1.1b-lora/README.md) |
-| [`base_models/`](base_models/) | Serving an original, unmodified author checkpoint on its own — no adapter, no training — as an independently runnable baseline | [`base_models/tinyllama-1.1b-base-serving/README.md`](base_models/tinyllama-1.1b-base-serving/README.md) |
+| [`serving/`](serving/) | Serving an already-trained checkpoint, no adapter, no training — two ways: hand-rolled FastAPI for an original author checkpoint as an independently runnable baseline (`*-base-serving/`), or OpenAI-compatible vLLM serving with automatic CUDA/Metal/CPU backend selection (`vllm-*/`) | [`serving/tinyllama-1.1b-base-serving/README.md`](serving/tinyllama-1.1b-base-serving/README.md) |
 | [`quantization/`](quantization/) | Post-training quantization of an already-trained model — no fine-tuning, no adapter — into a smaller GGUF file, with a direct size/quality/speed comparison across precision levels | [`quantization/smollm2-135m-gguf/README.md`](quantization/smollm2-135m-gguf/README.md) |
 | [`local_inference/`](local_inference/) | Models already pulled/running locally (mainly via Ollama) — a chat UI, API exploration notebooks, plus ViT/deepfake-detector vision experiments — nothing trained or fine-tuned in this repo | [`local_inference/README.md`](local_inference/README.md) |
 
@@ -22,15 +22,24 @@ Each experiment lives in its own subfolder under one of these tracks, with its o
 README, requirements, and scripts — self-contained enough to run independently of the
 others.
 
-## Standalone serving
+## Inside `serving/`
 
-[`serving/vllm-smollm2-135m/`](serving/vllm-smollm2-135m/) is a minimal
-OpenAI-compatible local server for Hugging Face's 135M-parameter SmolLM2 Instruct
-model. It automatically selects CUDA vLLM when available, uses the MLX/Metal route on
-Apple Silicon, and provides a CPU-only Transformers fallback for a functional baseline.
+Two genuinely different serving approaches share this one track, each covering the
+other's gap:
 
-[`serving/vllm-tinyllama-1.1b/`](serving/vllm-tinyllama-1.1b/) serves the original
-TinyLlama-1.1B Chat checkpoint using the same CUDA/Metal/CPU selection, on port `8005`.
+- **`*-base-serving/`** (`tinyllama-1.1b-base-serving/`, `smollm2-135m-base-serving/`,
+  `smollm2-1.7b-base-serving/`) — a small, hand-rolled FastAPI server per project,
+  always the **original, unmodified base checkpoint** (no chat template — plain-text
+  completion only), CPU/CUDA/MPS auto-detected.
+- **`vllm-*/`** (`vllm-smollm2-135m/`, `vllm-tinyllama-1.1b/`, `vllm-qwen2.5-7b-instruct/`,
+  `vllm-qwen3-30b-a3b-multi-gpu/`) — OpenAI-compatible vLLM servers, typically for the
+  **instruction-tuned** sibling checkpoint, with automatic CUDA vLLM / MLX-Metal / CPU
+  Transformers-fallback backend selection. [`vllm-smollm2-135m/`](serving/vllm-smollm2-135m/)
+  serves `SmolLM2-135M-Instruct`; [`vllm-tinyllama-1.1b/`](serving/vllm-tinyllama-1.1b/)
+  serves the same `TinyLlama-1.1B-Chat-v1.0` checkpoint `tinyllama-1.1b-base-serving/`
+  serves the *base* version of — same underlying model family, deliberately two
+  different variants (base vs. chat) and two different serving stacks, running on
+  different ports so both can be queried side by side.
 
 ## Why these are separate tracks, not one project
 

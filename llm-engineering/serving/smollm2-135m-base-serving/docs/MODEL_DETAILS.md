@@ -30,16 +30,55 @@ is built around: this is a true base model, never exposed to structured conversa
 data, which is exactly why [`api_server.py`](../api_server.py) only offers plain-text
 completion, not chat.
 
-## Pretraining — from the official model card
+## Pretraining — from the official [model card](https://huggingface.co/HuggingFaceTB/SmolLM2-135M#training)
 
 - **2 trillion tokens**, using a mix of [`FineWeb-Edu`](https://huggingface.co/datasets/HuggingFaceFW/fineweb-edu)
   (filtered, education-quality web text), [`DCLM`](https://huggingface.co/datasets/mlfoundations/dclm-baseline-1.0)
   (DataComp-LM's curated web corpus), and [`The Stack`](https://huggingface.co/datasets/bigcode/the-stack)
   (code), plus additional curated datasets the SmolLM team developed themselves.
-- **Hardware**: 64× H100 GPUs.
+- **Hardware**: 64× H100 GPUs — per the
+  [model card's Training section](https://huggingface.co/HuggingFaceTB/SmolLM2-135M#training).
 - **Training framework**: [`nanotron`](https://github.com/huggingface/nanotron)
   (Hugging Face's own distributed-training library).
 - **Precision**: bfloat16.
+
+Cross-checked against the team's own technical report,
+[*SmolLM2: When Smol Goes Big — Data-Centric Training of a Small Language Model*](https://arxiv.org/abs/2502.02737)
+— confirms the 2T-token figure for the 135M model, but the paper's own compute detail is
+sparse below the flagship 1.7B model (it states only that model's total cost, "around
+$250,000 USD of GPU compute," with no per-size hardware-time breakdown).
+
+### Training duration — not stated by any official source, so estimated here instead
+
+**Checked three sources — the model card, the SmolLM2 blog post, and the arXiv paper
+above — none state a wall-clock training time for the 135M model.** Rather than guess a
+number, here's a transparent, labeled estimate instead, using the standard training-FLOPs
+approximation:
+
+```
+Training FLOPs  ≈  6 × N × D
+  N (params)     = 135e6
+  D (tokens)     = 2e12
+  → FLOPs        ≈ 6 × 135e6 × 2e12  =  1.62e21 FLOPs
+
+H100 SXM peak (BF16, dense Tensor Core) ≈ 989 TFLOPs/s per GPU
+  64 GPUs → 64 × 989e12 ≈ 6.33e16 FLOPs/s peak (aggregate)
+
+Real training runs achieve a fraction of peak (Model FLOPs Utilization, MFU) —
+typically 20-50% for a well-optimized run, with SMALL models on a LARGE GPU count
+often landing toward the lower end: communication overhead is relatively larger,
+and each GPU's per-step batch is tiny at only 135M parameters to split across 64
+devices.
+
+  At 50% MFU: 1.62e21 / (6.33e16 × 0.50) ≈ 51,200s  ≈ 14 hours
+  At 20% MFU: 1.62e21 / (6.33e16 × 0.20) ≈ 128,000s ≈ 36 hours
+```
+
+**Estimate: roughly 14–36 hours (well under two days)**, depending on how efficiently the
+run used the 64-GPU cluster — this is a derived estimate from public hardware specs and
+the standard `6ND` FLOPs approximation, not a number from HuggingFace. Treat it as an
+order-of-magnitude sanity check, not a verified fact, and prefer an official source over
+it if one surfaces later.
 
 ## The instruction-tuned sibling's recipe (for context — NOT what this checkpoint is)
 

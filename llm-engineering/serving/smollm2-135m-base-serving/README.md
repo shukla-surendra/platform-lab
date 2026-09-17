@@ -14,7 +14,7 @@ Same reasoning as [`../tinyllama-1.1b-base-serving/`](../tinyllama-1.1b-base-ser
 `smollm2-135m-dolly-lora`'s server always loads the base model *with* the LoRA adapter
 attached. This project is the same base model, no adapter, its own port (`8003`) — so
 this and the fine-tuned server can run **simultaneously** and be queried side by side. It
-also lives in its own top-level track (`base_models/`) rather than under `fine_tuning/`,
+also lives in its own top-level track (`serving/`) rather than under `fine_tuning/`,
 since serving an untouched author checkpoint isn't a fine-tuning exercise.
 
 ## Important: plain-text completion only, no chat template
@@ -35,7 +35,7 @@ This means:
 ## Quickstart
 
 ```bash
-cd base_models/smollm2-135m-base-serving
+cd serving/smollm2-135m-base-serving
 uv run api_server.py
 ```
 

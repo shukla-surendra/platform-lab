@@ -175,7 +175,7 @@ def distillation_loss(student_logits, teacher_logits, targets, vocab_size, alpha
 ```
 
 This would only be usable with a **teacher this repo has direct logit access to** — e.g.
-running one of the `local_inference/` or `base_models/` checkpoints locally as the teacher and
+running one of the `local_inference/` or `serving/` checkpoints locally as the teacher and
 capturing its logits during data generation. It is not usable against a commercial API
 teacher (see [Chapter 33](33_distilling_production_models_into_a_local_model.md)), which
 is exactly why that chapter's practical recipe uses category 2, not this function. A real,

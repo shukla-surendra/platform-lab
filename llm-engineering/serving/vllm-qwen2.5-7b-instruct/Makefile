@@ -25,7 +25,7 @@ install-cpu: ## Install the Transformers CPU fallback.
 	uv sync --extra cpu
 check: ## Print detected backend and model.
 	uv run --no-sync python serve.py --check
-serve: ## Start using automatic detection (port 8005 by default).
+serve: ## Start using automatic detection (port 8006 by default).
 	uv run --no-sync python serve.py
 serve-cuda: ## Force CUDA vLLM.
 	uv run --no-sync python serve.py --backend cuda

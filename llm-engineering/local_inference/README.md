@@ -6,7 +6,7 @@ against models already pulled/running on this machine (mainly via
 [Ollama](https://ollama.com)), not something trained or fine-tuned in this repo. `uv`-
 managed (`pyproject.toml`/`uv.lock`, Python 3.12+); `ollama-chatbox/` is its own separate
 npm project. (Moved here from a former top-level `local_llms/` — same content,
-renamed to fit alongside `from_scratch/`, `fine_tuning/`, `base_models/`,
+renamed to fit alongside `from_scratch/`, `fine_tuning/`, `serving/`,
 `quantization/`.)
 
 ## `ollama-chatbox/`

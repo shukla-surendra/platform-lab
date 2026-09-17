@@ -21,7 +21,7 @@ teaches it to follow instructions essentially from scratch — see
 
 Want to run the original, unmodified base checkpoint on its own (no adapter) instead of
 always seeing it paired with LoRA? See
-[`base_models/smollm2-135m-base-serving`](../../base_models/smollm2-135m-base-serving/) —
+[`serving/smollm2-135m-base-serving`](../../serving/smollm2-135m-base-serving/) —
 same model, its own endpoint, original-author repo details included.
 
 ## Quickstart

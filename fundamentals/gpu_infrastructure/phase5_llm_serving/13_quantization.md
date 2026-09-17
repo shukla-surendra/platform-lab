@@ -4,7 +4,7 @@ Part of [Phase 5 — LLM Serving & Inference](../README.md#phase-5-llm-serving-i
 Builds on [`03_gpu_architecture.md`'s HBM bandwidth section](../phase2_gpu_fundamentals/03_gpu_architecture.md#hbm-why-gpu-memory-bandwidth-not-just-capacity-is-the-real-budget)
 — read that first if the claim "quantization speeds up decode by moving fewer bytes, not
 by doing less math" doesn't already make sense. This chapter is the deep version of what
-[`tools-and-frameworks.md`'s quantization tooling section](../../system_design_foundation/01_ml_system_design/13_large_model_multi_gpu_inference/tools-and-frameworks.md#quantization-tooling)
+[`tools-and-frameworks.md`'s quantization tooling section](../../../system_design_foundation/01_ml_system_design/13_large_model_multi_gpu_inference/tools-and-frameworks.md#quantization-tooling)
 names in passing, plus the direct answer to "what is quantization?" asked alongside LM
 Studio in the session that started this track — see
 [`23_lmstudio_and_local_inference.md`](../local_and_prototyping/23_lmstudio_and_local_inference.md)
@@ -15,10 +15,11 @@ for quantization's role in single-machine local inference specifically.
 Quantization means representing a model's weights (and sometimes activations) using
 fewer bits per number than the format they were trained in — trading numerical precision
 for less memory used and, per the HBM-bandwidth mechanism above, faster inference. It is
-**not** a training technique by default (that's a separate, related idea — quantization-
-*aware* training) — the common case discussed here is **post-training quantization**:
-take an already-trained model and convert its weights to a lower-precision format before
-serving it.
+**not** a training technique by default (that's a separate, related idea — see
+["Quantization-Aware Training"](#quantization-aware-training-qat--the-one-training-time-technique)
+below) — the common case discussed here is **post-training quantization**: take an
+already-trained model and convert its weights to a lower-precision format before serving
+it.
 
 **The one-sentence framing that survives an interview follow-up**: quantization isn't
 free compression — it's a deliberate trade of numerical range/precision for memory
@@ -27,6 +28,76 @@ does this specific model lose at this specific precision, on this specific workl
 not "is quantization good."
 
 ## Core Concepts
+
+### The actual math: scale, zero-point, and the round trip
+
+Every "scale factor" named elsewhere in this chapter (and in
+[`17_lora_and_qlora.md`](../../../llm-engineering/docs/llm-engineering/17_lora_and_qlora.md#deep-dive-how-qloras-quantization-actually-works)'s
+NF4 discussion) is an instance of one fixed recipe — **uniform integer
+quantization**, the simplest and most common case:
+
+1. **Range determination** — find the real value range being quantized,
+   `x_min`/`x_max` (per-tensor, or per-channel/per-block — see below).
+2. **Scale**: `S = (x_max - x_min) / (q_max - q_min)` — how much real-number
+   range one integer step covers. `q_min`/`q_max` are the target format's
+   limits (`-128`/`127` for signed INT8).
+3. **Zero-point**: `Z = q_min - x_min / S` — which stored integer represents
+   real `0.0`. Needed because the real range usually isn't symmetric around
+   zero, while weights/activations are full of *exact* zeros (ReLU outputs,
+   padding) that need an exact integer representation.
+4. **Quantize**: `x_q = round(x / S + Z)` — real number → stored integer.
+5. **Dequantize**: `x = S × (x_q - Z)` — the exact inverse, used to recover
+   an approximate real value whenever actual arithmetic needs to run —
+   the same dequantize-before-matmul step
+   [`17_lora_and_qlora.md`](../../../llm-engineering/docs/llm-engineering/17_lora_and_qlora.md#deep-dive-how-qloras-quantization-actually-works)
+   describes for NF4, generalized. GPTQ/AWQ/NF4 are all more sophisticated
+   answers to "what should `S` and `Z` be" (per-block, per-channel,
+   calibration-informed) — not a different formula.
+
+### Uniform vs. non-uniform quantization
+
+The formula above is **uniform**: every integer step covers an equal slice
+of the real range, evenly spaced — simple, hardware-friendly, but wastes
+precision on sparse regions of the value distribution and under-represents
+dense ones. **Non-uniform quantization** breaks that constraint —
+levels aren't evenly spaced, chosen instead to match the actual
+distribution. NF4 is the concrete non-uniform example already covered in
+this repo: its 16 levels sit at the quantiles of a normal distribution
+rather than being evenly spaced, since pretrained weights are
+approximately normally distributed. More accurate at a given bit-width, at
+the cost of needing non-linear (costlier) hardware/kernel support to
+actually use the resulting values.
+
+### Static vs. dynamic quantization
+
+A separate axis: *when* is `S`/`Z` actually computed?
+
+- **Static** — computed once, ahead of time, from a calibration dataset (or
+  just the weights themselves, for weight-only schemes) — what GPTQ,
+  AWQ, and GGUF's k-quants all do.
+- **Dynamic** — computed on the fly, per batch, at inference time, from
+  whatever values are actually flowing through right then — no
+  calibration step at all. Common specifically for **activations**, whose
+  real range shifts with the input (unlike weights, fixed after training).
+  A model routinely uses static quantization for weights and dynamic
+  quantization for activations simultaneously.
+
+### Quantization-Aware Training (QAT) — the one training-time technique
+
+Everything else in this chapter is **post-training quantization (PTQ)** —
+quantizing an already fully-trained model, no further training step
+involved. QAT is the opposite: quantization happens *during* training,
+not after. Concretely: the model trains close to normally, but on each
+forward pass, weights (and/or activations) get quantized and immediately
+dequantized right before use ("fake quantization") — so the loss and
+gradients feel the *actual rounding error* quantization will introduce,
+and the model's still-full-precision weights get nudged during training to
+compensate for it. (The backward pass needs a straight-through estimator
+to get a gradient through the non-differentiable `round()`.) The result is
+a model measurably more robust to the specific quantization it was trained
+under — at the cost of needing a real training run, not a single
+lightweight conversion step, which is the core reason PTQ is reached for
+far more often in practice than QAT.
 
 ### The precision ladder
 
@@ -40,7 +111,7 @@ not "is quantization good."
 
 **Direct connection to the memory math already established**: the 500B-parameter,
 ~1TB-at-FP16 example from
-[`tutorial.md`'s worked example](../../system_design_foundation/01_ml_system_design/13_large_model_multi_gpu_inference/tutorial.md#deep-dive-sizing-the-cluster-a-worked-example)
+[`tutorial.md`'s worked example](../../../system_design_foundation/01_ml_system_design/13_large_model_multi_gpu_inference/tutorial.md#deep-dive-sizing-the-cluster-a-worked-example)
 becomes ~500GB at FP8/INT8, or ~250GB at INT4 — directly changing the GPU-count math
 that worked example walks through (2 nodes of `p5.48xlarge` at FP16 could become 1 node
 at FP8, a real infrastructure-cost decision, not just an accuracy one).
@@ -58,7 +129,7 @@ this:
   correcting for the error introduced by already-quantized earlier weights as it goes.
   Produces INT4/INT8 weights, widely supported as an input format across vLLM, TGI, and
   TensorRT-LLM per
-  [`tools-and-frameworks.md`](../../system_design_foundation/01_ml_system_design/13_large_model_multi_gpu_inference/tools-and-frameworks.md#quantization-tooling).
+  [`tools-and-frameworks.md`](../../../system_design_foundation/01_ml_system_design/13_large_model_multi_gpu_inference/tools-and-frameworks.md#quantization-tooling).
 - **AWQ (Activation-aware Weight Quantization)** — starts from a different observation:
   not all weight *channels* matter equally, and the ones that matter most can be
   identified by looking at the *activations* that flow through them during calibration
@@ -71,7 +142,7 @@ this:
   factors) precisely because the format itself, run on H100/H200 Tensor Cores, is
   natively accelerated — the "free-est" of the quantization options on current-generation
   NVIDIA hardware, which is why
-  [`tools-and-frameworks.md`](../../system_design_foundation/01_ml_system_design/13_large_model_multi_gpu_inference/tools-and-frameworks.md#quantization-tooling)
+  [`tools-and-frameworks.md`](../../../system_design_foundation/01_ml_system_design/13_large_model_multi_gpu_inference/tools-and-frameworks.md#quantization-tooling)
   calls it "frequently the best throughput-per-accuracy-loss trade-off."
 - **bitsandbytes** — a lighter-weight library, common in research/fine-tuning contexts
   (notably QLoRA fine-tuning, where the *base* model is quantized while LoRA adapters
@@ -138,7 +209,7 @@ decision is actually optimizing for.
   but per-tensor format choice (E4M3 vs. E5M2) and calibration still matter for accuracy;
   "natively supported" and "zero accuracy cost" are different claims.
 - **Re-litigating the quantization decision only at launch** — as
-  [`aws-production-architecture.md`'s cost management section](../../system_design_foundation/01_ml_system_design/13_large_model_multi_gpu_inference/aws-production-architecture.md#cost-management)
+  [`aws-production-architecture.md`'s cost management section](../../../system_design_foundation/01_ml_system_design/13_large_model_multi_gpu_inference/aws-production-architecture.md#cost-management)
   already names, the right precision trade-off point shifts as hardware and tooling
   mature; treating it as revisited rather than one-time is itself the correct answer to a
   "how do you keep this efficient over time" follow-up.
@@ -164,6 +235,13 @@ decision is actually optimizing for.
 3. A model quantized to FP8 for prefill-heavy (compute-bound) traffic and a model
    quantized to FP8 for decode-heavy (memory-bound) traffic — does FP8 help both cases
    equally? Why or why not?
+4. Derive the zero-point `Z` for a weight tensor with `x_min = -2.0`, `x_max = 6.0`,
+   quantized to signed INT8 (`q_min = -128`, `q_max = 127`). Why does an asymmetric real
+   range like this one need a nonzero `Z` at all, when a symmetric range (`x_min = -x_max`)
+   wouldn't?
+5. QAT produces a model more robust to quantization than PTQ does, for the same target
+   precision — so why is PTQ still the far more common choice in production? Name the
+   specific cost QAT pays that PTQ doesn't.
 
 ## Articulate It: Interview Framing & Vocabulary
 
@@ -184,4 +262,12 @@ constraint is memory capacity or memory bandwidth.
 model, vs. quantization-aware training), *calibration dataset* (the small sample used to
 tune quantization parameters to minimize real output error), *per-channel / per-tensor
 scaling* (applying different scale factors to different slices of a tensor rather than
-one global scale, a common accuracy-preserving refinement).
+one global scale, a common accuracy-preserving refinement), *scale (`S`) / zero-point
+(`Z`)* (the two numbers every uniform quantization scheme solves for — how much real
+range one integer step covers, and which integer represents real zero), *uniform vs.
+non-uniform quantization* (evenly-spaced levels vs. levels placed to match the actual
+value distribution, e.g. NF4), *static vs. dynamic quantization* (whether `S`/`Z` are
+fixed ahead of time or recomputed per batch at inference time), *quantization-aware
+training (QAT)* (simulating quantization's rounding error during training itself, via
+"fake quantization" and a straight-through gradient estimator, so the model's weights
+adapt to compensate for it).

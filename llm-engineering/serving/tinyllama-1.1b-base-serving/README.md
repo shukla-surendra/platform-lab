@@ -14,13 +14,13 @@ attached — there was previously no way to query the original checkpoint on its
 through a running endpoint. This project is exactly that: the same base model, no
 adapter, its own port (`8002`, vs. `tinyllama-1.1b-lora`'s `8001`) — so both can run
 **simultaneously** and be queried side by side in real time. It also lives in its own
-top-level track (`base_models/`) rather than under `fine_tuning/`, since serving an
+top-level track (`serving/`) rather than under `fine_tuning/`, since serving an
 untouched author checkpoint isn't a fine-tuning exercise.
 
 ## Quickstart
 
 ```bash
-cd base_models/tinyllama-1.1b-base-serving
+cd serving/tinyllama-1.1b-base-serving
 uv run api_server.py
 ```
 

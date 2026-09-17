@@ -149,7 +149,7 @@ already-written chapters. Belongs right after Part 3 (Fine-Tuning) in reading or
 "Reading order" below. Covers training a smaller **student** model to imitate a larger
 **teacher** model's outputs, including the practical, licensing-aware recipe for using a
 popular hosted model (Claude, GPT, etc.) — or, with zero terms-of-service exposure, one of
-this repo's own `base_models/` checkpoints — as that teacher.
+this repo's own `serving/` checkpoints — as that teacher.
 
 | # | Chapter | Status |
 |---|---|---|

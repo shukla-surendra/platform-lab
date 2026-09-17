@@ -8,7 +8,7 @@ and the Q&A in
 Those docs explain *what* post-training quantization (PTQ) is and *why* GPTQ/AWQ/FP8/GGUF
 exist; this project is where you actually run one — GGUF, via `llama.cpp` — end to end,
 on the same `HuggingFaceTB/SmolLM2-135M` checkpoint
-[`base_models/smollm2-135m-base-serving`](../../base_models/smollm2-135m-base-serving)
+[`serving/smollm2-135m-base-serving`](../../serving/smollm2-135m-base-serving)
 already serves unquantized.
 
 ## Why GGUF, and why this model

@@ -107,7 +107,7 @@ rather than implying more happened than actually did:
   (`HuggingFaceH4/ultrachat_200k`, TinyStories) already provide directly.
 
 **The honest, correct framing — now confirmed, not just inferred**:
-[`base_models/tinyllama-1.1b-base-serving/docs/MODEL_DETAILS.md`](../../base_models/tinyllama-1.1b-base-serving/docs/MODEL_DETAILS.md)
+[`serving/tinyllama-1.1b-base-serving/docs/MODEL_DETAILS.md`](../../serving/tinyllama-1.1b-base-serving/docs/MODEL_DETAILS.md)
 pulled the real model card directly and confirmed it explicitly: `TinyLlama-1.1B-Chat`,
 the base model `fine_tuning/tinyllama-1.1b-lora/` fine-tunes further, was put through
 **both** SFT (on a UltraChat variant) **and** DPO (via TRL's `DPOTrainer` on
@@ -116,7 +116,7 @@ Hugging Face's own Zephyr recipe — before this repo ever touches it. This repo
 fine-tuning is an *additional* SFT pass on top of a model that already completed the full
 SFT→DPO pipeline this chapter describes, not a from-scratch demonstration of that
 pipeline. The same pattern holds for
-[`base_models/smollm2-135m-base-serving/docs/MODEL_DETAILS.md`](../../base_models/smollm2-135m-base-serving/docs/MODEL_DETAILS.md)'s
+[`serving/smollm2-135m-base-serving/docs/MODEL_DETAILS.md`](../../serving/smollm2-135m-base-serving/docs/MODEL_DETAILS.md)'s
 findings on SmolLM2's `-Instruct` sibling (SFT + DPO on UltraFeedback again) — though
 notably, [`fine_tuning/smollm2-135m-dolly-lora/`](../../fine_tuning/smollm2-135m-dolly-lora/)
 deliberately fine-tunes the **base**, non-instruct SmolLM2 checkpoint instead, precisely

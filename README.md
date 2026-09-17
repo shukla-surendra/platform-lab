@@ -46,7 +46,7 @@ reading in each one.
 | Folder | What's in it |
 |---|---|
 | [`pytorch_exploration/`](./pytorch_exploration) | From-first-principles PyTorch: tensors → autograd → `nn.Module` → losses/optimizers → a full training loop. |
-| [`llm-engineering/`](./llm-engineering) | Small-LM experiments, five tracks: `from_scratch/` (train a GPT-style model from zero), `fine_tuning/` (LoRA on a pretrained model), `base_models/` (serving an unmodified checkpoint as a baseline), `quantization/` (post-training quantization to GGUF, no fine-tuning), `local_inference/` (Ollama chat UI + local API exploration, plus ViT/deepfake-detector vision experiments — not trained/fine-tuned in this repo). Own MkDocs site (`docs/llm-engineering/`). |
+| [`llm-engineering/`](./llm-engineering) | Small-LM experiments, five tracks: `from_scratch/` (train a GPT-style model from zero), `fine_tuning/` (LoRA on a pretrained model), `serving/` (serving an unmodified checkpoint as a baseline), `quantization/` (post-training quantization to GGUF, no fine-tuning), `local_inference/` (Ollama chat UI + local API exploration, plus ViT/deepfake-detector vision experiments — not trained/fine-tuned in this repo). Own MkDocs site (`docs/llm-engineering/`). |
 
 ## Databases
 
