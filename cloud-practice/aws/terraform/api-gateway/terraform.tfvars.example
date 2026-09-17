@@ -1,0 +1,11 @@
+# Copy to terraform.tfvars and edit. terraform.tfvars is gitignored.
+# Apply lambda/ first and paste its outputs in here.
+
+region  = "us-east-1"
+project = "aws-mastery-apigw"
+
+lambda_function_name = "" # from lambda/'s function_name output
+lambda_invoke_arn     = "" # from lambda/'s invoke_arn output
+
+throttling_burst_limit = 20
+throttling_rate_limit  = 10

@@ -1,0 +1,11 @@
+# Copy to terraform.tfvars and edit. terraform.tfvars is gitignored.
+
+region             = "us-east-1"
+availability_zone  = "us-east-1a"
+project            = "aws-mastery-ec2"
+instance_type      = "t3.micro"
+
+allowed_ssh_cidr    = "0.0.0.0/0" # narrow this to your IP/32 in anything real
+install_web_server  = true
+associate_eip       = false
+root_volume_size_gib = 8

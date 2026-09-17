@@ -1,0 +1,15 @@
+# Copy to terraform.tfvars and edit. terraform.tfvars is gitignored.
+
+region  = "us-east-1"
+project = "aws-mastery-codebuild"
+
+# NO_SOURCE runs entirely off the inline `buildspec` variable — no repo
+# needed, the fastest way to see a build succeed. Switch to CODECOMMIT once
+# you have a real repo (from the codecommit/ module).
+source_type = "NO_SOURCE"
+# codecommit_clone_url = "" # set if source_type = CODECOMMIT
+# github_repo_url      = "" # set if source_type = GITHUB
+
+compute_type    = "BUILD_GENERAL1_SMALL"
+build_image     = "aws/codebuild/amazonlinux2-x86_64-standard:5.0"
+privileged_mode = false

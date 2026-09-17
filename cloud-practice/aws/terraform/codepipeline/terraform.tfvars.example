@@ -1,0 +1,18 @@
+# Copy to terraform.tfvars and edit. terraform.tfvars is gitignored.
+# This module WIRES TOGETHER resources from three other modules — apply
+# those first and paste their outputs in here.
+
+region  = "us-east-1"
+project = "aws-mastery-codepipeline"
+
+source_type                 = "CODECOMMIT"
+codecommit_repository_name  = "" # from codecommit/'s repository_name output
+branch_name                 = "main"
+
+# Only needed if source_type = "GITHUB":
+codestar_connection_arn    = ""
+github_full_repository_id = "" # "your-org/your-repo"
+
+codebuild_project_name           = "" # from codebuild/'s project_name output
+codedeploy_application_name      = "" # from codedeploy/'s application_name output
+codedeploy_deployment_group_name = "" # from codedeploy/'s deployment_group_name output

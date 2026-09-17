@@ -1,0 +1,13 @@
+# Copy to terraform.tfvars and edit. terraform.tfvars is gitignored.
+
+region  = "us-east-1"
+project = "aws-mastery-sns-sqs"
+
+visibility_timeout_seconds = 30
+message_retention_seconds  = 345600 # 4 days
+max_receive_count          = 3
+
+# Paste lambda/'s outputs here to wire SQS -> Lambda automatically. Leave
+# empty to just poll the queue by hand.
+lambda_function_arn  = ""
+lambda_function_name = ""

@@ -1,0 +1,17 @@
+# Copy to terraform.tfvars and edit. terraform.tfvars is gitignored.
+
+region  = "us-east-1"
+project = "aws-mastery-ecs"
+
+# Public demo image by default — swap for ecr/'s repository_url:tag for your own.
+container_image = "public.ecr.aws/docker/library/httpd:2.4"
+container_port  = 80
+
+cpu           = 256
+memory        = 512
+desired_count = 2
+
+# Paste alb/'s target_group_arn here to be load-balanced instead of getting
+# individual public IPs per task.
+target_group_arn = ""
+assign_public_ip = true

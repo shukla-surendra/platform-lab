@@ -1,0 +1,14 @@
+# Copy to terraform.tfvars and edit. terraform.tfvars is gitignored.
+
+region  = "us-east-1"
+project = "aws-mastery-rds"
+
+engine_version         = "16.4"
+instance_class         = "db.t3.micro"
+allocated_storage_gib  = 20
+db_name                = "appdb"
+master_username        = "dbadmin"
+
+multi_az               = false
+backup_retention_days  = 7
+skip_final_snapshot    = true # set false once this holds anything you'd miss

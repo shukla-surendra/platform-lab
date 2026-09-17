@@ -1,0 +1,16 @@
+# Copy to terraform.tfvars and edit. terraform.tfvars is gitignored.
+
+region        = "us-east-1"
+project       = "aws-mastery-asg"
+instance_type = "t3.micro"
+
+min_size         = 1
+max_size         = 3
+desired_capacity = 2
+
+# Paste alb/'s target_group_arn output here to be load-balanced instead of
+# running standalone.
+target_group_arn = ""
+
+enable_target_tracking = true
+target_cpu_percent     = 50

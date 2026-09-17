@@ -1,0 +1,17 @@
+# Copy to terraform.tfvars and edit. terraform.tfvars is gitignored.
+# Every "watch_X" input is optional — wire in whichever other modules you
+# already applied; leave the rest blank.
+
+region  = "us-east-1"
+project = "aws-mastery-cloudwatch"
+
+alarm_email = "" # e.g. "you@example.com" — you must confirm the subscription email AWS sends
+
+asg_name                 = "" # from autoscaling/'s asg_name output
+asg_cpu_alarm_threshold  = 80
+
+lambda_function_name         = "" # from lambda/'s function_name output
+lambda_error_alarm_threshold = 1
+
+alb_arn_suffix           = "" # see README for how to derive this from alb/'s output
+alb_5xx_alarm_threshold  = 5

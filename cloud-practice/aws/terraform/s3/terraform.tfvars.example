@@ -1,0 +1,13 @@
+# Copy to terraform.tfvars and edit. terraform.tfvars is gitignored.
+
+region  = "us-east-1"
+project = "aws-mastery-s3"
+
+versioning_enabled     = true
+enable_lifecycle_rules = true
+noncurrent_version_transition_days = 30
+noncurrent_version_expiration_days = 90
+
+enable_static_website = false
+index_document         = "index.html"
+error_document         = "error.html"

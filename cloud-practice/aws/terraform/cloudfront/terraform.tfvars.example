@@ -1,0 +1,13 @@
+# Copy to terraform.tfvars and edit. terraform.tfvars is gitignored.
+# Apply s3/ first and paste its outputs in here.
+
+region  = "us-east-1"
+project = "aws-mastery-cloudfront"
+
+origin_bucket_name                 = "" # from s3/'s bucket_name output
+origin_bucket_arn                  = "" # from s3/'s bucket_arn output
+origin_bucket_regional_domain_name = "" # from s3/'s bucket_regional_domain_name output
+
+default_root_object = "index.html"
+price_class          = "PriceClass_100"
+default_ttl_seconds   = 3600

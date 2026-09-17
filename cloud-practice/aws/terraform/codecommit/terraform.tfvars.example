@@ -1,0 +1,9 @@
+# Copy to terraform.tfvars and edit. terraform.tfvars is gitignored.
+
+region         = "us-east-1"
+project        = "aws-mastery-codecommit"
+default_branch = "main"
+
+# Requires the git credential helper set up first — see README. Leave false
+# to just create the empty repo and push to it by hand.
+seed_readme = false

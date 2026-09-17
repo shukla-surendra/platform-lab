@@ -1,0 +1,15 @@
+# Copy to terraform.tfvars and edit. terraform.tfvars is gitignored.
+
+region  = "us-east-1"
+project = "aws-mastery-codedeploy"
+
+# Paste autoscaling/'s asg_name output here.
+asg_names = []
+
+# Paste alb/'s target group NAME (not ARN) here if you attached the ASG to
+# a load balancer — leave empty for a deployment group with no traffic
+# shifting.
+target_group_name = ""
+
+deployment_config_name   = "CodeDeployDefault.OneAtATime"
+auto_rollback_on_failure = true

@@ -1,0 +1,14 @@
+# Copy to terraform.tfvars and edit. terraform.tfvars is gitignored.
+
+region  = "us-east-1"
+project = "aws-mastery-batch"
+
+# Public demo image by default — swap for ecr/'s repository_url:tag for your own.
+container_image = "public.ecr.aws/docker/library/busybox:latest"
+command          = ["sh", "-c", "echo Job started at $(date -u); sleep 10; echo Job finished at $(date -u)"]
+
+vcpus      = "0.25"
+memory_mib = "512"
+max_vcpus  = 4
+
+use_fargate_spot = false
