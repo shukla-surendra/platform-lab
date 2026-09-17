@@ -40,7 +40,7 @@ API at all.
 
 ## Where this fits against what's already in this repo
 
-- **`genai_lab/langgraph_ollama_agent`, `bedrock_agentcore_demo`, and
+- **`applied_genai/agents/langgraph_ollama_agent`, `bedrock_agentcore_demo`, and
   `databricks_autopilot_agent`** all use **Ollama** for their local model.
   Ollama is a friendly wrapper around **llama.cpp**, built for one
   developer running one quantized (GGUF) model locally — it was never

@@ -27,9 +27,9 @@ from __future__ import annotations
 import sys
 from typing import Any, TextIO
 
-import genai_lab.rag.mcp_from_scratch.jsonrpc as jsonrpc
-import genai_lab.rag.mcp_from_scratch.task_store as task_store
-from genai_lab.rag.mcp_from_scratch.stdio_transport import read_message, trace, write_message
+import applied_genai.rag.mcp_from_scratch.jsonrpc as jsonrpc
+import applied_genai.rag.mcp_from_scratch.task_store as task_store
+from applied_genai.rag.mcp_from_scratch.stdio_transport import read_message, trace, write_message
 
 PROTOCOL_VERSION = "2025-06-18"
 SERVER_INFO = {"name": "mcp-from-scratch-tasks", "version": "0.1.0"}

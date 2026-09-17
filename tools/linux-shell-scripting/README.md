@@ -828,7 +828,7 @@ before it goes into cron or CI.
 This repo already leans on the exact patterns above in real files, which
 are worth reading directly once the syntax above makes sense:
 
-- [`genai_lab/aiops_mlops_agent/docker/entrypoint.sh`](../../../../genai_lab/aiops_mlops_agent/docker/entrypoint.sh) —
+- [`applied_genai/agents/aiops_mlops_agent/docker/entrypoint.sh`](../../applied_genai/agents/aiops_mlops_agent/docker/entrypoint.sh) —
   a minimal Docker entrypoint: `set -e`, a default-value pattern
   (`${OPS_SERVER_PORT:-8001}` — use the env var if set, else fall back to
   `8001`), and `exec "$@"` at the end, which replaces the shell process

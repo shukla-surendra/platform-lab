@@ -8,7 +8,7 @@
 #   make init  FOLDER=k8s_mlops        # scaffold docs/ symlinks + a default mkdocs.yml
 #
 # Folders that already have their own hand-curated mkdocs.yml (engineering_fundamentals,
-# k8s_explorer, genai_lab) are used as-is. For any other folder, run `make init` once —
+# k8s_explorer, applied_genai) are used as-is. For any other folder, run `make init` once —
 # it symlinks that folder's markdown-bearing subdirectories into <folder>/docs/ (the same
 # pattern engineering_fundamentals already uses) and writes a default mkdocs.yml with no
 # explicit nav, so MkDocs auto-generates navigation from the directory tree.
@@ -33,7 +33,7 @@
 
 MKDOCS_DEPS := mkdocs mkdocs-material pymdown-extensions
 UV_MKDOCS   := uv run --no-project $(foreach d,$(MKDOCS_DEPS),--with $(d)) mkdocs
-DOC_SITES   := eng-skills fundamentals genai_lab k8s/k8s_explorer llm-engineering
+DOC_SITES   := eng-skills fundamentals applied_genai k8s/k8s_explorer llm-engineering
 
 .PHONY: help docs serve build clean init run build-all serve-all _check-folder _require-mkdocs-yml _check-file
 

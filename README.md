@@ -21,7 +21,7 @@ reading in each one.
 - Folders with their own `pyproject.toml`/`uv.lock` (or `package.json`) are
   independent projects — `cd` in and use their own tooling, not the root one.
 - **`make serve-all`** builds every folder with its own MkDocs site
-  (`fundamentals/`, `genai_lab/`, `k8s/k8s_explorer/`, `eng-skills/`,
+  (`fundamentals/`, `applied_genai/`, `k8s/k8s_explorer/`, `eng-skills/`,
   `llm-engineering/`) and serves all of them from one local server —
   open `http://127.0.0.1:8000/docs-index.html` and click into whichever one
   you want. `make build-all` does the build step alone, no server.
@@ -39,7 +39,7 @@ reading in each one.
 | Folder | What's in it |
 |---|---|
 | [`mlops/`](./mlops) | `docs/` — tool write-ups (Evidently, MLflow, Feast, vLLM, observability stacks); `projects/` — runnable pipelines (`fraud-detection-xgboost/`, `batch-drift-detection-xgboost/`, `evidently-monitoring-demo/`, `feast-demo/`). |
-| [`genai_lab/`](./genai_lab) | Agentic AI / LLM tooling — `agentic/` (MCP from scratch and official SDKs, LangGraph+Ollama, Bedrock AgentCore, a k8s on-call agent), `rag/` (FAISS, Qdrant, pgvector, FastMCP auth patterns), `docs/`. Own MkDocs site. |
+| [`applied_genai/`](./applied_genai) | Agentic AI / LLM tooling (renamed from `genai_lab/`) — `agents/` (MCP from scratch and official SDKs, LangGraph+Ollama, Bedrock AgentCore, a k8s on-call agent, an A2A protocol demo), `agentic_exploration/` (notebooks — renamed from `custom_hands_on/`), `rag/` (FAISS, Qdrant, pgvector, FastMCP auth patterns), `docs/`. Own MkDocs site. |
 
 ## Machine learning & deep learning
 

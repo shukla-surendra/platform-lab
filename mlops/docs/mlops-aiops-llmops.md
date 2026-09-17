@@ -134,7 +134,7 @@ monitoring, guardrails.
 **Tools already documented in this repo**:
 
 - [vLLM](tools/vllm/README.md) — high-throughput LLM serving.
-- The vector DBs in `genai_lab/` — FAISS, Qdrant, pgvector — the RAG-pipeline half of
+- The vector DBs in `applied_genai/` — FAISS, Qdrant, pgvector — the RAG-pipeline half of
   LLMOps.
 - [`11_llmops`](../../engineering_fundamentals/system_design_foundation/11_llmops/tutorial.md)
   — this repo's existing tutorial on the practice mechanics (prompting, evals, guardrails,

@@ -2,9 +2,11 @@
 
     START -> agent -> (tools_condition) -> tools -> agent -> ... -> END
 
-Identical shape to `../langgraph_ollama_agent/graph.py` - same StateGraph, same
-tools_condition routing. Only `tools.py`'s contents differ (real Kubernetes API calls
-instead of local JSON/knowledge-base tools).
+`agent` is a local Ollama chat model with tools bound via `bind_tools`, so it decides
+on its own, per turn, whether to call a tool or answer directly. `tools` executes
+whatever tool calls the model requested and feeds the results back as messages. This
+is built explicitly with `StateGraph` rather than `create_react_agent` so the loop is
+visible instead of hidden behind a helper.
 """
 
 from __future__ import annotations
@@ -14,16 +16,8 @@ from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.graph import END, START, MessagesState, StateGraph
 from langgraph.prebuilt import ToolNode, tools_condition
 
-import genai_lab.agentic.k8s_oncall_agent.config as config
-from genai_lab.agentic.k8s_oncall_agent.tools import ALL_TOOLS
-
-SYSTEM_PROMPT = (
-    "You are a Kubernetes on-call assistant. You investigate real cluster state using the "
-    "tools available - you do not guess at status, restart counts, or log contents; always "
-    "call a tool to check. Work like a careful SRE: check what's unhealthy first, then look at "
-    "events and logs to find root cause before proposing or taking any remediation action. "
-    "Only call restart_deployment once you can state a specific reason it will help."
-)
+import applied_genai.agents.langgraph_ollama_agent.config as config
+from applied_genai.agents.langgraph_ollama_agent.tools import ALL_TOOLS
 
 
 def build_llm() -> ChatOllama:
@@ -35,10 +29,7 @@ def build_llm() -> ChatOllama:
 
 
 def agent_node(state: MessagesState, llm: ChatOllama) -> MessagesState:
-    messages = state["messages"]
-    if not messages or messages[0].type != "system":
-        messages = [("system", SYSTEM_PROMPT), *messages]
-    response = llm.invoke(messages)
+    response = llm.invoke(state["messages"])
     return {"messages": [response]}
 
 

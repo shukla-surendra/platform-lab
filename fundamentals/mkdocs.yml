@@ -8,7 +8,7 @@ validation:
     # A few pages intentionally link out to mlops_aiops/docs and k8n_explorer content
     # alongside docs_dir (e.g. tool write-ups, a KServe example) — those resolve fine on
     # GitHub but aren't part of this site's own docs_dir, so don't fail --strict builds
-    # over them (same pattern genai_lab/mkdocs.yml already uses).
+    # over them (same pattern applied_genai/mkdocs.yml already uses).
     not_found: info
 
 theme:

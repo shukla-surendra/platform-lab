@@ -54,6 +54,17 @@ way — the loop itself is disposable and safe to restart.
 |---|---|---|
 | **[Model Context Protocol (MCP)](https://modelcontextprotocol.io/)** | An open standard (Anthropic-originated, now broadly adopted) for exposing tools/resources to any compatible client over a common protocol | You want tools reachable by more than one agent/client, not hardcoded into a single script — see [Chapter 11](11-mcp-agentic-capabilities.md) and `../tasks_mcp_server.py` |
 
+## Agent-to-agent standard
+
+The complement to the row above: MCP standardizes agent↔**tool**; this standardizes
+agent↔**agent** — a genuinely different problem (discovering and delegating to another
+independent agent, possibly on a different machine/team/language, not just calling a
+function-shaped tool).
+
+| Tool | What it is | Reach for it when |
+|---|---|---|
+| **[A2A (Agent2Agent) protocol](https://a2a-protocol.org/)** | An open standard (Google-originated, now Linux Foundation) for one agent to discover another's capabilities (its published **Agent Card**) and delegate work to it over JSON-RPC/gRPC/REST, as an independent service rather than an in-process call | Two agents need to talk across a real process/team/language boundary — not just one agent calling its own tools — see `../../agents/a2a_protocol_demo/` for a real two-agent example (a coordinator delegating weather questions to a separate worker agent) |
+
 ## Local & self-hosted model serving
 
 | Tool | What it is | Reach for it when |
