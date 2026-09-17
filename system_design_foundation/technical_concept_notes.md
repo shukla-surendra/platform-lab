@@ -278,7 +278,7 @@ than by training a bigger model on the same fixed data. The empirical optimum la
 
 `tokens_optimal ≈ 20 × params`
 
-Concrete check, `mini-llms-playground/from_scratch/custom-gpt-50m`: 51,475,968 params →
+Concrete check, `llm-engineering/from_scratch/custom-gpt-50m`: 51,475,968 params →
 ~1.03B tokens optimal. That project's `TrainConfig.steps=1_000_000` × `context_length=1024` ×
 `batch_size=1` = 1.024B tokens processed over a full run — landing almost exactly on the
 Chinchilla number, which is why that step count is a deliberate, well-sized default rather
@@ -316,7 +316,7 @@ throughput one.) PyTorch's implementation is `torch.distributed` +
 only real option, and MPS tensors have to be moved to CPU for the collective `all_reduce` call
 and back, since gloo doesn't operate on MPS tensors directly.
 
-Grounding example — `mini-llms-playground/from_scratch/custom-gpt-50m`, asked in a real session
+Grounding example — `llm-engineering/from_scratch/custom-gpt-50m`, asked in a real session
 whether its ~2-day single-Mac training run could be split across two MacBooks:
 `TrainConfig.grad_accum_steps=32` already accumulates gradients over 32 micro-batches before
 `optimizer.step()` fires once (`src/gpt/training/trainer.py`'s `is_accum_boundary` check) —
@@ -352,7 +352,7 @@ Production reality / gotchas:
   budget across two machines instead of running it serially on one.
 
 **Update — this checklist is no longer hypothetical.** It was actually built and run on 2 real
-GPU boxes: `mini-llms-playground/from_scratch/custom-gpt-350m-ddp` (2026-08-31, 2×`g5.xlarge`).
+GPU boxes: `llm-engineering/from_scratch/custom-gpt-350m-ddp` (2026-08-31, 2×`g5.xlarge`).
 Two mechanism questions that checklist above glossed over, now answered from the real code:
 
 *How does one machine even find the other?* Not by any direct connection the training code
@@ -403,7 +403,7 @@ key) → softmax (scores become weights summing to 1) → weighted sum of `V`. T
 "Projection" is just the mechanism for getting from embedding to Q/K/V: a learned linear layer
 (matrix multiply), not a metaphor.
 
-Grounding example — `mini-llms-playground/from_scratch/custom-gpt-50m/src/gpt/model.py:51-89`,
+Grounding example — `llm-engineering/from_scratch/custom-gpt-50m/src/gpt/model.py:51-89`,
 the `sdpa` attention path:
 
 ```python

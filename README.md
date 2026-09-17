@@ -22,7 +22,7 @@ reading in each one.
   independent projects — `cd` in and use their own tooling, not the root one.
 - **`make serve-all`** builds every folder with its own MkDocs site
   (`fundamentals/`, `genai_lab/`, `k8s/k8s_explorer/`, `eng-skills/`,
-  `mini-llms-playground/`) and serves all of them from one local server —
+  `llm-engineering/`) and serves all of them from one local server —
   open `http://127.0.0.1:8000/docs-index.html` and click into whichever one
   you want. `make build-all` does the build step alone, no server.
 
@@ -46,8 +46,7 @@ reading in each one.
 | Folder | What's in it |
 |---|---|
 | [`pytorch_exploration/`](./pytorch_exploration) | From-first-principles PyTorch: tensors → autograd → `nn.Module` → losses/optimizers → a full training loop. |
-| [`mini-llms-playground/`](./mini-llms-playground) | Small-LM experiments, three tracks: `from_scratch/` (train a GPT-style model from zero), `fine_tuning/` (LoRA on a pretrained model), and serving an unmodified checkpoint as a baseline. |
-| [`local_llms/`](./local_llms) | Local LLM/vision experimentation — `ollama-chatbox/` (chat UI), `deepfake-detector/`, `vit/` (Vision Transformer, PyTorch/Flax/JAX), and notebooks (Gemma, OCR). |
+| [`llm-engineering/`](./llm-engineering) | Small-LM experiments, five tracks: `from_scratch/` (train a GPT-style model from zero), `fine_tuning/` (LoRA on a pretrained model), `base_models/` (serving an unmodified checkpoint as a baseline), `quantization/` (post-training quantization to GGUF, no fine-tuning), `local_inference/` (Ollama chat UI + local API exploration, plus ViT/deepfake-detector vision experiments — not trained/fine-tuned in this repo). Own MkDocs site (`docs/llm-engineering/`). |
 
 ## Databases
 

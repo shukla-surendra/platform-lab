@@ -24,7 +24,7 @@
 # `make build-all` / `make serve-all` build every folder that already has its own
 # hand-curated mkdocs.yml (DOC_SITES below) in one shot and serve them all from a single
 # local HTTP server, with docs-index.html as the landing page linking to each. Deliberately
-# NOT --strict like `make build` — fundamentals/ and mini-llms-playground/ currently have
+# NOT --strict like `make build` — fundamentals/ and llm-engineering/ currently have
 # pre-existing dead-anchor-link warnings in their content (not a structural bug, just
 # content that needs a cleanup pass) that would abort a strict build; --strict is still
 # what CI/`make build FOLDER=x` should use per-folder when you're the one fixing that site.
@@ -33,7 +33,7 @@
 
 MKDOCS_DEPS := mkdocs mkdocs-material pymdown-extensions
 UV_MKDOCS   := uv run --no-project $(foreach d,$(MKDOCS_DEPS),--with $(d)) mkdocs
-DOC_SITES   := eng-skills fundamentals genai_lab k8s/k8s_explorer mini-llms-playground
+DOC_SITES   := eng-skills fundamentals genai_lab k8s/k8s_explorer llm-engineering
 
 .PHONY: help docs serve build clean init run build-all serve-all _check-folder _require-mkdocs-yml _check-file
 

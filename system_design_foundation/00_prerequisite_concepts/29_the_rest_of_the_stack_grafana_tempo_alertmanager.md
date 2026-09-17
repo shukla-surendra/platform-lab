@@ -165,7 +165,7 @@ cAdvisor, kube-state-metrics):
 - **`dcgm-exporter`** — worth naming precisely since this session already installed and
   used the underlying daemon by hand: `dcgm-exporter` is a **separate, Prometheus-format
   wrapper** around the same `nv-hostengine` process
-  [installed and queried directly via `dcgmi` earlier this session](../../../../mini-llms-playground/infra/gcp-gpu-node/docs/dcgm_gpu_command_reference.md)
+  [installed and queried directly via `dcgmi` earlier this session](../../../../llm-engineering/infra/gcp-gpu-node/docs/dcgm_gpu_command_reference.md)
   — the CLI tool (`dcgmi`) is for interactive diagnostics; `dcgm-exporter` is the daemon
   that exposes the identical underlying GPU telemetry as a scrapeable `/metrics` endpoint,
   the same exposer role node-exporter and cAdvisor already play, specifically for GPU

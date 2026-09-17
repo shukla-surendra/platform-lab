@@ -94,7 +94,7 @@ document is architecturally a daemon: `node-exporter`, `cAdvisor`, the CloudWatc
 Monitor agents, and — a concrete example from this exact session, not a hypothetical —
 **`nvidia-dcgm`**, installed and run as a `systemd` service earlier in this project's own
 GCP work (see
-[`../../../../mini-llms-playground/infra/gcp-gpu-node/docs/dcgm_gpu_command_reference.md`](../../../../mini-llms-playground/infra/gcp-gpu-node/docs/dcgm_gpu_command_reference.md)):
+[`../../../../llm-engineering/infra/gcp-gpu-node/docs/dcgm_gpu_command_reference.md`](../../../../llm-engineering/infra/gcp-gpu-node/docs/dcgm_gpu_command_reference.md)):
 `nv-hostengine`, running in the background, continuously answering `dcgmi` queries,
 managed by `systemctl enable --now`, exactly the daemon pattern described here, already
 lived through hands-on rather than just read about.

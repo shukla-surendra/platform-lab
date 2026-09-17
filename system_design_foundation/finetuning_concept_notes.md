@@ -123,7 +123,7 @@ loss penalizes drifting off dataset1's behavior, so held-out dataset1 loss rises
 end of the dataset2 phase even though dataset1's data still physically exists on disk —
 training *order*, not data availability, is the cause. Worked through with a concrete
 tiny-GPT project in
-`mini-llms-playground/from_scratch/custom-gpt-10m/docs/LLM_DEV_GUIDE.md` section 18.
+`llm-engineering/from_scratch/custom-gpt-10m/docs/LLM_DEV_GUIDE.md` section 18.
 
 Detecting it early: keep a held-out validation split *per source dataset*, not one combined
 split — eval against each independently every N steps, so a rising dataset1 loss during the

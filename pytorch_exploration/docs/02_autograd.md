@@ -69,7 +69,7 @@ for i in range(3):
 Each `.backward()` call **adds** the newly computed gradient into `.grad`, rather than
 replacing it. This is a deliberate design choice (it's what makes gradient accumulation
 across multiple mini-batches possible, as a feature — see
-[Chapter 13 of the LLM curriculum](../../../mini-llms-playground/docs/llm-engineering/13_the_training_loop_mechanism_by_mechanism.md)
+[Chapter 13 of the LLM curriculum](../../../llm-engineering/docs/llm-engineering/13_the_training_loop_mechanism_by_mechanism.md)
 for a real, worked instance of exploiting exactly this). It's also the single most common
 real training bug: forgetting to call `optimizer.zero_grad()` before the next
 `.backward()`, silently mixing gradients from unrelated batches together.

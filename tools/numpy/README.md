@@ -353,7 +353,7 @@ the memmap subclass itself (not just the underlying buffer) needs to go away.
 The out-of-core pattern above — memmap a file, slice small random windows, `.astype()` only
 the sampled windows into real memory — is exactly how you train a language model on a corpus
 too large to fit in RAM or VRAM. Grounding example:
-`mini-llms-playground/from_scratch/custom-gpt-50m/src/gpt/data/dataset.py`. That project
+`llm-engineering/from_scratch/custom-gpt-50m/src/gpt/data/dataset.py`. That project
 tokenizes its training corpus once into a flat `uint16` `.bin` file (2 bytes/token — GPT-2's
 50,257-word vocabulary fits under uint16's 65,536 ceiling), then trains by opening it with
 `np.memmap(bin_path, dtype=np.uint16, mode="r")` and, every training step, slicing a handful of

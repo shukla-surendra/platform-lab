@@ -15,7 +15,7 @@ optimizers → a full, minimal, real training loop. Three parts that stay in syn
 - **[`docs/`](docs/)** — the companion first-principles explanations: the math/mechanism
   behind each topic, why PyTorch's API is shaped the way it is, common misconceptions, and
   practice questions. Same house style as
-  [`mini-llms-playground/docs/llm-engineering/`](../../mini-llms-playground/docs/llm-engineering/) —
+  [`llm-engineering/docs/llm-engineering/`](../../llm-engineering/docs/llm-engineering/) —
   see [`docs/README.md`](docs/README.md) for the full chapter list and reading order.
 
 ## Why this exists, and how it relates to the rest of the workspace
@@ -23,10 +23,10 @@ optimizers → a full, minimal, real training loop. Three parts that stay in syn
 This is the **mechanics-of-PyTorch-itself** layer — tensors, autograd, `nn.Module`,
 training loops — underneath everything else already built on PyTorch elsewhere in this
 workspace:
-[`mini-llms-playground/from_scratch/`](../../mini-llms-playground/from_scratch/)'s
+[`llm-engineering/from_scratch/`](../../llm-engineering/from_scratch/)'s
 from-scratch GPT models,
-[`local_llms/vit/`](../local_llms/vit/)'s ViT experiments, and the fine-tuning scripts
-under `mini-llms-playground/fine_tuning/` all assume the fundamentals covered here. Where
+[`llm-engineering/local_inference/vit/`](../llm-engineering/local_inference/vit/)'s ViT experiments, and the fine-tuning scripts
+under `llm-engineering/fine_tuning/` all assume the fundamentals covered here. Where
 useful, docs here cross-link to those real, larger examples so a mechanism isn't just
 explained in the abstract — you can see the exact same API used at production-model scale
 elsewhere in this workspace.

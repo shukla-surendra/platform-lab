@@ -13,7 +13,7 @@ Autograd computes gradients; it doesn't *use* them. An optimizer is the piece th
 computed gradient and actually updates each parameter to reduce the loss. The training
 loop is just that update, repeated: show the model some data, measure how wrong it is,
 compute gradients, update the weights a little, repeat — the same four-step cycle from
-[Chapter 3 of the LLM curriculum](../../../mini-llms-playground/docs/llm-engineering/03_how_neural_networks_learn.md),
+[Chapter 3 of the LLM curriculum](../../../llm-engineering/docs/llm-engineering/03_how_neural_networks_learn.md),
 now assembled from the actual PyTorch pieces instead of described abstractly.
 
 ## The First-Principles Explanation
@@ -65,7 +65,7 @@ the same loop trains every larger model in this workspace.
   operates on — a fix for a real, once-common bug in plain Adam+L2, where the adaptive
   scaling and the regularization interacted in an unintended way. This is why
   `torch.optim.AdamW`, not `Adam`, is the default choice in nearly every modern training
-  script in this workspace (including `mini-llms-playground/from_scratch/tinystories-gpt-6m/train.py`).
+  script in this workspace (including `llm-engineering/from_scratch/tinystories-gpt-6m/train.py`).
 
 ### `model.train()` / `model.eval()` — not about gradients, about layer *behavior*
 

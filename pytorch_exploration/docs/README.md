@@ -6,7 +6,7 @@ same topic comes up, cross-linked from [`../pytorch_notes.ipynb`](../pytorch_not
 [`../pytorch_notes_part2.ipynb`](../pytorch_notes_part2.ipynb), the personal working-notes
 notebooks.
 Same house style as
-[`mini-llms-playground/docs/llm-engineering/`](../../../mini-llms-playground/docs/llm-engineering/00_roadmap.md):
+[`llm-engineering/docs/llm-engineering/`](../../../llm-engineering/docs/llm-engineering/00_roadmap.md):
 **In Plain English** (a jargon-free first pass) → **The First-Principles Explanation**
 (the actual mechanism, precisely) → **Grounded in the Notebook** (the exact cell/code) →
 **Deep-Dive** (why it's built this way, the trade-offs) → **Try It Yourself** → **Common
@@ -30,7 +30,7 @@ tracks, autograd is what makes `nn.Module`'s parameters learnable, and the train
 is where all three finally come together into the four-step cycle (forward → loss →
 backward → step) that trains every model in this workspace, from the tiny examples here to
 the from-scratch GPTs in
-[`mini-llms-playground/from_scratch/`](../../../mini-llms-playground/from_scratch/).
+[`llm-engineering/from_scratch/`](../../../llm-engineering/from_scratch/).
 
 ## How to use this alongside the notebooks
 
