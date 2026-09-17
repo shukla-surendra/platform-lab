@@ -1,0 +1,339 @@
+<title>Local Ops Agent Graph</title>
+<meta name="color-scheme" content="light dark">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap');
+
+  :root {
+    --bg: #f7f5f0;
+    --surface: #ffffff;
+    --surface-2: #efece4;
+    --text: #20242b;
+    --text-muted: #5b6472;
+    --accent: #a8641f;
+    --accent-soft: #f1e0c8;
+    --cool: #3f6b8a;
+    --cool-soft: #dde9f0;
+    --border: #e3ded4;
+    --shadow: 0 1px 2px rgba(30, 25, 15, 0.06), 0 8px 24px rgba(30, 25, 15, 0.05);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #101216;
+      --surface: #171a20;
+      --surface-2: #1d2128;
+      --text: #e6e8eb;
+      --text-muted: #8b93a1;
+      --accent: #e0a458;
+      --accent-soft: #3a2e1c;
+      --cool: #7fb0d1;
+      --cool-soft: #1c2b34;
+      --border: #2a2f38;
+      --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 28px rgba(0, 0, 0, 0.35);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #101216;
+    --surface: #171a20;
+    --surface-2: #1d2128;
+    --text: #e6e8eb;
+    --text-muted: #8b93a1;
+    --accent: #e0a458;
+    --accent-soft: #3a2e1c;
+    --cool: #7fb0d1;
+    --cool-soft: #1c2b34;
+    --border: #2a2f38;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 28px rgba(0, 0, 0, 0.35);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'IBM Plex Sans', system-ui, -apple-system, sans-serif;
+    line-height: 1.55;
+    padding-inline: 20px;
+    padding-block: max(40px, env(safe-area-inset-top, 0px)) max(48px, env(safe-area-inset-bottom, 0px));
+  }
+  img { max-width: 100%; }
+  [hidden] { display: none !important; }
+
+  main {
+    max-width: 760px;
+    margin-inline: auto;
+  }
+
+  .eyebrow {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.78rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--cool);
+    display: flex;
+    align-items: center;
+    gap: 0.5em;
+  }
+  .eyebrow::before {
+    content: "";
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--cool);
+    display: inline-block;
+  }
+
+  h1 {
+    font-family: 'IBM Plex Mono', monospace;
+    font-weight: 600;
+    font-size: clamp(1.6rem, 4vw, 2.15rem);
+    letter-spacing: -0.01em;
+    text-wrap: balance;
+    margin: 0.35em 0 0.2em;
+  }
+
+  .lede {
+    color: var(--text-muted);
+    font-size: 1.02rem;
+    max-width: 62ch;
+    margin: 0 0 2rem;
+  }
+  .lede code, .path {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.88em;
+    background: var(--surface-2);
+    padding: 0.1em 0.4em;
+    border-radius: 4px;
+    color: var(--text);
+  }
+
+  /* --- terminal window card housing the diagram --- */
+  .terminal {
+    background: #0c0e12;
+    border-radius: 10px;
+    box-shadow: var(--shadow);
+    overflow: hidden;
+    margin-bottom: 2.25rem;
+    border: 1px solid #22262e;
+  }
+  .terminal-chrome {
+    background: #181b21;
+    padding: 0.65em 0.9em;
+    display: flex;
+    align-items: center;
+    gap: 0.9em;
+    border-bottom: 1px solid #22262e;
+  }
+  .dots { display: flex; gap: 6px; flex-shrink: 0; }
+  .dots span {
+    width: 10px; height: 10px; border-radius: 50%;
+    background: #3a3f4a;
+  }
+  .dots span:nth-child(1) { background: #6b4a42; }
+  .dots span:nth-child(2) { background: #6b5f3f; }
+  .dots span:nth-child(3) { background: #3f5f47; }
+  .terminal-title {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.78rem;
+    color: #7c8290;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+  .prompt-line {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.82rem;
+    color: #7c8290;
+    padding: 0.75em 1.1em 0;
+  }
+  .prompt-line .arrow { color: #e0a458; }
+  .diagram-wrap {
+    padding: 0.25em 1.1em 1.4em;
+    overflow-x: auto;
+  }
+  .diagram-wrap pre.mermaid {
+    background: transparent;
+    display: flex;
+    justify-content: center;
+    min-width: 480px;
+  }
+
+  h2 {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 1.05rem;
+    font-weight: 600;
+    margin: 2.4rem 0 0.9rem;
+    text-wrap: balance;
+  }
+
+  /* --- legend --- */
+  .legend {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.9rem;
+    margin-bottom: 0.5rem;
+  }
+  @media (max-width: 520px) {
+    .legend { grid-template-columns: 1fr; }
+  }
+  .legend-item {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.85em 1em;
+    display: flex;
+    gap: 0.8em;
+    align-items: flex-start;
+  }
+  .swatch {
+    flex-shrink: 0;
+    width: 34px;
+    height: 0;
+    border-top-width: 3px;
+    border-top-style: solid;
+    margin-top: 0.55em;
+  }
+  .swatch.fixed { border-top-style: solid; border-color: var(--cool); }
+  .swatch.conditional { border-top-style: dashed; border-color: var(--accent); }
+  .legend-item strong {
+    display: block;
+    font-size: 0.92rem;
+    margin-bottom: 0.15em;
+  }
+  .legend-item span {
+    color: var(--text-muted);
+    font-size: 0.88rem;
+  }
+
+  /* --- walkthrough steps --- */
+  ol.walk {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.9rem;
+  }
+  ol.walk li {
+    display: grid;
+    grid-template-columns: 1.9em 1fr;
+    gap: 0.7em;
+    align-items: baseline;
+  }
+  ol.walk li::before {
+    counter-increment: step;
+    content: counter(step);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.8rem;
+    color: var(--accent);
+    background: var(--accent-soft);
+    width: 1.9em;
+    height: 1.9em;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    align-self: flex-start;
+  }
+  ol.walk { counter-reset: step; }
+  ol.walk p { margin: 0; }
+  ol.walk code {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.88em;
+    background: var(--surface-2);
+    padding: 0.08em 0.35em;
+    border-radius: 4px;
+  }
+
+  footer {
+    margin-top: 2.6rem;
+    padding-top: 1.2rem;
+    border-top: 1px solid var(--border);
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    font-family: 'IBM Plex Mono', monospace;
+  }
+  footer a { color: var(--cool); }
+</style>
+
+<main>
+  <p class="eyebrow">applied_genai / agents / linux_tool_agent</p>
+  <h1>Local Ops Agent Graph</h1>
+  <p class="lede">
+    The compiled <code>StateGraph</code> from <code class="path">graph.py</code> —
+    rendered directly from <code>app.get_graph().draw_mermaid()</code>, the real
+    structure LangGraph runs, not a hand-drawn approximation of it.
+  </p>
+
+  <div class="terminal">
+    <div class="terminal-chrome">
+      <div class="dots"><span></span><span></span><span></span></div>
+      <div class="terminal-title">linux_tool_agent — graph.py</div>
+    </div>
+    <p class="prompt-line"><span class="arrow">❯</span> uv run python -c "from graph import build_graph; print(build_graph().get_graph().draw_mermaid())"</p>
+    <div class="diagram-wrap">
+<pre class="mermaid">
+graph TD;
+	__start__([" __start__ "]):::first
+	agent(agent)
+	tools(tools)
+	__end__([" __end__ "]):::last
+	__start__ --> agent;
+	agent -.-> __end__;
+	agent -.-> tools;
+	tools --> agent;
+	classDef first fill:#7fb0d1,color:#0c0e12,stroke:#7fb0d1,font-family:IBM Plex Mono,font-size:13px
+	classDef last fill:#4a5568,color:#e6e8eb,stroke:#7c8290,font-family:IBM Plex Mono,font-size:13px
+	classDef default fill:#e0a458,color:#0c0e12,stroke:#e0a458,font-family:IBM Plex Mono,font-size:14px,font-weight:600
+	linkStyle 0 stroke:#7fb0d1,stroke-width:2px;
+	linkStyle 3 stroke:#7fb0d1,stroke-width:2px;
+	linkStyle 1 stroke:#e0a458,stroke-width:2px;
+	linkStyle 2 stroke:#e0a458,stroke-width:2px;
+</pre>
+    </div>
+  </div>
+
+  <h2>Reading the arrows</h2>
+  <div class="legend">
+    <div class="legend-item">
+      <div class="swatch fixed"></div>
+      <div>
+        <strong>Solid — fixed edge</strong>
+        <span><code>START→agent</code> and <code>tools→agent</code> always run. No decision is made here.</span>
+      </div>
+    </div>
+    <div class="legend-item">
+      <div class="swatch conditional"></div>
+      <div>
+        <strong>Dashed — conditional edge</strong>
+        <span><code>tools_condition</code> picks the destination fresh, every time <code>agent</code> runs.</span>
+      </div>
+    </div>
+  </div>
+
+  <h2>What actually happens, node by node</h2>
+  <ol class="walk">
+    <li><p><strong>START → agent.</strong> Every run begins here — the system prompt gets prepended, the full message history goes to the model.</p></li>
+    <li><p><strong>agent decides.</strong> The model either answers in plain text, or requests one or more tool calls (<code>create_plan</code>, <code>check_memory</code>, <code>run_command</code>, ...).</p></li>
+    <li><p><strong><code>tools_condition</code> reads that decision.</strong> A tool call present → <code>"tools"</code>. Nothing to call → <code>END</code>, immediately.</p></li>
+    <li><p><strong>tools executes.</strong> <code>ToolNode</code> runs the real Python function(s) behind whichever tool(s) were requested — a live <code>subprocess.run</code>, a file write, or an <code>interrupt()</code> pausing for human approval.</p></li>
+    <li><p><strong>Back to agent, always.</strong> The result feeds back in as a message, and the model decides again — call another tool, or stop. This is the one cycle that makes multi-step, <code>create_plan</code>-driven work possible: the loop runs as long as <code>tools_condition</code> keeps saying <em>"tools,"</em> capped only by <code>RECURSION_LIMIT</code> in <code>main.py</code>.</p></li>
+  </ol>
+
+  <footer>
+    Generated from a real, running compiled graph — not memory. See
+    <code class="path">README.md</code> → "The graph" for the same diagram in context.
+  </footer>
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.9.1/mermaid.min.js"></script>
+<script>
+  if (window.mermaid) {
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'base',
+      themeVariables: {
+        lineColor: '#7c8290',
+        edgeLabelBackground: '#0c0e12',
+      },
+    });
+  }
+</script>

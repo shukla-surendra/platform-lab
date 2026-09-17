@@ -118,6 +118,60 @@ def read_file(path: str, max_lines: int = 200) -> str:
 
 
 @tool
+def create_directory(path: str) -> str:
+    """Create a new directory at `path`, including any missing parent directories
+    (like `mkdir -p`). Refuses if `path` already exists as a file. Creating a
+    directory changes the filesystem, so it requires human approval, same as
+    run_command's approval gate."""
+    if os.path.isdir(path):
+        return f"'{path}' already exists as a directory -- nothing to do."
+    if os.path.exists(path):
+        return f"'{path}' already exists as a file, not a directory -- refusing."
+
+    decision = interrupt(
+        {
+            "reason": "Creating a directory changes the filesystem and needs human approval.",
+            "command": f"create_directory({path})",
+        }
+    )
+    if str(decision).strip().lower() not in {"y", "yes", "approve", "approved"}:
+        return f"Directory creation NOT approved by a human -- not created: {path}"
+
+    try:
+        os.makedirs(path, exist_ok=True)
+    except OSError as exc:
+        return f"Failed to create directory '{path}': {exc}"
+    return f"Created directory: {path}"
+
+
+@tool
+def write_file(path: str, content: str, overwrite: bool = False) -> str:
+    """Write `content` to a new text file at `path`. Refuses to overwrite an existing
+    file unless `overwrite=True` is explicitly set. Writing a file changes the
+    filesystem, so it requires human approval, same as run_command's approval gate."""
+    if os.path.isdir(path):
+        return f"'{path}' is a directory, not a file -- cannot write to it."
+    if os.path.exists(path) and not overwrite:
+        return f"'{path}' already exists -- refusing to overwrite (pass overwrite=True to force)."
+
+    decision = interrupt(
+        {
+            "reason": "Writing a file changes the filesystem and needs human approval.",
+            "command": f"write_file({path}, {len(content)} chars, overwrite={overwrite})",
+        }
+    )
+    if str(decision).strip().lower() not in {"y", "yes", "approve", "approved"}:
+        return f"File write NOT approved by a human -- not written: {path}"
+
+    try:
+        with open(path, "w") as f:
+            f.write(content)
+    except OSError as exc:
+        return f"Failed to write '{path}': {exc}"
+    return f"Wrote {len(content)} characters to {path}"
+
+
+@tool
 def run_command(command: str, cwd: str = ".") -> str:
     """Run an arbitrary shell command in directory `cwd` (defaults to this agent's own
     working directory -- pass an absolute path to run somewhere else, e.g. a Terraform
@@ -162,5 +216,7 @@ ALL_TOOLS = [
     check_process_running,
     list_directory,
     read_file,
+    create_directory,
+    write_file,
     run_command,
 ]
