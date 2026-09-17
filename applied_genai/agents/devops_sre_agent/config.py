@@ -11,9 +11,19 @@ load_dotenv()
 
 BASE_DIR = Path(__file__).parent
 
+# "ollama" (default, local, free, no API key) or "openai" (real API, real cost, real key).
+# See README.md's "Using OpenAI instead of Ollama" section before flipping this.
+LLM_PROVIDER = os.getenv("LLM_PROVIDER", "ollama")
+
 # Ollama's OpenAI-compatible endpoint. Any Ollama-served model with tool-calling support works.
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://127.0.0.1:11434/v1")
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen3.5:latest")
+
+# Only read/used when LLM_PROVIDER=openai. OPENAI_API_KEY itself isn't read here -- the
+# openai client picks it up straight from the environment (which load_dotenv() above
+# already populated from .env), same pattern as ../linux_tool_agent/config.py.
+OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+
 MODEL_TEMPERATURE = float(os.getenv("MODEL_TEMPERATURE", "0.2"))
 
 STATE_FILE = BASE_DIR / os.getenv("STATE_FILE", "infra_state.json")

@@ -1,5 +1,5 @@
 .env
-agent_memory.sqlite
+agent_memory.sqlite*
 __pycache__/
 *.pyc
 .venv/

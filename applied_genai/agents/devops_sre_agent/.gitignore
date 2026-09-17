@@ -1,2 +1,6 @@
 infra_state.json
 sre_sessions.sqlite
+.env
+__pycache__/
+*.pyc
+.venv/

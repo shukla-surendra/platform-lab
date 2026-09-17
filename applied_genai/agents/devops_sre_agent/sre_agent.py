@@ -21,7 +21,7 @@ import argparse
 import asyncio
 import sys
 
-from agents import Runner, SQLiteSession, set_tracing_disabled
+from import Runner, SQLiteSession, set_tracing_disabled
 from agents.items import HandoffOutputItem, ToolCallItem, ToolCallOutputItem
 
 import config

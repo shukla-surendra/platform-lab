@@ -81,6 +81,33 @@ context, tools + thinking); see
 [`../langgraph_ollama_agent/README.md#model-choice`](../langgraph_ollama_agent/README.md#model-choice)
 for the comparison against `gemma4` and `llama3.1:8b`.
 
+## Using OpenAI instead of Ollama
+
+Ollama is the intentional default (local, free, no key) — see [Reliability
+notes](#reliability-notes-read-this) below for real quirks a 9.7B local model hits
+orchestrating a 3-agent handoff chain, which was the whole point of building this against
+Ollama first. OpenAI is a real, supported alternative when you have a key and want to
+compare a frontier model's handoff/tool-calling behavior against the same scenario:
+
+```
+# .env
+LLM_PROVIDER=openai
+OPENAI_API_KEY=sk-your-real-key
+OPENAI_MODEL=gpt-4o-mini
+```
+
+`agents_setup.py`'s `_build_model()` branches on `config.LLM_PROVIDER` — with `openai`, it
+builds a plain `AsyncOpenAI()` client (no `base_url` override, so it talks to the real API;
+no explicit key, since the client reads `OPENAI_API_KEY` from the environment automatically)
+instead of the Ollama-pointed one. Nothing else in the project changes — same three agents,
+same tools, same handoff wiring, same `infra_state.json` mock fleet; only which LLM is
+answering changes.
+
+**This makes real, billed API calls** — every tool call and handoff in the loop is a
+separate request to OpenAI. Cheap for `gpt-4o-mini` on this small a scenario, but not
+free, unlike the Ollama path — keep `--trace` on so you can see exactly how many calls
+one investigation actually takes.
+
 ## Run
 
 Seed the mock fleet with the incident scenario (re-run any time to reset to a fresh, correlated
@@ -209,8 +236,9 @@ state verification in the loop, exactly as you would with a junior on-call engin
 - **Add a new domain** (e.g. a Databricks specialist for job/cluster failures): add tools to
   `tools.py`, build a new `Agent` in `agents_setup.py`, and add it to the Triage agent's
   `handoffs` list plus a handoff back to Triage from the new agent.
-- **Swap the model**: change `OLLAMA_MODEL` in `.env`. Nothing else needs to change — the SDK
-  talks to Ollama purely over the OpenAI-compatible `/v1` endpoint.
+- **Swap the model**: change `OLLAMA_MODEL` in `.env` to any other tool-calling-capable Ollama
+  model, or set `LLM_PROVIDER=openai` to use a real OpenAI model instead — see [Using OpenAI
+  instead of Ollama](#using-openai-instead-of-ollama) above.
 - **Point it at a real cloud**: replace `infra_state.py`'s functions with real `boto3` calls
   (`describe_instances`, `describe_alarms`, `update_service`, ...) behind the same function
   signatures the tools already call — the agents, handoffs, and dry-run gate don't need to change.
@@ -226,7 +254,11 @@ state verification in the loop, exactly as you would with a junior on-call engin
 - **`FileNotFoundError: infra_state.json does not exist yet`** — run `python seed_incident.py`
   (or `--incident`) first.
 - **`Error: ... Connection refused`** — `ollama serve` isn't running, or `OLLAMA_BASE_URL` is
-  wrong (note it needs the `/v1` suffix here, unlike the LangGraph project).
+  wrong (note it needs the `/v1` suffix here, unlike the LangGraph project). Only relevant when
+  `LLM_PROVIDER=ollama` (the default).
+- **`AuthenticationError` / `OPENAI_API_KEY` errors** — only relevant when
+  `LLM_PROVIDER=openai`: confirm `OPENAI_API_KEY` is actually set in `.env` (or your shell
+  environment) and hasn't been revoked.
 - **Model never calls a tool, just answers from general knowledge** — confirm the model supports
   tool calling (`ollama show <model>`, look for `tools` under Capabilities).
 - **Agent claims it did something it didn't** — see [Reliability notes](#reliability-notes-read-this)

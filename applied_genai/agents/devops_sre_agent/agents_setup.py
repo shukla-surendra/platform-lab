@@ -23,6 +23,13 @@ from tools import COMPUTE_TOOLS, OBSERVABILITY_TOOLS, TRIAGE_TOOLS
 
 
 def _build_model() -> OpenAIChatCompletionsModel:
+    if config.LLM_PROVIDER == "openai":
+        # No base_url override -- defaults to the real OpenAI API. No api_key passed
+        # either -- AsyncOpenAI() reads OPENAI_API_KEY straight from the environment,
+        # same as every other project in this repo that uses a real OpenAI key.
+        client = AsyncOpenAI()
+        return OpenAIChatCompletionsModel(model=config.OPENAI_MODEL, openai_client=client)
+
     client = AsyncOpenAI(base_url=config.OLLAMA_BASE_URL, api_key="ollama")
     return OpenAIChatCompletionsModel(model=config.OLLAMA_MODEL, openai_client=client)
 
