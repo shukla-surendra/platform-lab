@@ -1,0 +1,28 @@
+# Copy to terraform.tfvars and edit. terraform.tfvars is gitignored.
+
+region  = "us-east-1"
+project = "aws-mastery-vllm"
+
+model_id               = "Qwen/Qwen2.5-7B-Instruct"
+run_mode                = "docker" # or "bare_metal" — see GPU_AND_LLM_SERVING_GUIDE.md
+vllm_image_tag          = "latest" # docker only — pin a specific version once validated, e.g. "v0.6.3"
+vllm_pip_version         = ""       # bare_metal only — pin e.g. "0.6.3", empty = latest on PyPI
+max_model_len           = 8192
+gpu_memory_utilization  = 0.90
+dtype                   = "auto"
+quantization            = ""
+shm_size_gb             = 8
+
+hf_token      = "" # only needed for gated models
+vllm_api_key  = "" # set this to require Authorization: Bearer <key> on every request
+
+# Try L4 (g6) first, fall back to A10G (g5) if that has no capacity.
+gpu_instance_types = ["g6.2xlarge", "g6.xlarge", "g5.2xlarge", "g5.xlarge"]
+use_spot            = false
+root_volume_size_gib = 150
+
+create_key_pair         = true
+existing_key_pair_name = ""
+allowed_ssh_cidr        = "0.0.0.0/0" # narrow to your IP/32
+allowed_api_cidr        = "0.0.0.0/0" # narrow this, or set vllm_api_key, or both
+assign_public_ip        = true

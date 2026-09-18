@@ -53,3 +53,7 @@ override.tf.json
 *_override.tf.json
 .terraformrc
 terraform.rc
+
+# EC2 key pairs Terraform generates locally (e.g. cloud-practice/aws/terraform/
+# vllm-gpu-serving/*.pem) — a private key is a credential, never commit it.
+*.pem
