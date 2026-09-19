@@ -1,0 +1,7 @@
+# Copy to terraform.tfvars and edit. terraform.tfvars is gitignored (repo root .gitignore).
+
+region  = "us-east-1"
+project = "cicd-practice"
+
+allowed_ssh_cidr = "0.0.0.0/0" # narrow to YOUR_IP/32 — see `curl https://checkip.amazonaws.com`
+branch_name      = "main"

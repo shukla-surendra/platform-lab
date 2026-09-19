@@ -1,0 +1,12 @@
+version: 0.2
+# Deliberately trivial — the point of this exercise is the PIPELINE, not the
+# build. Stamps a timestamp into index.html so you can visibly tell each
+# CodePipeline run actually redeployed something new.
+phases:
+  build:
+    commands:
+      - echo "Build started on $(date -u)"
+      - echo "<p>Built at $(date -u)</p>" >> index.html
+artifacts:
+  files:
+    - '**/*'
