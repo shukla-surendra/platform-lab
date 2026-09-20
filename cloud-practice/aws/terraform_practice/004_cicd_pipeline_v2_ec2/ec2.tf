@@ -1,4 +1,4 @@
-# STEP 1 — the deploy target.
+# The deploy target.
 
 locals {
   name = var.project
@@ -15,8 +15,7 @@ locals {
   EOF
 }
 
-# Self-contained pattern used throughout cloud-practice/aws/terraform/:
-# default VPC, latest AL2023 AMI via SSM parameter (no hardcoded AMI IDs).
+# Default VPC + latest AL2023 AMI via SSM parameter (no hardcoded AMI IDs).
 data "aws_vpc" "default" {
   default = true
 }
@@ -32,18 +31,12 @@ data "aws_ssm_parameter" "al2023" {
   name = "/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64"
 }
 
+# No SSH rule (003 had one, open to the world, on an instance with no key
+# pair — it did nothing). Shell access is via SSM Session Manager instead.
 resource "aws_security_group" "target" {
   name        = "${local.name}-target-sg"
-  description = "CI/CD deploy target: SSH (restricted) + HTTP, all out"
+  description = "CI/CD deploy target: HTTP in, all out"
   vpc_id      = data.aws_vpc.default.id
-
-  ingress {
-    description = "SSH"
-    from_port   = 22
-    to_port     = 22
-    protocol    = "tcp"
-    cidr_blocks = [var.allowed_ssh_cidr]
-  }
 
   ingress {
     description = "HTTP"
@@ -76,16 +69,15 @@ resource "aws_iam_role" "target" {
   })
 }
 
-# Lets you `aws ssm start-session` into the box with no key pair and no
-# open port 22 required.
+# `aws ssm start-session` into the box — no key pair, no open port 22.
 resource "aws_iam_role_policy_attachment" "ssm" {
   role       = aws_iam_role.target.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
 }
 
-# The CodeDeploy agent on the instance downloads the build output from the
-# pipeline's artifact bucket using THIS role — without it the Deploy stage
-# fails with an S3 AccessDenied on the revision download.
+# The CodeDeploy agent downloads the build output from the pipeline's
+# artifact bucket using THIS role. Without it the Deploy stage fails with an
+# S3 AccessDenied on the revision download (003 hit exactly this).
 resource "aws_iam_role_policy" "target_pipeline_artifacts" {
   name = "${local.name}-target-pipeline-artifacts"
   role = aws_iam_role.target.id
@@ -108,14 +100,13 @@ resource "aws_iam_instance_profile" "target" {
 
 resource "aws_instance" "target" {
   ami                    = data.aws_ssm_parameter.al2023.value
-  instance_type          = "t3.micro"
+  instance_type          = var.instance_type
   subnet_id              = data.aws_subnets.all_in_vpc.ids[0]
   vpc_security_group_ids = [aws_security_group.target.id]
   iam_instance_profile   = aws_iam_instance_profile.target.name
   user_data              = local.codedeploy_agent_install
 
   # codedeploy.tf's deployment group targets EXACTLY this tag — change one,
-  # change the other, or deployments start failing with "no instances
-  # found for deployment."
+  # change the other, or deployments fail with "no instances found."
   tags = { Name = local.name }
 }

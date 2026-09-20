@@ -1,15 +1,25 @@
 # CI/CD Pipeline → EC2 — full implementation
 
-A complete, working CodeCommit → CodeBuild → CodeDeploy → CodePipeline
-setup that deploys a simple app onto a single EC2 instance every time
-you push. Fully implemented and verified against real AWS (`terraform
-plan`: 20 resources, 0 errors) — see `STEP_BY_STEP.md` if you'd rather
-build it yourself, one stage at a time, instead of using this as-is.
+> **Status (2026-09-20): applied, run end to end, then destroyed. Superseded by
+> [`../004_cicd_pipeline_v2_ec2`](../004_cicd_pipeline_v2_ec2/)** (a V2 pipeline with the
+> fixes below built in). Read **[`LEARNINGS.md`](LEARNINGS.md)** for everything this
+> exercise taught. This folder is kept as the V1 reference.
+>
+> **Corrections to the original version of this README:**
+> - It claimed the module was "verified against real AWS (`terraform plan`: 20
+>   resources, 0 errors)". A `plan` verifies neither IAM nor runtime behavior — the first
+>   real run failed three ways. Those are fixed in this folder's `codebuild.tf` /
+>   `ec2.tf`, and the pipeline now includes an Approval stage.
+> - Its cost estimate (~$1.50–1.60 for 2 days, "dominated by CodePipeline's flat $1")
+>   was wrong — see the corrected "Cost" section below.
 
-> ⚠️ **Real cost, not free-tier-guaranteed.** See "Cost" below —
-> roughly **$1.50-$1.60 for a 2-day test** on an account past its Free
-> Tier window, dominated by CodePipeline's flat $1/month charge, not
-> the EC2 runtime. `terraform destroy` when you're done.
+A CodeCommit → CodeBuild → [Approval] → CodeDeploy → CodePipeline (**V1**)
+setup that deploys a simple app onto a single EC2 instance every time you
+push. See `STEP_BY_STEP.md` if you'd rather build it yourself, one stage at
+a time, instead of using this as-is.
+
+> ⚠️ **Real cost while it's up** — mainly the EC2 instance. See "Cost" below.
+> `terraform destroy` when you're done.
 
 ## Architecture
 
@@ -89,17 +99,19 @@ git add . && git commit -m "v2" && git push
 | Resource | Driver | Approx. cost |
 |---|---|---|
 | EC2 `t3.micro` | Hourly while running | Free Tier: $0 (750 hrs/mo, 12 mo). Off Free Tier: ~$0.0104/hr (~$0.50 for 2 days, ~$7.50/mo if left running) |
-| CodePipeline | Flat per active pipeline/month, **not prorated by days** | $1.00/mo (first pipeline free for 12 mo on a new account) |
+| CodePipeline (V1) | $1.00 per *active* pipeline/month (existed > 30 days **and** had a code change that month), not prorated | **$0 for the first 30 days after creation**; one free active V1 pipeline/month |
 | CodeBuild | Per build-minute | ~$0.005/min × ~1 min/build → pennies/month for occasional pushes. First 100 min/mo free for 12 mo |
 | CodeDeploy (EC2/On-Prem) | — | **Always $0** — only the underlying EC2 instance costs anything |
 | CodeCommit | — | $0 at this scale (free tier: 5 users, 10GB, 10k API calls/mo) |
 | S3 (2 buckets) | Storage + requests | ~$0 — a few KB of zipped source |
 
-**2-day test, account past Free Tier: ~$1.50-$1.60 total**, almost
-entirely CodePipeline's flat $1/month charge — testing for 2 hours vs.
-2 days barely moves this number. `terraform destroy` stops the EC2
-hourly charge; the CodePipeline dollar is sunk for that calendar month
-regardless of when in the month you destroy it.
+**2-day test, account past Free Tier: roughly $0.50**, almost all of it the
+EC2 instance (~$0.0104/hr). Per AWS's pricing page a V1 pipeline is free for
+its first 30 days, so the CodePipeline charge only appears if you keep the
+pipeline past 30 days and push code through it. Prices are as read from AWS's
+pricing page on 2026-09-20 — check your own bill (Cost Explorer lags ~24h, so it
+can't confirm anything on day one). See `LEARNINGS.md` §9 and
+`../004_cicd_pipeline_v2_ec2/` for V2 pricing.
 
 ## Things to try (mini-labs)
 

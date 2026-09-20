@@ -8,6 +8,15 @@ resource "aws_s3_bucket" "codebuild_artifacts" {
   bucket = "${local.name}-codebuild-${random_id.codebuild_bucket_suffix.hex}"
 }
 
+# Created here (not left for CodeBuild to auto-create) because the role below
+# only grants CreateLogStream/PutLogEvents — without this group the build
+# fails at QUEUED with "not authorized to perform: logs:CreateLogGroup".
+# Managing it in Terraform also means `destroy` cleans it up.
+resource "aws_cloudwatch_log_group" "codebuild" {
+  name              = "/aws/codebuild/${local.name}"
+  retention_in_days = 7
+}
+
 resource "aws_iam_role" "codebuild" {
   name = "${local.name}-codebuild-role"
 
@@ -39,6 +48,15 @@ resource "aws_iam_role_policy" "codebuild" {
         Effect   = "Allow"
         Action   = ["s3:GetObject", "s3:PutObject", "s3:GetBucketLocation"]
         Resource = [aws_s3_bucket.codebuild_artifacts.arn, "${aws_s3_bucket.codebuild_artifacts.arn}/*"]
+      },
+      {
+        # When CodePipeline runs this project, the source zip and the build
+        # output both travel through the PIPELINE's artifact bucket
+        # (codepipeline.tf), not the codebuild_artifacts bucket above.
+        Sid      = "PipelineArtifactBucket"
+        Effect   = "Allow"
+        Action   = ["s3:GetObject", "s3:GetObjectVersion", "s3:PutObject", "s3:GetBucketLocation", "s3:GetBucketAcl"]
+        Resource = [aws_s3_bucket.pipeline_artifacts.arn, "${aws_s3_bucket.pipeline_artifacts.arn}/*"]
       },
       {
         Sid      = "CodeCommitPull"

@@ -113,6 +113,26 @@ resource "aws_codepipeline" "app" {
     }
   }
 
+  # Manual gate — the pipeline pauses here until someone approves or rejects
+  # (console, or `aws codepipeline put-approval-result`). Stage order in this
+  # file IS execution order, so this must stay between Build and Deploy.
+  # Unactioned approvals expire after 7 days and count as a failure.
+  stage {
+    name = "Approval"
+
+    action {
+      name     = "ApproveDeploy"
+      category = "Approval"
+      owner    = "AWS"
+      provider = "Manual"
+      version  = "1"
+
+      configuration = {
+        CustomData = "Build succeeded for ${local.name}. Approve to deploy to the EC2 target, or reject to stop this run."
+      }
+    }
+  }
+
   stage {
     name = "Deploy"
 

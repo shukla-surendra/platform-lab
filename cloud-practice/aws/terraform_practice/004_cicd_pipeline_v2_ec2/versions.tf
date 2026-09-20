@@ -7,7 +7,7 @@ terraform {
   # 000 creates a NEW bucket with a new random suffix — paste its name below.
   backend "s3" {
     bucket       = "platform-lab-tfstate-69a2e7e4"
-    key          = "003_cicd_pipeline_ec2/terraform.tfstate"
+    key          = "004_cicd_pipeline_v2_ec2/terraform.tfstate"
     region       = "us-east-1"
     encrypt      = true
     use_lockfile = true

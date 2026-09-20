@@ -1,0 +1,14 @@
+version: 0.2
+# Deliberately trivial — the point is the PIPELINE, not the build. Stamps a
+# timestamp and the run's DEPLOY_NOTE into index.html so you can see both that
+# each run redeployed something new and that the V2 pipeline variable made it
+# through Pipeline -> CodeBuild environment variable -> the page.
+phases:
+  build:
+    commands:
+      - echo "Build started on $(date -u)"
+      - echo "<p>Built at $(date -u)</p>" >> index.html
+      - echo "<p>Deploy note $DEPLOY_NOTE</p>" >> index.html
+artifacts:
+  files:
+    - '**/*'
