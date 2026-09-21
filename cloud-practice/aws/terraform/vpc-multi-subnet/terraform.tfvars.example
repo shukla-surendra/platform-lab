@@ -1,0 +1,17 @@
+# Copy to terraform.tfvars and edit. terraform.tfvars is gitignored.
+
+region      = "us-east-1"
+project     = "vpc-multi-subnet"
+environment = "dev"
+vpc_cidr    = "10.10.0.0/16"
+
+# 2 AZs -> 2 public subnets + 2 private subnets. Add a 3rd AZ for one more of each.
+azs = ["us-east-1a", "us-east-1b"]
+
+# dev  : single_nat_gateway = true  (cheap; one NAT GW total)
+# prod : single_nat_gateway = false (one per AZ; HA; no cross-AZ egress $)
+single_nat_gateway = true
+
+extra_tags = {
+  Owner = "surendra"
+}

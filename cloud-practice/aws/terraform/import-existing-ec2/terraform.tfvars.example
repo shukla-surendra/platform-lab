@@ -1,0 +1,21 @@
+# Copy to terraform.tfvars and edit. terraform.tfvars is gitignored.
+#
+# instance_id / security_group_id / ami_id are printed by
+# scripts/create-manual-ec2.sh -- copy them exactly, don't retype from memory.
+
+region            = "us-east-1"
+project           = "import-practice-ec2"
+environment       = "dev"
+availability_zone = "us-east-1a"
+
+instance_id       = "CHANGE-ME-i-0123456789abcdef0"
+security_group_id = "CHANGE-ME-sg-0123456789abcdef0"
+ami_id            = "CHANGE-ME-ami-0123456789abcdef0"
+private_ip        = "CHANGE-ME-10.0.1.23"
+eip_allocation_id = "CHANGE-ME-eipalloc-0123456789abcdef0"
+instance_type     = "t3.micro"
+allowed_ssh_cidr  = "0.0.0.0/0"
+
+extra_tags = {
+  Owner = "surendra"
+}

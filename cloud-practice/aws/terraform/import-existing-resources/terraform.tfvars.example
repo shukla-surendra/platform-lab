@@ -1,0 +1,14 @@
+# Copy to terraform.tfvars and edit. terraform.tfvars is gitignored.
+#
+# bucket_name MUST already exist in AWS before you run terraform against
+# this module -- create it first with scripts/create-manual-bucket.sh
+# (or point this at any real bucket you already have).
+
+region      = "us-east-1"
+project     = "import-practice"
+environment = "dev"
+bucket_name = "CHANGE-ME-your-existing-bucket-name"
+
+extra_tags = {
+  Owner = "surendra"
+}
