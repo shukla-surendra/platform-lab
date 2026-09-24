@@ -21,12 +21,14 @@ whatever you need.
 10. [Error Handling and Debugging](10-error-handling-and-debugging.md) — `set -euo pipefail`, `trap`, common gotchas, `bash -x`/`shellcheck`.
 11. [JSON with `jq` and Cron Scheduling](11-json-and-cron.md) — parsing JSON in scripts, crontab syntax and habits.
 12. [Worked Examples and Real-World References](12-worked-examples-and-real-world.md) — two full runnable scripts, plus real scripts elsewhere in this repo using the same patterns, and a capstone exercise.
+13. [Sockets: Talking Between Two Machines](docs/13-sockets-between-machines.md) — the socket syscalls (`socket`/`bind`/`listen`/`accept`/`connect`), driven from the shell with `nc` and bash's `/dev/tcp`; Mac ↔ Windows/WSL setup.
 
 ## Examples
 
 Every topic above has a runnable script under `examples/` (linked inline
 from that topic's doc), numbered to match: `01_pipes_and_streams.sh`
-through `12_capstone_reference.sh`. Two additional complete scripts,
+through `12_capstone_reference.sh`; topic 13 has a pair,
+`13_socket_server.sh` and `13_socket_client.sh`. Two additional complete scripts,
 referenced from topic 12, show the same patterns applied to real
 housekeeping/fan-out problems:
 
