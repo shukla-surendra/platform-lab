@@ -1,0 +1,7 @@
+build/
+.terraform/
+*.tfstate
+*.tfstate.backup
+node_modules/
+__pycache__/
+tfplan
