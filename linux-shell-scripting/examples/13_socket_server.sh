@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/usr/bin/bash
 #
 # Demonstrates 13-sockets-between-machines.md: a TCP echo server built from shell + nc.
 #
