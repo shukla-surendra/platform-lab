@@ -1,0 +1,24 @@
+# Copy to terraform.tfvars and edit. terraform.tfvars is gitignored.
+
+region  = "us-east-1"
+project = "aws-mastery-sm-glue"
+
+# Optional: encrypt everything with a customer-managed key, e.g. the
+# kms_key_arn output of ../s3-kms. Empty = SSE-S3.
+kms_key_arn = ""
+
+force_destroy      = true
+upload_sample_data = true
+
+# Glue
+glue_version             = "4.0"
+glue_worker_type         = "G.1X"
+glue_number_of_workers   = 2
+glue_job_timeout_minutes = 30
+enable_job_bookmark      = true
+schedule_cron            = "" # e.g. "cron(0 2 * * ? *)"
+
+# SageMaker
+create_notebook_instance = true
+notebook_instance_type   = "ml.t3.medium"
+notebook_volume_size_gb  = 5

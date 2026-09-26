@@ -1,0 +1,15 @@
+order_id,customer_id,product,category,quantity,unit_price,order_ts,status
+1001,C001,Wireless Mouse,electronics,2,24.99,2026-01-05 09:14:00,SHIPPED
+1002,C002,Desk Lamp,home,1,39.50,2026-01-05 11:02:00,DELIVERED
+1003,C003,Notebook Pack,office,5,8.75,2026-01-05 15:40:00,DELIVERED
+1004,C001,USB-C Hub,electronics,1,59.00,2026-01-06 08:21:00,SHIPPED
+1005,C004,Standing Desk,home,1,349.00,2026-01-06 13:05:00,PROCESSING
+1006,C005,Ballpoint Pens,office,10,1.20,2026-01-06 17:30:00,DELIVERED
+1007,C002,Monitor Arm,home,2,74.25,2026-01-07 10:10:00,SHIPPED
+1008,C006,Mechanical Keyboard,electronics,1,129.99,2026-01-07 19:45:00,CANCELLED
+1009,C003,Webcam,electronics,1,49.90,2026-01-08 07:58:00,DELIVERED
+1010,C007,Office Chair,home,1,219.00,2026-01-08 12:33:00,PROCESSING
+1004,C001,USB-C Hub,electronics,1,59.00,2026-01-06 08:25:00,DELIVERED
+,C008,Stapler,office,1,6.40,2026-01-08 14:00:00,SHIPPED
+1012,C009,Headphones,electronics,-1,89.00,2026-01-09 09:00:00,SHIPPED
+1013,C010,Laptop Stand,home,3,32.00,not-a-timestamp,SHIPPED

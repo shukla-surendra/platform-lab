@@ -1,0 +1,90 @@
+# Local Feast lab:  Redis = online store,  Postgres = offline store + SQL registry.
+#
+#   docker compose up -d --build          # infra + init (data, apply, materialize) + feature server
+#   docker compose --profile ui up -d     # also start the Feast UI on :8888
+#   docker compose run --rm workbench python explore/01_offline_pit.py
+#   docker compose down -v                # stop and wipe all data
+#
+# Credentials below are local-lab defaults only.
+name: feast-lab
+
+x-feast-image: &feast-image
+  image: feast-lab:0.66.0
+
+x-repo-mounts: &repo-mounts
+  volumes:
+    - ./feature_repo:/app/feature_repo
+    - ./scripts:/app/scripts
+    - ./explore:/app/explore
+
+services:
+  redis:
+    image: redis:7-alpine
+    ports: ["6379:6379"]
+    volumes: ["redis-data:/data"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: feast
+      POSTGRES_PASSWORD: feast
+      POSTGRES_DB: feast
+    ports: ["5432:5432"]
+    volumes: ["pg-data:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U feast -d feast"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  # One-shot job: generate demo data -> feast apply -> materialize offline -> online.
+  feast-init:
+    <<: [*feast-image, *repo-mounts]
+    build: .
+    depends_on:
+      redis: {condition: service_healthy}
+      postgres: {condition: service_healthy}
+    command: ["bash", "/app/scripts/init.sh"]
+    restart: "no"
+
+  # Online feature server (REST): POST /get-online-features
+  feature-server:
+    <<: [*feast-image, *repo-mounts]
+    depends_on:
+      feast-init: {condition: service_completed_successfully}
+    working_dir: /app/feature_repo
+    command: ["feast", "serve", "-h", "0.0.0.0", "-p", "6566"]
+    ports: ["6566:6566"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:6566/health')"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  # Optional web UI (registry, lineage, feature views): docker compose --profile ui up -d
+  feast-ui:
+    <<: [*feast-image, *repo-mounts]
+    profiles: ["ui"]
+    depends_on:
+      feast-init: {condition: service_completed_successfully}
+    working_dir: /app/feature_repo
+    command: ["feast", "ui", "-h", "0.0.0.0", "-p", "8888"]
+    ports: ["8888:8888"]
+
+  # Run the explore/ scripts inside the compose network:
+  #   docker compose run --rm workbench python explore/01_offline_pit.py
+  workbench:
+    <<: [*feast-image, *repo-mounts]
+    profiles: ["tools"]
+    working_dir: /app
+    entrypoint: []
+    command: ["bash"]
+
+volumes:
+  redis-data:
+  pg-data:

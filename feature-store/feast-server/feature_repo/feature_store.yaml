@@ -1,0 +1,33 @@
+project: feature_lab
+provider: local
+
+# Registry = the catalog of entities / feature views / feature services. SQL-backed so every
+# container (init, feature server, UI, your scripts) sees the same, current definitions.
+registry:
+  registry_type: sql
+  path: postgresql+psycopg://feast:feast@postgres:5432/feast?sslmode=disable  # local lab: no TLS
+  cache_ttl_seconds: 5
+  enable_online_feature_view_versioning: true  # lets you request a pinned version: "customer_stats@v0:feature"
+  sqlalchemy_config_kwargs:
+    echo: false
+    pool_pre_ping: true
+
+# Online store: latest value per entity key, low-latency lookups.
+online_store:
+  type: redis
+  connection_string: redis:6379
+
+# Offline store: full history; point-in-time joins run as SQL against these tables.
+offline_store:
+  type: postgres
+  host: postgres
+  port: 5432
+  database: feast
+  db_schema: public
+  user: feast
+  password: feast
+  sslmode: disable  # local lab: the Postgres container has no TLS (use `require` in real deployments)
+
+entity_key_serialization_version: 3
+auth:
+  type: no_auth

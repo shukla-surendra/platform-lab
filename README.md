@@ -39,6 +39,7 @@ reading in each one.
 | Folder | What's in it |
 |---|---|
 | [`mlops/`](./mlops) | `docs/` — tool write-ups (Evidently, MLflow, Feast, vLLM, observability stacks); `projects/` — runnable pipelines (`fraud-detection-xgboost/`, `batch-drift-detection-xgboost/`, `evidently-monitoring-demo/`, `feast-demo/`). |
+| [`feature-store/`](./feature-store) | Why feature stores exist and when you *don't* need one — reproduces training/serving skew and point-in-time leakage in plain pandas, builds a ~100-line feature store from scratch, then maps the concepts to SageMaker / Databricks / Feast. Own uv project; runs with no cloud account. Companion to `mlops/projects/feast-demo/`. |
 | [`applied_genai/`](./applied_genai) | Agentic AI / LLM tooling (renamed from `genai_lab/`) — `agents/` (MCP from scratch and official SDKs, LangGraph+Ollama, Bedrock AgentCore, a k8s on-call agent, an A2A protocol demo), `agentic_exploration/` (notebooks — renamed from `custom_hands_on/`), `rag/` (FAISS, Qdrant, pgvector, FastMCP auth patterns), `docs/`. Own MkDocs site. |
 
 ## Machine learning & deep learning

@@ -1,0 +1,12 @@
+[project]
+name = "feature-store"
+version = "0.1.0"
+description = "Why feature stores exist: reproduce the problems in plain pandas, then build a tiny feature store from scratch"
+requires-python = ">=3.11"
+dependencies = [
+    "pandas",
+    "numpy",
+]
+
+[tool.uv]
+package = false

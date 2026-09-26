@@ -1,0 +1,18 @@
+# Copy to terraform.tfvars and edit. terraform.tfvars is gitignored.
+
+region  = "us-east-1"
+project = "aws-mastery-s3-kms"
+
+kms_deletion_window_days = 7
+enable_key_rotation      = true
+
+# Optional: principals named in the KEY policy. Leave empty to rely on IAM policies alone.
+# key_admin_arns = ["arn:aws:iam::123456789012:role/platform-admin"]
+# key_user_arns  = ["arn:aws:iam::123456789012:role/app-role"]
+
+versioning_enabled                 = true
+enable_lifecycle_rules             = true
+noncurrent_version_transition_days = 30
+noncurrent_version_expiration_days = 90
+
+force_destroy = false
