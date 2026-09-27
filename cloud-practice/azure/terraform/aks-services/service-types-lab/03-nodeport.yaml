@@ -1,0 +1,14 @@
+# Step 3: NodePort -- ClusterIP + the same port opened on EVERY node's IP.
+apiVersion: v1
+kind: Service
+metadata:
+  name: hello-nodeport
+  namespace: svc-lab
+spec:
+  type: NodePort
+  selector:
+    app: hello
+  ports:
+    - port: 80
+      targetPort: 80
+      nodePort: 30080       # fixed so it's easy to remember (allowed range 30000-32767)

@@ -1,0 +1,46 @@
+# Step 1: just the app. NO Service yet -- this is the "problem" state.
+# nginxdemos/hello:plain-text replies with the pod's own name + IP, so we can
+# see exactly which pod answered each request.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: svc-lab
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hello
+  namespace: svc-lab
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: hello
+  template:
+    metadata:
+      labels:
+        app: hello          # <- Services will find the pods by this label
+    spec:
+      containers:
+        - name: hello
+          image: nginxdemos/hello:plain-text
+          ports:
+            - containerPort: 80
+          resources:
+            requests: { cpu: 10m, memory: 16Mi }
+            limits: { cpu: 100m, memory: 64Mi }
+---
+# A "client" pod inside the cluster, used to test from the inside.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: client
+  namespace: svc-lab
+spec:
+  containers:
+    - name: client
+      image: curlimages/curl:8.10.1
+      command: ["sleep", "infinity"]
+      resources:
+        requests: { cpu: 10m, memory: 16Mi }
+        limits: { cpu: 100m, memory: 32Mi }

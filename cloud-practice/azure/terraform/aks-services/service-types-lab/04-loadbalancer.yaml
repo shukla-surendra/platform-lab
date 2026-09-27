@@ -1,0 +1,13 @@
+# Step 4: LoadBalancer -- NodePort + a public IP on the Azure Load Balancer.
+apiVersion: v1
+kind: Service
+metadata:
+  name: hello-lb
+  namespace: svc-lab
+spec:
+  type: LoadBalancer
+  selector:
+    app: hello
+  ports:
+    - port: 80
+      targetPort: 80

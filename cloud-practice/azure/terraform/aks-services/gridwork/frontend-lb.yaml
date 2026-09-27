@@ -1,0 +1,18 @@
+# The chart exposes the frontend as a NodePort (its minikube default when
+# ingress is off). Rather than modify the chart, this is a SECOND Service
+# selecting the same frontend pods, of type LoadBalancer -- so it becomes
+# another frontend + public IP on the cluster's shared "kubernetes" Azure LB
+# (the same mechanism shown in README.md).
+apiVersion: v1
+kind: Service
+metadata:
+  name: gridwork-frontend-public
+  namespace: gridwork
+spec:
+  type: LoadBalancer
+  selector:
+    app: gridwork-frontend
+  ports:
+    - name: http
+      port: 80
+      targetPort: 80

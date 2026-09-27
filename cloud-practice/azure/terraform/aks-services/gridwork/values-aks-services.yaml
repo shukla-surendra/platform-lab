@@ -1,0 +1,21 @@
+# Overrides for installing gridwork's own Helm chart
+# (../../../../../gridwork/helm/personal-assistant) onto this lab cluster.
+# NO secrets in here -- postgresPassword / jwtSecret are generated and passed
+# with --set at install time (see DEPLOY_GRIDWORK.md).
+#
+# Image repository/tag are also passed with --set, because the ACR name
+# comes from `terraform output -raw acr_login_server`.
+
+backend:
+  image:
+    pullPolicy: IfNotPresent   # chart default is Never (minikube local images)
+
+frontend:
+  image:
+    pullPolicy: IfNotPresent
+
+# Everything Azure-specific the chart supports (Key Vault via Workload
+# Identity, Storage blob/queue, KEDA, OTel, ingress + cert-manager) stays
+# at its "off" default -- this cluster has none of that installed.
+ingress:
+  enabled: false

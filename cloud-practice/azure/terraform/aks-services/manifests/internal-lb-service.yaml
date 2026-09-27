@@ -1,0 +1,16 @@
+# Bonus: same thing but with the internal-LB annotation. This one does NOT
+# go onto the "kubernetes" LB -- it lands on a separate "kubernetes-internal"
+# LB with a private IP from the VNet.
+apiVersion: v1
+kind: Service
+metadata:
+  name: web-lb-internal
+  annotations:
+    service.beta.kubernetes.io/azure-load-balancer-internal: "true"
+spec:
+  type: LoadBalancer
+  selector:
+    app: web
+  ports:
+    - port: 80
+      targetPort: 80

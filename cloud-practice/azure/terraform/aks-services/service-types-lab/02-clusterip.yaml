@@ -1,0 +1,13 @@
+# Step 2: ClusterIP -- one stable, internal address + DNS name for all hello pods.
+apiVersion: v1
+kind: Service
+metadata:
+  name: hello-clusterip
+  namespace: svc-lab
+spec:
+  type: ClusterIP           # the default; written out for clarity
+  selector:
+    app: hello
+  ports:
+    - port: 80              # the Service's port
+      targetPort: 80        # the container's port
