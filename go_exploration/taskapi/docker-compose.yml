@@ -1,0 +1,41 @@
+# Local dev stack. Ports are deliberately NOT 5432/8080 to avoid clashing
+# with other things commonly running on a dev laptop.
+#
+#   make db-up       # just Postgres, run the API with `make run`
+#   make up          # Postgres + API container
+name: taskapi
+
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: taskapi
+      POSTGRES_PASSWORD: taskapi # local-only credentials
+      POSTGRES_DB: taskapi
+    ports:
+      - "55432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      # creates a second, throwaway database for integration tests
+      - ./scripts/init-test-db.sql:/docker-entrypoint-initdb.d/init-test-db.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U taskapi -d taskapi"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+
+  api:
+    build: .
+    environment:
+      DATABASE_URL: postgres://taskapi:taskapi@db:5432/taskapi?sslmode=disable
+      PORT: "8080"
+      LOG_LEVEL: info
+    ports:
+      - "8081:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+    profiles: ["app"] # only started by `make up`
+
+volumes:
+  pgdata:

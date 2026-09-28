@@ -61,6 +61,7 @@ reading in each one.
 |---|---|
 | [`cpp_cuda_prep/`](./cpp_cuda_prep) | C++ fundamentals for CUDA, progressively, plus a `cuda_fundamentals/` track. |
 | [`rust_dsa_practice/`](./rust_dsa_practice) | DSA problems in Rust — one Cargo crate per topic, one binary per problem under `src/bin/`. |
+| [`go_exploration/`](./go_exploration) | Go tutorial in 12 runnable, tested chapters — basics → interfaces/errors/generics → goroutines/context → testing → a stdlib JSON API with graceful shutdown and a concurrent health-check CLI. One Go module, stdlib only. |
 
 ## Interview & CS fundamentals
 
