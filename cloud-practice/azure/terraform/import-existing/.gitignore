@@ -1,0 +1,10 @@
+.lab.env
+tf/.terraform/
+tf/.terraform.lock.hcl
+tf/terraform.tfvars
+tf/*.tfstate
+tf/*.tfstate.backup
+tf/tfplan
+tf/main.tf
+tf/imports.tf
+tf/generated.tf
