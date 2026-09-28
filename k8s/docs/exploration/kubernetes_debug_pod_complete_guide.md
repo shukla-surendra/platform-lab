@@ -27,14 +27,17 @@ They normally share the Pod network namespace, and they can share volumes when t
 
 Consider:
 
-```text
-Pod
-│
-├── application container
-│     └── /app/main.py
-│
-└── debug container
-      └── /app/
+```mermaid
+flowchart LR
+    subgraph POD["Pod"]
+        subgraph APP["application container"]
+            A["/app/main.py"]
+        end
+        subgraph DBG["debug container"]
+            B["/app/ (different, own rootfs)"]
+        end
+    end
+    A x--x|"root filesystems NOT shared"| B
 ```
 
 These are normally separate container root filesystems.
@@ -72,46 +75,16 @@ They do not automatically share:
 
 Use the following mental model:
 
-```text
-                         Problem
-                            │
-              ┌─────────────┴─────────────┐
-              │                           │
-       Need application shell?       Application has no
-              │                       debugging tools?
-              ▼                           │
-      kubectl exec                       ▼
-                                  Ephemeral container
-                                  kubectl debug
-```
-
-For other problems:
-
-```text
-Network / DNS / Service
-        │
-        ▼
-Standalone network debug Pod
-
-Broken startup / need modified Pod
-        │
-        ▼
-kubectl debug --copy-to
-
-Node / kubelet / containerd / CNI
-        │
-        ▼
-kubectl debug node/<node>
-
-Need shared files
-        │
-        ▼
-Shared volume / PVC / emptyDir
-
-Need to understand running process
-        │
-        ▼
-Process-level debugging / ephemeral container
+```mermaid
+flowchart TB
+    P{"What is the problem?"}
+    P -->|need a shell in the app| EX["kubectl exec"]
+    P -->|app image has no tools| EPH["Ephemeral container<br/>kubectl debug --target"]
+    P -->|network / DNS / Service| NET["Standalone network debug Pod"]
+    P -->|"broken startup / need modified Pod"| CP["kubectl debug --copy-to"]
+    P -->|"node / kubelet / containerd / CNI"| ND["kubectl debug node/&lt;node&gt;"]
+    P -->|need shared files| VOL["Shared volume<br/>emptyDir / PVC"]
+    P -->|understand a running process| PROC["Process-level debugging<br/>+ ephemeral container"]
 ```
 
 ---
@@ -236,19 +209,26 @@ kubectl debug -it api-776f8b7547-zq9zd \
 
 Conceptually:
 
-```text
-Existing Pod
-│
-├── api container
-│     └── Python application
-│
-└── ephemeral debug container
-      └── Ubuntu + debugging tools
+```mermaid
+flowchart LR
+    subgraph POD["Existing Pod (not restarted)"]
+        API["api container<br/>Python application"]
+        EPH["ephemeral debug container<br/>Ubuntu + tools"]
+    end
+    EPH -. "--target: shares PID namespace" .-> API
 ```
 
 The original application image does not need to be rebuilt.
 
 The application Pod does not need to be replaced just to add the debugging container.
+
+> **Note — ephemeral container rules (GA since v1.25):**
+>
+> - They are added through the Pod's `ephemeralcontainers` subresource; the Pod is **not restarted**.
+> - They **cannot be removed or restarted** once added — they stay in `spec.ephemeralContainers` (and in `kubectl describe pod`) until the Pod is deleted. Each `kubectl debug` run adds another one.
+> - They may not declare `ports`, probes, or resource requests/limits, and are never restarted automatically.
+> - RBAC: the user needs `patch` on `pods/ephemeralcontainers` — often not granted in production namespaces.
+> - They do count towards node resource usage, and Pod Security admission still applies (a `restricted` namespace rejects a privileged debug container).
 
 ---
 
@@ -311,35 +291,32 @@ Important:
 
 Process namespace sharing and filesystem sharing are different concepts.
 
+> **Note — how you *can* reach the target's files.** Once `--target` gives you the target's PID namespace, the target's root filesystem is reachable through procfs:
+>
+> ```bash
+> ps aux                       # find the app's PID, e.g. 1
+> ls /proc/1/root/app          # the TARGET container's /app
+> ```
+>
+> This only works if the debug container runs as the same user as the target (or as root with sufficient capabilities); otherwise you get `Permission denied`. It is the practical version of "Option 3" in §19. `--target` also requires runtime support (containerd and CRI-O support it).
+
 ---
 
 # 8. Ephemeral Container vs Existing Container
 
-## Existing container
-
-```text
-kubectl exec
-     │
-     ▼
-Existing application container
+```mermaid
+flowchart LR
+    subgraph EXEC["kubectl exec"]
+        E["kubectl exec"] --> AC["existing application container"]
+    end
+    subgraph DEBUG["kubectl debug (ephemeral)"]
+        D["kubectl debug"] --> POD["existing Pod"]
+        POD --> AC2["application container"]
+        POD --> TC["temporary debug container<br/>(your image)"]
+    end
 ```
 
-You are entering the application container itself.
-
-## Ephemeral container
-
-```text
-kubectl debug
-     │
-     ▼
-Existing Pod
-     │
-     ├── application container
-     │
-     └── temporary debug container
-```
-
-You get a separate container with your desired debugging image.
+`kubectl exec` enters the application container itself. `kubectl debug` gives you a separate container with your desired debugging image.
 
 This is particularly useful when the application container is minimal.
 
@@ -361,20 +338,13 @@ kubectl run debug \
 
 Conceptually:
 
-```text
-Namespace: fast-site
-
-┌──────────────────┐
-│ application Pod  │
-│                  │
-│ api              │
-└──────────────────┘
-
-┌──────────────────┐
-│ debug Pod        │
-│                  │
-│ ubuntu           │
-└──────────────────┘
+```mermaid
+flowchart LR
+    subgraph NS["Namespace: fast-site"]
+        AP["application Pod<br/>api"]
+        DP["debug Pod<br/>ubuntu"]
+        DP -->|"HTTP / DNS over the Pod network"| AP
+    end
 ```
 
 This is extremely useful for network and service troubleshooting.
@@ -467,20 +437,9 @@ Instead, create a copy for investigation.
 
 Conceptually:
 
-```text
-Original
-api-xxxx
-   │
-   └── production application
-
-          │
-          │ copy
-          ▼
-
-Debug copy
-api-debug
-   │
-   └── modified/debuggable application
+```mermaid
+flowchart LR
+    O["Original Pod api-xxxx<br/>production application<br/>(untouched)"] -->|"kubectl debug --copy-to"| C["Debug copy api-debug<br/>modified / debuggable"]
 ```
 
 A common pattern is:
@@ -492,6 +451,23 @@ kubectl debug <pod> \
 ```
 
 Additional options can be used to change the image, command, container, environment, or other debugging properties depending on the problem.
+
+> **Note — the flags you actually use with `--copy-to`:**
+>
+> ```bash
+> # copy + add a debug container + share process namespace
+> kubectl debug <pod> -n <ns> -it --copy-to=<pod>-debug \
+>   --image=ubuntu:24.04 --share-processes -- bash
+>
+> # copy + replace the app container's command with a shell (crash-on-start investigation)
+> kubectl debug <pod> -n <ns> -it --copy-to=<pod>-debug \
+>   --container=<app-container> -- sh
+>
+> # copy + swap an image
+> kubectl debug <pod> -n <ns> --copy-to=<pod>-debug --set-image=<app-container>=myimage:debug
+> ```
+>
+> The copy is a **bare Pod** (no ReplicaSet owner), so it isn't replaced if it dies and must be deleted manually when you're done. Recent kubectl versions strip the original labels from the copy by default (see `--keep-labels`), so it doesn't receive Service traffic — check with `kubectl get pod <copy> --show-labels`.
 
 The key idea is:
 
@@ -547,18 +523,15 @@ Sometimes the problem isn't inside the application at all.
 
 The architecture is:
 
-```text
-Pod
- │
- ▼
-Node
- │
- ├── kubelet
- ├── containerd
- ├── CNI
- ├── filesystem
- ├── kernel
- └── networking
+```mermaid
+flowchart TB
+    P["Pod"] --> N["Node"]
+    N --> K["kubelet"]
+    N --> C["containerd"]
+    N --> CNI["CNI"]
+    N --> FS["filesystem"]
+    N --> KR["kernel"]
+    N --> NW["networking"]
 ```
 
 You can use node debugging:
@@ -576,6 +549,13 @@ A host filesystem can commonly be exposed through:
 ```
 
 depending on the debug setup.
+
+> **Note — what a node debug Pod really is:**
+>
+> - A normal Pod pinned to that node (`spec.nodeName`), created in your **current namespace**, named `node-debugger-<node>-<suffix>`.
+> - It shares the node's **network, PID and IPC namespaces** (`hostNetwork`, `hostPID`, `hostIPC`), and mounts the node's `/` at `/host`.
+> - What it may do is controlled by `--profile`: `legacy`, `general`, `baseline`, `restricted`, `netadmin`, `sysadmin`. Newer kubectl versions default to `general` instead of `legacy`; use `--profile=sysadmin` when you need a fully privileged container (e.g. for `chroot /host` + `systemctl`, or mounting).
+> - It is **not deleted when you exit** — it stays in `Completed` state until you `kubectl delete pod node-debugger-...`.
 
 ---
 
@@ -613,32 +593,14 @@ Exact availability depends on the Kubernetes environment and security configurat
 
 Think in layers:
 
-```text
-Layer 5 — Application
-    Python
-    Java
-    Go
-       │
-Layer 4 — Container
-    filesystem
-    processes
-    environment
-       │
-Layer 3 — Pod
-    network namespace
-    volumes
-       │
-Layer 2 — Node
-    kubelet
-    containerd
-    CNI
-    kernel
-       │
-Layer 1 — Infrastructure
-    VM
-    disk
-    network
-    cloud provider
+```mermaid
+flowchart TB
+    L5["Layer 5 — Application<br/>Python · Java · Go"]
+    L4["Layer 4 — Container<br/>filesystem · processes · environment"]
+    L3["Layer 3 — Pod<br/>network namespace · volumes"]
+    L2["Layer 2 — Node<br/>kubelet · containerd · CNI · kernel"]
+    L1["Layer 1 — Infrastructure<br/>VM · disk · network · cloud provider"]
+    L5 --> L4 --> L3 --> L2 --> L1
 ```
 
 Debug at the lowest layer that explains the problem.
@@ -659,17 +621,9 @@ and both containers mount it.
 
 Conceptually:
 
-```text
-Container A
-    │
-    └── /shared
-          │
-          ▼
-       emptyDir
-          ▲
-          │
-    Container B
-    └── /shared
+```mermaid
+flowchart LR
+    A["Container A<br/>/shared"] <--> V[("emptyDir volume")] <--> B["Container B<br/>/shared"]
 ```
 
 Now a file written by A:
@@ -694,17 +648,17 @@ This distinction is extremely important.
 
 Suppose:
 
-```text
-Application container
-
-/                     ← container filesystem
-├── bin
-├── etc
-├── usr
-└── app
-     └── main.py
-
-/shared               ← mounted shared volume
+```mermaid
+flowchart LR
+    subgraph APP["Application container"]
+        ROOT["/ (container rootfs)<br/>bin · etc · usr · app/main.py"]
+        SH["/shared (mounted volume)"]
+    end
+    subgraph DBG["Debug container"]
+        SH2["/shared (same volume)"]
+    end
+    SH <-->|same emptyDir| SH2
+    ROOT x--x|not visible| DBG
 ```
 
 A debug container may see:
@@ -739,14 +693,9 @@ But there are several possibilities.
 
 If the file is on a shared volume:
 
-```text
-Debug container
-      │
-      ▼
-shared volume
-      │
-      ▼
-Application container
+```mermaid
+flowchart LR
+    D["Debug container"] --> V[("shared volume")] --> A["Application container"]
 ```
 
 then yes, you can modify the shared file.
@@ -833,17 +782,10 @@ Running container:
 
 If the container is recreated:
 
-```text
-container restart/recreation
-       │
-       ▼
-new container filesystem
-       │
-       ▼
-based on my-api:v42
-       │
-       ▼
-original main.py
+```mermaid
+flowchart TB
+    IMG["Image my-api:v42<br/>original main.py"] --> RUN["Running container<br/>edited main.py (writable layer)"]
+    RUN -->|"restart / recreation"| NEW["New container from my-api:v42<br/>original main.py — edit lost"]
 ```
 
 Your manual modification is normally lost.
@@ -855,6 +797,8 @@ Your manual modification is normally lost.
 This distinction matters.
 
 A process restart inside the same container may leave the writable container filesystem intact.
+
+> **Note — correction for Kubernetes:** when the **kubelet** "restarts" a container (crash, OOMKill, failed liveness probe — the `RESTARTS` column), it actually creates a **new container** from the image. The old writable layer is discarded, so edits made with `kubectl exec` are **lost on every kubelet restart**, not only when the Pod is replaced. Only data on volumes (`emptyDir`, PVC, …) survives a container restart; `emptyDir` is lost when the Pod itself is deleted.
 
 A new container created from the image gets a fresh filesystem based on that image, subject to mounted volumes.
 
@@ -947,18 +891,9 @@ uvicorn main:app --reload
 
 Conceptually:
 
-```text
-main.py
-   │
-   ▼
-file watcher
-   │
-   │ detects change
-   ▼
-restart/reload application
-   │
-   ▼
-new code loaded
+```mermaid
+flowchart LR
+    F["main.py edited"] --> W["file watcher"] -->|detects change| R["restart / reload app"] --> N["new code loaded"]
 ```
 
 This gives the development experience:
@@ -1096,26 +1031,9 @@ Question:
 
 Preferred flow:
 
-```text
-Source code
-    │
-    ▼
-Git
-    │
-    ▼
-CI/CD
-    │
-    ▼
-Container image
-    │
-    ▼
-Registry
-    │
-    ▼
-Deployment
-    │
-    ▼
-New Pod
+```mermaid
+flowchart LR
+    SRC["Source code"] --> G["Git"] --> CI["CI/CD"] --> IMG["Container image"] --> REG["Registry"] --> DEP["Deployment"] --> P["New Pod"]
 ```
 
 ---
@@ -1148,12 +1066,9 @@ running-container:/app/main.py
 
 Now:
 
-```text
-Git state
-    ≠
-Image state
-    ≠
-Running state
+```mermaid
+flowchart LR
+    G["Git state"] -. "≠" .- I["Image state"] -. "≠" .- R["Running state<br/>(manually edited)"]
 ```
 
 This creates configuration drift.
@@ -1208,17 +1123,11 @@ During an incident, a temporary experiment may help answer:
 
 Conceptually:
 
-```text
-Production workload
-       │
-       ▼
-temporary diagnostic change
-       │
-       ▼
-observe behavior
-       │
-       ▼
-confirm/reject hypothesis
+```mermaid
+flowchart LR
+    P["Production workload"] --> T["temporary diagnostic change"] --> O["observe behaviour"] --> H{"hypothesis<br/>confirmed?"}
+    H -->|yes| FIX["real fix via Git → CI/CD → image → Deployment"]
+    H -->|no| P
 ```
 
 Then the real fix should go through:
@@ -1238,6 +1147,8 @@ Git → CI/CD → image → deployment
 | `--copy-to` | No — creates copy | Yes | Debug modified copy |
 | Standalone debug Pod | No | Yes | Network/DNS/toolbox debugging |
 | Node debug | Node | Yes | kubelet/containerd/CNI/node |
+
+> **Note:** Before reaching for any of these, the cheapest checks are usually `kubectl describe pod` (Events), `kubectl logs --previous`, and `kubectl get events --sort-by=.lastTimestamp`. If a workload has **no Pods at all**, none of the methods above apply — the problem is at the controller/admission step (`kubectl describe rs` / `describe deploy`), see `architecture.md` §5.11.
 
 ---
 
@@ -1303,39 +1214,15 @@ Use an ephemeral/debug container plus process-level debugging tools, subject to 
 
 To understand debugging deeply, learn these together:
 
-```text
-Container filesystem
-        │
-        ├── overlay filesystem
-        │
-        └── writable layer
-
-Volumes
-        │
-        ├── emptyDir
-        ├── PVC
-        ├── ConfigMap
-        └── Secret
-
-Linux namespaces
-        │
-        ├── PID
-        ├── network
-        ├── mount
-        ├── IPC
-        └── UTS
-
-Linux processes
-        │
-        └── /proc
-
-Container runtime
-        │
-        └── containerd
-
-Kubernetes
-        │
-        └── kubelet
+```mermaid
+flowchart LR
+    K["Debugging concepts"]
+    K --> FS["Container filesystem<br/>overlay fs · writable layer"]
+    K --> V["Volumes<br/>emptyDir · PVC · ConfigMap · Secret"]
+    K --> NS["Linux namespaces<br/>PID · network · mount · IPC · UTS"]
+    K --> PR["Linux processes<br/>/proc"]
+    K --> RT["Container runtime<br/>containerd"]
+    K --> KL["Kubernetes<br/>kubelet"]
 ```
 
 These concepts explain most of what happens during advanced Kubernetes debugging.
@@ -1346,20 +1233,19 @@ These concepts explain most of what happens during advanced Kubernetes debugging
 
 Think of a Pod as:
 
-```text
-                         POD
-                          │
-       ┌──────────────────┼──────────────────┐
-       │                  │                  │
-       ▼                  ▼                  ▼
- Application         Debug container     Sidecar
- container
-       │                  │                  │
-       │                  │                  │
-       └────────── shared volumes ───────────┘
-                          │
-                          ▼
-                    Explicit sharing
+```mermaid
+flowchart TB
+    subgraph POD["Pod"]
+        A["Application container"]
+        D["Debug container"]
+        S["Sidecar"]
+        V[("shared volumes — explicit sharing")]
+        NET(["shared network namespace — always"])
+        PID(["process namespace — only if configured / targeted"])
+    end
+    A --- V
+    D --- V
+    S --- V
 ```
 
 And separately:
@@ -1645,16 +1531,9 @@ edit → detect → reload → new code
 
 For production, the reproducible path remains:
 
-```text
-Git
- ↓
-CI/CD
- ↓
-container image
- ↓
-Deployment
- ↓
-new Pod
+```mermaid
+flowchart LR
+    G["Git"] --> CI["CI/CD"] --> I["container image"] --> D["Deployment"] --> P["new Pod"]
 ```
 
 A direct modification of a running container can be useful for **temporary incident investigation**, but it should not normally become the permanent deployment mechanism.

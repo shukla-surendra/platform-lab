@@ -30,31 +30,23 @@ Examples:
 
 Think:
 
-```text
-                    DaemonSet
-                       │
-              "one Pod per
-             applicable node"
-                       │
-          ┌────────────┼────────────┐
-          ▼            ▼            ▼
-       Node 1        Node 2        Node 3
-          │            │            │
-          ▼            ▼            ▼
-         Pod          Pod          Pod
+```mermaid
+flowchart TB
+    DS["DaemonSet<br/>one Pod per applicable node"] --> N1["Node 1"] --> P1["Pod"]
+    DS --> N2["Node 2"] --> P2["Pod"]
+    DS --> N3["Node 3"] --> P3["Pod"]
 ```
 
 If a fourth applicable node appears:
 
-```text
-                    DaemonSet
-                       │
-          ┌────────────┼────────────┬────────────┐
-          ▼            ▼            ▼            ▼
-       Node 1        Node 2        Node 3       Node 4
-          │            │            │            │
-          ▼            ▼            ▼            ▼
-         Pod          Pod          Pod          Pod
+```mermaid
+flowchart TB
+    DS["DaemonSet"] --> N1["Node 1"] --> P1["Pod"]
+    DS --> N2["Node 2"] --> P2["Pod"]
+    DS --> N3["Node 3"] --> P3["Pod"]
+    DS --> N4["Node 4 (new)"] --> P4["Pod — created automatically"]
+    style N4 stroke-dasharray: 5 5
+    style P4 stroke-dasharray: 5 5
 ```
 
 The DaemonSet controller automatically creates the new Pod.
@@ -124,20 +116,18 @@ Node 3 → Pod
 
 So:
 
-```text
-Before:
-
-DaemonSet
- ├── Node 1 → Pod
- └── Node 2 → Pod
-
-
-After Node 3 joins:
-
-DaemonSet
- ├── Node 1 → Pod
- ├── Node 2 → Pod
- └── Node 3 → Pod
+```mermaid
+flowchart LR
+    subgraph BEFORE["Before"]
+        DS1["DaemonSet"] --> a1["Node 1 → Pod"]
+        DS1 --> a2["Node 2 → Pod"]
+    end
+    subgraph AFTER["After Node 3 joins"]
+        DS2["DaemonSet"] --> b1["Node 1 → Pod"]
+        DS2 --> b2["Node 2 → Pod"]
+        DS2 --> b3["Node 3 → Pod (new)"]
+    end
+    BEFORE -->|node joins| AFTER
 ```
 
 This is one of the biggest reasons DaemonSets are useful for infrastructure agents.
@@ -166,6 +156,8 @@ Node 3 → Pod
 ```
 
 There is no longer an eligible Node 2, so there is no reason for the DaemonSet to maintain a Pod there.
+
+> **Note:** When the Node object is deleted, the Pod left bound to it is cleaned up by the **pod-garbage-collector** controller in `kube-controller-manager`, not by the DaemonSet controller. If the node merely becomes `NotReady` (not deleted), the DaemonSet Pod stays — see §37.
 
 ---
 
@@ -207,12 +199,14 @@ DaemonSet
 
 So:
 
-```text
-ReplicaSet:
-"How many Pods do I need?"
-
-DaemonSet:
-"Which nodes need a Pod?"
+```mermaid
+flowchart LR
+    subgraph RSQ["ReplicaSet — 'How many Pods do I need?'"]
+        RS["ReplicaSet<br/>replicas = 3"] --> a["Pod"] & b["Pod"] & c["Pod"]
+    end
+    subgraph DSQ["DaemonSet — 'Which nodes need a Pod?'"]
+        DS["DaemonSet"] --> n1["Node 1 → Pod"] & n2["Node 2 → Pod"] & n3["Node 3 → Pod"]
+    end
 ```
 
 ---
@@ -223,12 +217,9 @@ A DaemonSet is a **controller**.
 
 The Pods are separate Kubernetes objects.
 
-```text
-DaemonSet
-    │
-    │ creates/manages
-    ▼
-Pods
+```mermaid
+flowchart LR
+    DS["DaemonSet<br/>(controller-managed object)"] -->|creates / manages| P["Pods<br/>(separate objects)"]
 ```
 
 For example:
@@ -286,20 +277,16 @@ The `template` is essentially the definition of the Pod that the DaemonSet wants
 
 Conceptually:
 
-```text
-DaemonSet
-    │
-    │ Pod template
-    ▼
-Pod specification
-    │
-    ├── containers
-    ├── initContainers
-    ├── volumes
-    ├── probes
-    ├── networking
-    ├── security
-    └── scheduling rules
+```mermaid
+flowchart LR
+    DS["DaemonSet"] -->|Pod template| PS["Pod specification"]
+    PS --> C["containers"]
+    PS --> IC["initContainers"]
+    PS --> V["volumes"]
+    PS --> PR["probes"]
+    PS --> NW["networking"]
+    PS --> SEC["security"]
+    PS --> SCH["scheduling rules"]
 ```
 
 ---
@@ -369,11 +356,13 @@ spec:
   replicas: 3
 ```
 
-a normal DaemonSet does not use:
+a DaemonSet does not use:
 
 ```yaml
 replicas:
 ```
+
+> **Note:** It's not just "not normally used" — the DaemonSet spec has **no `replicas` field at all**. `kubectl apply` will reject it as an unknown field (strict field validation). You also can't `kubectl scale` a DaemonSet. To temporarily run it on zero nodes, a common trick is a `nodeSelector` that matches no node.
 
 because the number of required Pods is derived from the number of eligible nodes.
 
@@ -418,11 +407,13 @@ Now the requirement is:
 
 Suppose:
 
-```text
-Node 1 → Linux
-Node 2 → Linux
-Node 3 → Windows
-Node 4 → Linux
+```mermaid
+flowchart LR
+    DS["DaemonSet<br/>nodeSelector: kubernetes.io/os=linux"]
+    DS -->|eligible| N1["Node 1 · Linux → Pod"]
+    DS -->|eligible| N2["Node 2 · Linux → Pod"]
+    DS -. "not eligible" .-> N3["Node 3 · Windows → no Pod"]
+    DS -->|eligible| N4["Node 4 · Linux → Pod"]
 ```
 
 Then:
@@ -528,6 +519,20 @@ This is very important for infrastructure agents.
 
 For example, an observability agent may need to run on nodes that are otherwise reserved for special workloads.
 
+> **Note — tolerations the DaemonSet controller adds automatically.** Every DaemonSet Pod gets these, even if you don't write them:
+>
+> | Toleration | Effect | Why |
+> |---|---|---|
+> | `node.kubernetes.io/not-ready` | `NoExecute` | Not evicted when the node is NotReady |
+> | `node.kubernetes.io/unreachable` | `NoExecute` | Not evicted when the node stops heartbeating |
+> | `node.kubernetes.io/disk-pressure` | `NoSchedule` | Can land on a node under disk pressure |
+> | `node.kubernetes.io/memory-pressure` | `NoSchedule` | …memory pressure |
+> | `node.kubernetes.io/pid-pressure` | `NoSchedule` | …PID pressure |
+> | `node.kubernetes.io/unschedulable` | `NoSchedule` | Still runs on a **cordoned** node |
+> | `node.kubernetes.io/network-unavailable` | `NoSchedule` | Only for `hostNetwork: true` Pods — lets a CNI DaemonSet start on a node whose network isn't up yet |
+>
+> This is why `kubectl drain` needs `--ignore-daemonsets`: DaemonSet Pods tolerate `unschedulable`, so draining would just see them come straight back.
+
 ---
 
 # 14. Your Azure CNS example uses node affinity
@@ -591,24 +596,20 @@ kubectl apply -f daemonset.yaml
 
 the sequence is roughly:
 
-```text
-kubectl apply
-     │
-     ▼
-API Server
-     │
-     ▼
-DaemonSet object stored in cluster
-     │
-     ▼
-DaemonSet controller observes it
-     │
-     ▼
-Find eligible nodes
-     │
-     ├── Node 1 → create Pod
-     ├── Node 2 → create Pod
-     └── Node 3 → create Pod
+```mermaid
+sequenceDiagram
+    actor U as kubectl apply
+    participant A as API Server
+    participant DC as DaemonSet controller
+    participant S as kube-scheduler
+    U->>A: create DaemonSet
+    A-->>DC: watch: DaemonSet added
+    DC->>DC: find eligible nodes
+    loop each eligible node
+        DC->>A: create Pod (affinity pinned to node)
+    end
+    A-->>S: watch: unscheduled Pods
+    S->>A: bind each Pod to its node
 ```
 
 You don't manually create the Pods.
@@ -623,21 +624,32 @@ The Pod is then scheduled according to Kubernetes scheduling behavior.
 
 Conceptually:
 
-```text
-DaemonSet Controller
-       │
-       │ "I need a Pod for Node 2"
-       ▼
-Pod
-       │
-       ▼
-Scheduling
-       │
-       ▼
-Node 2
+```mermaid
+flowchart LR
+    DC["DaemonSet controller"] -->|"'I need a Pod for Node 2'"| P["Pod<br/>affinity: metadata.name = node-2"] --> S["kube-scheduler<br/>filter + bind"] --> N["Node 2"]
 ```
 
 Modern Kubernetes has implementation details around DaemonSet scheduling and pre-created Pods, but the important operational model is:
+
+> **Note — the actual mechanism (since v1.12, GA v1.17).** The DaemonSet controller creates each Pod with a **required node affinity pinned to one node by name**:
+>
+> ```yaml
+> affinity:
+>   nodeAffinity:
+>     requiredDuringSchedulingIgnoredDuringExecution:
+>       nodeSelectorTerms:
+>       - matchFields:
+>         - key: metadata.name
+>           operator: In
+>           values: ["aks-system-xxxxx-vmss000000"]
+> ```
+>
+> The **default kube-scheduler** then binds it — so the Pod still goes through normal filtering (resources, ports, taints). Consequence: if the node lacks CPU/memory for the DaemonSet Pod's requests, the Pod stays `Pending` on that node. System DaemonSets therefore usually set `priorityClassName: system-node-critical` so the scheduler can preempt lower-priority Pods to make room.
+>
+> ```bash
+> kubectl get pod <ds-pod> -n kube-system -o jsonpath='{.spec.affinity.nodeAffinity}'
+> ```
+
 
 > DaemonSet ensures the per-node Pod requirement; Kubernetes scheduling machinery places the Pod according to scheduling constraints.
 
@@ -655,17 +667,15 @@ The DaemonSet still wants a Pod on Node 1.
 
 The Pod/container restart behavior and Kubernetes controllers ensure the workload is brought back according to the Pod's configuration.
 
+> **Note — who does what:** a crashing **container** is restarted in place by the **kubelet** (DaemonSet Pods must use `restartPolicy: Always`), with exponential backoff → `CrashLoopBackOff`. The DaemonSet controller only steps in if the Pod **object** is deleted or ends in phase `Failed` (e.g. evicted); then it creates a new Pod for that node.
+
 Conceptually:
 
-```text
-Desired:
-Node 1 → DaemonSet Pod
-
-Actual:
-Node 1 → Pod failed
-
-Controller/runtime:
-Restore the workload
+```mermaid
+flowchart LR
+    D["Desired: Node 1 → DaemonSet Pod"] --> X["Actual: container crashed"]
+    X --> K["kubelet restarts container in place<br/>(CrashLoopBackOff on repeat)"]
+    X -->|"only if Pod object deleted / Failed"| DC["DaemonSet controller creates a new Pod"]
 ```
 
 A DaemonSet is therefore not simply a one-time Pod creator.
@@ -686,16 +696,9 @@ If the node is still eligible, the DaemonSet controller will create another Pod 
 
 Conceptually:
 
-```text
-Node 1
-   │
-   └── DaemonSet Pod ❌ deleted manually
-              │
-              ▼
-      DaemonSet notices
-              │
-              ▼
-      New Pod on Node 1
+```mermaid
+flowchart LR
+    DEL["kubectl delete pod<br/>(Node 1's DaemonSet Pod)"] --> DC["DaemonSet controller notices<br/>Node 1 still eligible, has no Pod"] --> NEW["New Pod on Node 1"]
 ```
 
 This is exactly the controller model.
@@ -754,32 +757,14 @@ Kubernetes progressively replaces old DaemonSet Pods with new ones.
 
 Conceptually:
 
-```text
-Old:
-Node 1 → v1
-Node 2 → v1
-Node 3 → v1
-
-Rollout:
-
-Node 1 → v2
-Node 2 → v1
-Node 3 → v1
-
-then:
-
-Node 1 → v2
-Node 2 → v2
-Node 3 → v1
-
-then:
-
-Node 1 → v2
-Node 2 → v2
-Node 3 → v2
+```mermaid
+flowchart LR
+    S0["Start<br/>N1 v1 · N2 v1 · N3 v1"] --> S1["Step 1<br/>N1 v2 · N2 v1 · N3 v1"] --> S2["Step 2<br/>N1 v2 · N2 v2 · N3 v1"] --> S3["Done<br/>N1 v2 · N2 v2 · N3 v2"]
 ```
 
 This is normally the preferred strategy for managed infrastructure updates.
+
+> **Note:** `RollingUpdate` is the **default** (with `maxUnavailable: 1`). With `OnDelete`, changing the template does nothing to running Pods — a node only gets the new version when you manually delete its old Pod. `OnDelete` is used when an operator must control per-node upgrade timing (e.g. CNI or storage agents). Watch progress with `kubectl rollout status ds/<name> -n <ns>`; `kubectl rollout undo ds/<name>` works too (DaemonSets keep history as `ControllerRevision` objects: `kubectl get controllerrevisions -n <ns>`).
 
 ---
 
@@ -820,14 +805,18 @@ This allows temporary additional Pods during rollout, subject to the DaemonSet u
 
 Conceptually:
 
-```text
-Node
-  │
-  ├── old Pod
-  └── new Pod temporarily
+```mermaid
+flowchart LR
+    subgraph NODE["Same node during surge"]
+        OLD["old Pod (v1)"]
+        NEW["new Pod (v2)"]
+    end
+    NEW -->|becomes Ready| RM["old Pod removed"]
 ```
 
 Then the old Pod can be removed after the new Pod is ready.
+
+> **Note:** `maxSurge` for DaemonSets is GA since v1.25. `maxSurge` and `maxUnavailable` cannot both be `0`. Surge does **not** work for Pods that use a `hostPort` (or bind a fixed port with `hostNetwork: true`) — the old and new Pod would conflict on the same node port, so the new Pod can't start until the old is gone.
 
 ---
 
@@ -954,12 +943,9 @@ The Pod will normally have an owner reference pointing to the DaemonSet.
 
 Conceptually:
 
-```text
-DaemonSet
-   │
-   │ owner/controller relationship
-   ▼
-Pod
+```mermaid
+flowchart LR
+    DS["DaemonSet"] -->|"ownerReference (controller: true)"| P["Pod"]
 ```
 
 This is useful when debugging.
@@ -1004,20 +990,22 @@ volumeMounts:
 
 Conceptually:
 
-```text
-Node
-└── /var/log
-       ▲
-       │ hostPath
-       │
-       ▼
-DaemonSet Pod
-└── /var/log
+```mermaid
+flowchart LR
+    subgraph NODE["Node"]
+        H["/var/log"]
+    end
+    subgraph POD["DaemonSet Pod"]
+        M["/var/log (mountPath)"]
+    end
+    M <-->|hostPath volume| H
 ```
 
 Each DaemonSet Pod sees the corresponding node's `/var/log`.
 
 This is common for log collectors.
+
+> **Note — security.** `hostPath` gives the container direct access to the node's filesystem; a writable mount of paths like `/`, `/etc`, `/var/lib/kubelet` or the container runtime socket is effectively node root. Mount `readOnly: true` where possible and prefer the narrowest path. The `baseline`/`restricted` Pod Security Standards forbid `hostPath` entirely — which is why system DaemonSets live in namespaces like `kube-system` that allow `privileged`.
 
 ---
 
@@ -1033,23 +1021,21 @@ This means the Pod uses the node's network namespace rather than getting a separ
 
 Conceptually:
 
-```text
-Normal Pod:
-
-Node
-└── Pod network namespace
-       └── Pod IP
-
-
-hostNetwork Pod:
-
-Node network namespace
-       ▲
-       │
-       └── Pod uses host network
+```mermaid
+flowchart LR
+    subgraph NORMAL["Normal Pod"]
+        direction TB
+        N1["Node"] --> NS1["Pod network namespace<br/>own Pod IP"]
+    end
+    subgraph HOSTNET["hostNetwork: true Pod"]
+        direction TB
+        N2["Node network namespace<br/>node IP + node ports"] --- P2["Pod shares it"]
+    end
 ```
 
 This can be useful for networking/system agents, but it should only be used when required.
+
+> **Note:** With `hostNetwork: true`, the Pod's DNS defaults to the **node's** resolver, so cluster names like `my-svc.my-ns.svc.cluster.local` won't resolve. Set `dnsPolicy: ClusterFirstWithHostNet` if the agent needs to reach in-cluster Services by name. Also, any port the container listens on is opened on the node itself, so two such Pods on one node can't use the same port.
 
 ---
 
@@ -1230,15 +1216,12 @@ This is one of the most useful comparisons.
 
 ### Deployment
 
-```text
-Deployment
-    │
-    ▼
-ReplicaSet
-    │
-    ├── Pod → Node 1
-    ├── Pod → Node 1
-    └── Pod → Node 3
+```mermaid
+flowchart LR
+    D["Deployment"] --> RS["ReplicaSet<br/>'I want N Pods'"]
+    RS --> a["Pod → Node 1"]
+    RS --> b["Pod → Node 1"]
+    RS --> c["Pod → Node 3"]
 ```
 
 The requirement is:
@@ -1247,12 +1230,12 @@ The requirement is:
 
 ### DaemonSet
 
-```text
-DaemonSet
-    │
-    ├── Pod → Node 1
-    ├── Pod → Node 2
-    └── Pod → Node 3
+```mermaid
+flowchart LR
+    DS["DaemonSet<br/>'one Pod on every applicable node'"]
+    DS --> a["Pod → Node 1"]
+    DS --> b["Pod → Node 2"]
+    DS --> c["Pod → Node 3"]
 ```
 
 The requirement is:
@@ -1393,6 +1376,8 @@ The key principle is:
 > **The DaemonSet controller continuously reconciles the desired per-node Pod state.**
 
 Do not think of a DaemonSet as a one-time deployment command.
+
+> **Note — concretely:** when a node goes `NotReady`/unreachable, the node-lifecycle controller (in `kube-controller-manager`) taints it `node.kubernetes.io/unreachable:NoExecute`. Normal Pods are evicted after ~5 minutes, but DaemonSet Pods carry that toleration **without** a time limit (see §13), so they are **not** evicted and not recreated elsewhere — they simply resume when the node comes back. If the node is deleted instead, PodGC removes its Pod (see §5).
 
 Think:
 
@@ -1619,32 +1604,21 @@ kube-system   kube-proxy
 
 These demonstrate the common DaemonSet pattern:
 
-```text
-Node-level functionality
-        │
-        ▼
-    DaemonSet
-        │
-        ▼
-one Pod per applicable node
+```mermaid
+flowchart LR
+    F["Node-level functionality"] --> DS["DaemonSet"] --> P["one Pod per applicable node"]
 ```
 
 Your `azure-cns` example is especially useful because it combines:
 
-```text
-DaemonSet
-   │
-   ├── node affinity
-   ├── tolerations
-   ├── hostNetwork
-   ├── init containers
-   ├── multiple containers
-   ├── HostPath volumes
-   ├── ConfigMap volume
-   ├── EmptyDir volumes
-   ├── health probes
-   ├── resource requests/limits
-   └── RollingUpdate
+```mermaid
+flowchart TB
+    DS["azure-cns DaemonSet"]
+    DS --> SCH["Scheduling<br/>node affinity · tolerations"]
+    DS --> NET["Networking<br/>hostNetwork"]
+    DS --> CT["Containers<br/>init containers · multiple containers<br/>health probes · requests/limits"]
+    DS --> VOL["Volumes<br/>HostPath · ConfigMap · EmptyDir"]
+    DS --> UP["Updates<br/>RollingUpdate"]
 ```
 
 This is a realistic production DaemonSet rather than a toy example.
@@ -1655,18 +1629,11 @@ This is a realistic production DaemonSet rather than a toy example.
 
 Remember this:
 
-```text
-                         DaemonSet
-                            │
-                            │
-                "one Pod per eligible node"
-                            │
-          ┌─────────────────┼─────────────────┐
-          ▼                 ▼                 ▼
-       Node 1            Node 2            Node 3
-          │                 │                 │
-          ▼                 ▼                 ▼
-        Pod-1             Pod-2             Pod-3
+```mermaid
+flowchart TB
+    DS["DaemonSet<br/>one Pod per eligible node"] --> N1["Node 1"] --> P1["Pod-1"]
+    DS --> N2["Node 2"] --> P2["Pod-2"]
+    DS --> N3["Node 3"] --> P3["Pod-3"]
 ```
 
 The DaemonSet:

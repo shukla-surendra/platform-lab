@@ -8,65 +8,33 @@ The most useful way to understand them is to ask:
 
 > **What requirement do I have for my Pods?**
 
-```text
-                 Kubernetes Workload Controllers
-                            │
-          ┌─────────────────┼──────────────────┐
-          │                 │                  │
-     Long-running       Node-oriented      Batch-oriented
-      workloads            workload          workloads
-          │                 │                  │
-    ┌─────┴─────┐           │            ┌─────┴─────┐
-    │           │           │            │           │
-Deployment  StatefulSet  DaemonSet      Job       CronJob
-    │           │           │             │           │
-    ▼           ▼           ▼             ▼           ▼
-ReplicaSet    Pods        Pods           Pods       Jobs
-    │                                               │
-    ▼                                               ▼
-  Pods                                             Pods
+```mermaid
+flowchart TB
+    W["Kubernetes workload controllers"]
+    W --> LR["Long-running workloads"]
+    W --> NO["Node-oriented workload"]
+    W --> BO["Batch-oriented workloads"]
+    LR --> D["Deployment"] --> RS["ReplicaSet"] --> P1["Pods"]
+    LR --> S["StatefulSet"] --> P2["Pods"]
+    NO --> DS["DaemonSet"] --> P3["Pods"]
+    BO --> J["Job"] --> P4["Pods"]
+    BO --> CJ["CronJob"] --> J2["Jobs"] --> P5["Pods"]
 ```
 
 A more precise controller relationship is:
 
-```text
-Deployment
-    │
-    ▼
-ReplicaSet
-    │
-    ▼
-Pods
-
-
-StatefulSet
-    │
-    ▼
-Pods
-
-
-DaemonSet
-    │
-    ▼
-Pods
-
-
-Job
-    │
-    ▼
-Pods
-
-
-CronJob
-    │
-    ▼
-Job
-    │
-    ▼
-Pods
+```mermaid
+flowchart LR
+    D["Deployment"] --> RS["ReplicaSet"] --> P1["Pods"]
+    S["StatefulSet"] --> P2["Pods"]
+    DS["DaemonSet"] --> P3["Pods"]
+    J["Job"] --> P4["Pods"]
+    CJ["CronJob"] --> J2["Job"] --> P5["Pods"]
 ```
 
 **Important:** Deployment is the workload controller that uses a ReplicaSet as an intermediate layer. StatefulSet and DaemonSet do not use ReplicaSets.
+
+> **Note — terminology.** "Deployment is a controller" is common shorthand. Precisely: `Deployment` is an **API resource** (a kind you write in YAML), and the **Deployment controller** is a loop inside `kube-controller-manager` that acts on it. The same pairing applies to every row above (StatefulSet ↔ statefulset-controller, Job ↔ job-controller, …). All of these controllers live in one process — see [`architecture.md` §5](./architecture.md#5-kube-controller-manager).
 
 ---
 
@@ -74,14 +42,9 @@ Pods
 
 A useful Kubernetes mental model is:
 
-```text
-Desired State
-      │
-      ▼
-Controller
-      │
-      ▼
-Actual Kubernetes Objects
+```mermaid
+flowchart LR
+    DS["Desired state"] --> C["Controller"] --> A["Actual Kubernetes objects"]
 ```
 
 For example:
@@ -136,56 +99,32 @@ Short version:
 
 ## Deployment architecture
 
-```text
-Deployment
-    │
-    ├── ReplicaSet-v1
-    │       │
-    │       ├── Pod-v1
-    │       ├── Pod-v1
-    │       └── Pod-v1
-    │
-    └── ReplicaSet-v2
-            │
-            ├── Pod-v2
-            ├── Pod-v2
-            └── Pod-v2
+```mermaid
+flowchart TB
+    D["Deployment"] --> RS1["ReplicaSet-v1"]
+    D --> RS2["ReplicaSet-v2"]
+    RS1 --> a1["Pod-v1"] & a2["Pod-v1"] & a3["Pod-v1"]
+    RS2 --> b1["Pod-v2"] & b2["Pod-v2"] & b3["Pod-v2"]
 ```
 
 During a rollout, both old and new ReplicaSets may temporarily exist.
 
 For example:
 
-```text
-Start:
-
-Deployment
-    │
-    └── ReplicaSet-v1
-          ├── Pod-v1
-          ├── Pod-v1
-          └── Pod-v1
-
-
-During rollout:
-
-Deployment
-    ├── ReplicaSet-v1
-    │      ├── Pod-v1
-    │      └── Pod-v1
-    │
-    └── ReplicaSet-v2
-           └── Pod-v2
-
-
-Finished:
-
-Deployment
-    │
-    └── ReplicaSet-v2
-           ├── Pod-v2
-           ├── Pod-v2
-           └── Pod-v2
+```mermaid
+flowchart LR
+    subgraph START["1 · Start"]
+        D1["Deployment"] --> R1["RS-v1: 3 Pods"]
+    end
+    subgraph MID["2 · During rollout"]
+        D2["Deployment"] --> R2a["RS-v1: 2 Pods ↓"]
+        D2 --> R2b["RS-v2: 1 Pod ↑"]
+    end
+    subgraph DONE["3 · Finished"]
+        D3["Deployment"] --> R3a["RS-v1: 0 Pods<br/>(kept for rollback)"]
+        D3 --> R3b["RS-v2: 3 Pods"]
+    end
+    START --> MID --> DONE
 ```
 
 The old ReplicaSet can remain as rollout history, allowing rollback.
@@ -201,6 +140,22 @@ kubectl rollout history deployment <name>
 kubectl rollout undo deployment <name>
 ```
 
+> **Note — rollout knobs worth knowing:**
+>
+> ```yaml
+> spec:
+>   strategy:
+>     type: RollingUpdate          # default; the other option is Recreate (kill all, then start new)
+>     rollingUpdate:
+>       maxSurge: 25%              # default: how many extra Pods above replicas during rollout
+>       maxUnavailable: 25%        # default: how many may be unavailable during rollout
+>   revisionHistoryLimit: 10       # old ReplicaSets kept for rollback
+>   minReadySeconds: 0             # Pod must be Ready this long to count as available
+>   progressDeadlineSeconds: 600   # after this, condition Progressing=False (rollout "failed")
+> ```
+>
+> A new ReplicaSet is created only when `spec.template` changes (tracked by the `pod-template-hash` label). Scaling `replicas` alone does not create one. `kubectl rollout pause/resume` lets you batch several template edits into one rollout.
+
 ---
 
 # 4. Why does Deployment need ReplicaSet?
@@ -215,27 +170,17 @@ A ReplicaSet has a simpler responsibility:
 
 Therefore:
 
-```text
-Deployment
-"I want version 2 and I want 3 replicas."
-        │
-        ▼
-ReplicaSet-v2
-"I must maintain 3 v2 Pods."
-        │
-        ▼
-      Pods
+```mermaid
+flowchart TB
+    D["Deployment<br/>'I want version 2 and 3 replicas'"] --> RS["ReplicaSet-v2<br/>'I must maintain 3 v2 Pods'"] --> P["Pods"]
 ```
 
 During an update:
 
-```text
-                 Deployment
-                 /        \
-                /          \
-       ReplicaSet-v1    ReplicaSet-v2
-            │                │
-         old Pods          new Pods
+```mermaid
+flowchart TB
+    D["Deployment"] -->|scale down| RS1["ReplicaSet-v1"] --> OP["old Pods"]
+    D -->|scale up| RS2["ReplicaSet-v2"] --> NP["new Pods"]
 ```
 
 The Deployment can scale the old ReplicaSet down and the new ReplicaSet up according to the rollout strategy.
@@ -329,17 +274,11 @@ Short version:
 
 ## StatefulSet architecture
 
-```text
-StatefulSet
-    │
-    ├── db-0
-    │     └── PVC-0
-    │
-    ├── db-1
-    │     └── PVC-1
-    │
-    └── db-2
-          └── PVC-2
+```mermaid
+flowchart TB
+    SS["StatefulSet"] --> D0["db-0"] --> V0[("PVC data-db-0")]
+    SS --> D1["db-1"] --> V1[("PVC data-db-1")]
+    SS --> D2["db-2"] --> V2[("PVC data-db-2")]
 ```
 
 Notice:
@@ -378,10 +317,11 @@ StatefulSet
 
 If `db-1` dies:
 
-```text
-db-0   Running
-db-1   Failed
-db-2   Running
+```mermaid
+flowchart LR
+    F["db-1 fails / is deleted"] --> SC["StatefulSet controller"]
+    SC -->|"✓ recreates"| SAME["db-1<br/>same name, same PVC"]
+    SC -. "✗ never" .-> RAND["db-x7k29"]
 ```
 
 The StatefulSet controller notices that the desired state is not satisfied and recreates:
@@ -397,6 +337,14 @@ db-x7k29
 ```
 
 The identity matters.
+
+> **Note — what a StatefulSet actually guarantees:**
+>
+> - **Stable name**: `<statefulset>-<ordinal>` (`db-0`, `db-1`, …).
+> - **Stable DNS**: requires a **headless Service** (`clusterIP: None`) named in `spec.serviceName`; each Pod gets `db-0.<service>.<namespace>.svc.cluster.local`.
+> - **Stable storage**: `volumeClaimTemplates` create one PVC per ordinal (`data-db-0`, `data-db-1`). When `db-1` is recreated it re-attaches **the same PVC**. PVCs are **not** deleted when you scale down or delete the StatefulSet (unless `persistentVolumeClaimRetentionPolicy` says so).
+> - **Ordering**: with the default `podManagementPolicy: OrderedReady`, Pods are created `0 → N-1` (each must be Ready first) and deleted `N-1 → 0`. `Parallel` removes the ordering.
+> - **At-most-one**: if the node running `db-1` becomes unreachable, the controller will **not** start a new `db-1` elsewhere until the old one is confirmed gone (force delete or the `node.kubernetes.io/out-of-service` taint). This avoids two Pods with the same identity writing to the same data — but it means StatefulSets don't self-heal from node failure as fast as Deployments.
 
 ---
 
@@ -449,12 +397,12 @@ Mental model:
 
 > **One Pod per applicable node.**
 
-```text
-DaemonSet
-    │
-    ├── Node 1 → Pod
-    ├── Node 2 → Pod
-    └── Node 3 → Pod
+```mermaid
+flowchart TB
+    DS["DaemonSet"] --> N1["Node 1 → Pod"]
+    DS --> N2["Node 2 → Pod"]
+    DS --> N3["Node 3 → Pod"]
+    DS -.->|new node joins| N4["Node 4 → Pod (auto-created)"]
 ```
 
 If a new applicable node joins:
@@ -470,6 +418,8 @@ Node 4 → Pod
 ```
 
 If a node is removed, its DaemonSet Pod disappears with the node.
+
+> **Note:** Precisely, the Pod object doesn't vanish by itself — when the Node object is deleted, the **pod-garbage-collector** controller (in KCM) deletes Pods bound to a node that no longer exists.
 
 ---
 
@@ -503,20 +453,17 @@ DaemonSet: azure-cns
 
 Its architecture is:
 
-```text
-DaemonSet: azure-cns
-        │
-        ▼
-    Pod template
-        │
-        ▼
-azure-cns Pod
-   │
-   ├── Init container: cni-installer
-   ├── Init container: telemetry-sidecar-init
-   │
-   ├── Container: cns-container
-   └── Container: cni-telemetry-sidecar
+```mermaid
+flowchart TB
+    DS["DaemonSet: azure-cns"] --> T["Pod template"] --> P["azure-cns Pod"]
+    subgraph INIT["Init containers (run first, in order)"]
+        I1["cni-installer"] --> I2["telemetry-sidecar-init"]
+    end
+    subgraph MAIN["Containers"]
+        C1["cns-container"]
+        C2["cni-telemetry-sidecar"]
+    end
+    P --> INIT --> MAIN
 ```
 
 The Pod uses `hostNetwork: true` and several `hostPath` volumes.
@@ -535,20 +482,19 @@ These are node-level paths.
 
 Conceptually:
 
-```text
-Kubernetes Node
-│
-├── /opt/cni/bin
-├── /etc/cni/net.d
-├── /var/run
-├── /var/lib/azure-network
-│
-└── azure-cns Pod
-       │
-       ├── cns-container
-       └── cni-telemetry-sidecar
-              │
-              └── HostPath mounts → Node filesystem
+```mermaid
+flowchart LR
+    subgraph NODE["Kubernetes Node filesystem"]
+        H1["/opt/cni/bin"]
+        H2["/etc/cni/net.d"]
+        H3["/var/run"]
+        H4["/var/lib/azure-network"]
+    end
+    subgraph POD["azure-cns Pod (hostNetwork: true)"]
+        C1["cns-container"]
+        C2["cni-telemetry-sidecar"]
+    end
+    POD -->|hostPath mounts| NODE
 ```
 
 This is a strong real-world example of why a DaemonSet is useful: Azure CNS is node-level networking infrastructure.
@@ -609,12 +555,14 @@ DaemonSet
 
 So:
 
-```text
-ReplicaSet:
-"How many Pods?"
-
-DaemonSet:
-"Which nodes need a Pod?"
+```mermaid
+flowchart LR
+    subgraph RSQ["ReplicaSet — 'How many Pods?'"]
+        RS["ReplicaSet<br/>replicas = 3"] --> a["Pod"] & b["Pod"] & c["Pod"]
+    end
+    subgraph DSQ["DaemonSet — 'Which nodes need a Pod?'"]
+        DS["DaemonSet"] --> n1["Node 1 → Pod"] & n2["Node 2 → Pod"] & n3["Node 3 → Pod"]
+    end
 ```
 
 ---
@@ -625,17 +573,9 @@ A Job is for a **finite task that should eventually complete**.
 
 Mental model:
 
-```text
-Job
- │
- ▼
-Pod
- │
- ▼
-Task finishes
- │
- ▼
-Job completed
+```mermaid
+flowchart LR
+    J["Job"] --> P["Pod"] --> T["Task finishes"] --> C(["Job completed"])
 ```
 
 Unlike a Deployment, the Pod is not expected to run forever.
@@ -672,17 +612,29 @@ spec:
 
 Mental model:
 
-```text
-Job
- │
- ├── Pod 1 → completed
- ├── Pod 2 → completed
- ├── Pod 3 → completed
- ├── Pod 4 → completed
- └── Pod 5 → completed
+```mermaid
+flowchart TB
+    J["Job<br/>completions: 5, parallelism: 2"] --> P1["Pod 1 ✓"] & P2["Pod 2 ✓"]
+    P1 & P2 --> P3["Pod 3 ✓"] & P4["Pod 4 ✓"]
+    P3 & P4 --> P5["Pod 5 ✓"]
+    P5 --> DONE(["Job complete: 5 successes"])
 ```
 
 `parallelism: 2` means up to two Pods can work concurrently.
+
+> **Note — other Job fields that matter in practice:**
+>
+> | Field | Default | Meaning |
+> |---|---|---|
+> | `completions` | 1 | Successful Pods needed |
+> | `parallelism` | 1 | Max Pods running at once |
+> | `backoffLimit` | 6 | Failed retries before the Job is marked `Failed` |
+> | `activeDeadlineSeconds` | none | Hard time limit for the whole Job |
+> | `ttlSecondsAfterFinished` | none | Auto-delete the Job (and its Pods) after it finishes |
+> | `completionMode: Indexed` | `NonIndexed` | Each Pod gets `JOB_COMPLETION_INDEX` 0..N-1 — useful for sharding work |
+> | `restartPolicy` (Pod template) | — | Must be `OnFailure` or `Never` (`Always` is not allowed for Jobs) |
+>
+> With `restartPolicy: OnFailure` the kubelet retries the container in the same Pod; with `Never` the Job controller creates a new Pod per failure.
 
 The important distinction is that the Pods are being used to **complete work**, not to provide a permanently running service.
 
@@ -694,17 +646,11 @@ A CronJob is a scheduler for Jobs.
 
 Mental model:
 
-```text
-CronJob
-   │
-   ├── Job 1
-   │     └── Pods
-   │
-   ├── Job 2
-   │     └── Pods
-   │
-   └── Job 3
-         └── Pods
+```mermaid
+flowchart TB
+    CJ["CronJob<br/>schedule: 0 2 * * *"] --> J1["Job 1"] --> P1["Pods"]
+    CJ --> J2["Job 2"] --> P2["Pods"]
+    CJ --> J3["Job 3"] --> P3["Pods"]
 ```
 
 Example:
@@ -731,23 +677,25 @@ Task completes
 
 If each Job itself uses multiple completions, each scheduled Job can create/manage multiple Pods.
 
+> **Note:** Key CronJob fields: `concurrencyPolicy` (`Allow` default / `Forbid` / `Replace` — what to do if the previous Job is still running), `startingDeadlineSeconds` (how late a missed run may still start; if it is unset and more than 100 runs were missed, the controller refuses to start the Job and logs an error), `timeZone` (e.g. `"Asia/Kolkata"`; without it the schedule is interpreted in the KCM's time zone, normally UTC), `suspend: true` to pause, and `successfulJobsHistoryLimit` (3) / `failedJobsHistoryLimit` (1). Trigger a run manually with `kubectl create job --from=cronjob/<name> <job-name>`.
+
 ---
 
 # 15. Long-running vs batch workloads
 
 A very useful boundary is:
 
-```text
-Long-running workloads
-        │
-        ├── Deployment
-        ├── StatefulSet
-        └── DaemonSet
-
-Batch workloads
-        │
-        ├── Job
-        └── CronJob
+```mermaid
+flowchart TB
+    subgraph LR["Long-running — Pods expected to keep running"]
+        D["Deployment"]
+        S["StatefulSet"]
+        DS["DaemonSet"]
+    end
+    subgraph B["Batch — Pods do work and finish"]
+        J["Job"]
+        CJ["CronJob"]
+    end
 ```
 
 Long-running:
@@ -764,34 +712,16 @@ Batch:
 
 Ask:
 
-### "Do I need a continuously running application?"
-
-If yes:
-
-```text
-Stateless/interchangeable?
-        │
-        └── Yes → Deployment
-
-Stable identity/storage?
-        │
-        └── Yes → StatefulSet
-
-One copy per applicable node?
-        │
-        └── Yes → DaemonSet
-```
-
-If it is a finite task:
-
-```text
-Run once/on demand?
-        │
-        └── Yes → Job
-
-Run periodically?
-        │
-        └── Yes → CronJob
+```mermaid
+flowchart TB
+    Q{"Continuously running<br/>application?"}
+    Q -->|yes| Q2{"What matters most?"}
+    Q2 -->|"stateless, interchangeable"| D["Deployment"]
+    Q2 -->|"stable identity / storage"| S["StatefulSet"]
+    Q2 -->|"one copy per applicable node"| DS["DaemonSet"]
+    Q -->|"no — finite task"| Q3{"When?"}
+    Q3 -->|"once / on demand"| J["Job"]
+    Q3 -->|periodically| CJ["CronJob"]
 ```
 
 ---
@@ -834,15 +764,11 @@ A concise answer:
 
 Example:
 
-```text
-Deployment
-    → API servers / frontend
-
-StatefulSet
-    → database cluster
-
-DaemonSet
-    → node networking / logging / monitoring agent
+```mermaid
+flowchart LR
+    D["Deployment"] --> D1["API servers / frontend"]
+    S["StatefulSet"] --> S1["database cluster"]
+    DS["DaemonSet"] --> DS1["node networking / logging / monitoring agent"]
 ```
 
 ---
@@ -901,5 +827,5 @@ ReplicaSet  → number of interchangeable Pods
 StatefulSet → identity/state
 DaemonSet   → node placement
 Job         → completion
-CronJob      → scheduling Jobs
+CronJob     → scheduling Jobs
 ```

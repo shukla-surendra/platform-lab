@@ -278,6 +278,13 @@ management mechanism.
 However, this is **not the same as getting an interactive shell on the
 worker node**.
 
+> **Note:** `az aks command invoke` runs your command inside a short-lived
+> Pod (in the `aks-command` namespace) using a kubeconfig with the
+> cluster-admin-level credentials Azure gives it. It exists mainly for
+> **private clusters** whose API Server isn't reachable from your
+> machine. The command runs as a Pod in the cluster, not on the node's
+> host, and each call takes several seconds.
+
 For an interactive node-level shell, use `kubectl debug`.
 
 ------------------------------------------------------------------------
@@ -325,18 +332,9 @@ host environment.
 
 Conceptually:
 
-``` text
-Your machine
-    |
-    | kubectl debug
-    v
-AKS API Server
-    |
-    v
-Debug Pod
-    |
-    v
-AKS Worker Node
+```mermaid
+flowchart LR
+    M["Your machine"] -->|kubectl debug| API["AKS API Server"] --> DP["Debug Pod<br/>hostNetwork · hostPID · /host mount"] --> N["AKS worker node"]
 ```
 
 The debug container provides access to the node's host filesystem
@@ -345,6 +343,19 @@ through:
 ``` text
 /host
 ```
+
+> **Note:**
+>
+> -   The debug Pod shares the node's network, PID and IPC namespaces,
+>     so `ps aux` already shows host processes (kubelet, containerd)
+>     even before `chroot`.
+> -   It is created in your **current namespace** (usually `default`).
+> -   `--image=ubuntu` pulls from Docker Hub. Microsoft's AKS docs use
+>     `mcr.microsoft.com/cbl-mariner/busybox:2.0` or similar MCR images,
+>     which avoids Docker Hub rate limits and works on clusters with
+>     egress restricted to Microsoft endpoints.
+> -   If `chroot /host` or `systemctl` fails with permission errors on
+>     newer kubectl, add `--profile=sysadmin`.
 
 ------------------------------------------------------------------------
 
@@ -415,6 +426,21 @@ and a kernel similar to:
 ``` text
 6.6.x-...-azl3
 ```
+
+> **Note — useful node-level commands once inside `chroot /host`:**
+>
+> ``` bash
+> systemctl status kubelet          # kubelet is a systemd service, not a Pod
+> journalctl -u kubelet --since "10 min ago"
+> systemctl status containerd
+> cat /etc/crictl.yaml              # which CRI socket crictl uses
+> df -h /var/lib/containerd         # image/container disk usage (DiskPressure)
+> ls /etc/cni/net.d                 # CNI config (Azure CNI / Cilium)
+> ```
+>
+> You won't find `kube-apiserver`, `kube-scheduler`, `kube-controller-manager`
+> or `etcd` on an AKS node — the control plane is managed by Azure and
+> runs outside your node pools.
 
 ------------------------------------------------------------------------
 
@@ -653,46 +679,19 @@ fast-site     caddy-xxxxx                 10.20.x.x   aks-system-...
 
 The complete path you used is:
 
-``` text
-Azure CLI
-    |
-    | az login
-    v
-Azure Subscription
-    |
-    | az aks get-credentials
-    v
-~/.kube/config
-    |
-    | kubectl
-    v
-AKS API Server
-    |
-    | kubectl debug node/...
-    v
-Debug Pod
-    |
-    | /host
-    v
-AKS Worker Node
-    |
-    | chroot /host
-    v
-Node Host Environment
-    |
-    +-------------------------+
-    |                         |
-    v                         v
-  kubelet                 containerd
-                              |
-                              | CRI
-                              v
-                           crictl
-                              |
-                +-------------+-------------+
-                |                           |
-                v                           v
-           Pod sandboxes               Containers
+```mermaid
+flowchart TB
+    AZ["Azure CLI"] -->|az login| SUB["Azure subscription"]
+    SUB -->|az aks get-credentials| KC["~/.kube/config"]
+    KC -->|kubectl| API["AKS API Server"]
+    API -->|"kubectl debug node/…"| DP["Debug Pod"]
+    DP -->|/host| N["AKS worker node"]
+    N -->|chroot /host| HOST["Node host environment"]
+    HOST --> KL["kubelet"]
+    HOST --> CD["containerd"]
+    CD -->|CRI| CRI["crictl"]
+    CRI --> SB["Pod sandboxes<br/>crictl pods"]
+    CRI --> CT["Containers<br/>crictl ps"]
 ```
 
 ------------------------------------------------------------------------
@@ -816,8 +815,9 @@ exit
 exit
 ```
 
-The `kubectl debug` command creates a temporary debugging Pod. Depending
-on how the session is terminated, the debug Pod may remain temporarily.
+The `kubectl debug` command creates a debugging Pod. It is **not**
+deleted automatically when you exit — it stays in `Completed` state
+until you delete it.
 
 Check:
 

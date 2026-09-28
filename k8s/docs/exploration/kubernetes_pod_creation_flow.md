@@ -16,28 +16,10 @@ The strongest answer is:
 
 There are therefore several different steps involved.
 
-```text
-Controller
-    |
-    | creates Pod object
-    v
-API Server
-    |
-    v
-Pod Object
-    |
-    v
-Scheduler
-    |
-    | selects Worker Node
-    v
-kubelet
-    |
-    v
-Container Runtime
-    |
-    v
-Containers
+```mermaid
+flowchart LR
+    C["Controller"] -->|creates Pod object| A["API Server"] --> P["Pod object"] --> S["Scheduler"]
+    S -->|selects worker node| K["kubelet"] --> R["Container runtime"] --> CT["Containers"]
 ```
 
 ---
@@ -56,14 +38,10 @@ Containers
 
 The important distinction:
 
-```text
-Controller
-    ↓
-Creates Pod OBJECT
-
-kubelet + container runtime
-    ↓
-Actually make the workload RUN
+```mermaid
+flowchart LR
+    C["Controller"] -->|creates| O["Pod OBJECT<br/>(API data)"]
+    O -.-> KR["kubelet + container runtime"] -->|actually make it| RUN["RUN"]
 ```
 
 ---
@@ -134,18 +112,10 @@ Difference = 2
 
 Therefore it needs to create Pods.
 
-```text
-ReplicaSet Object
-       |
-       | replicas = 2
-       v
-ReplicaSet Controller
-       |
-       | sees:
-       | Desired = 2
-       | Actual  = 0
-       v
-Create 2 Pod Objects
+```mermaid
+flowchart TB
+    RS["ReplicaSet object<br/>replicas = 2"] --> RSC{"ReplicaSet controller<br/>Desired = 2, Actual = 0"}
+    RSC -->|difference = 2| CR["Create 2 Pod objects"]
 ```
 
 ---
@@ -158,11 +128,10 @@ This is extremely important.
 
 The ReplicaSet Controller does **not**:
 
-```text
-ReplicaSet Controller
-       |
-       X
-       └── directly contact containerd
+```mermaid
+flowchart LR
+    RSC["ReplicaSet controller"] -. "✗ never" .-> CD["containerd"]
+    RSC -->|"✓ via the API"| A["API Server"] --> P["Pod objects"]
 ```
 
 Instead:
@@ -207,6 +176,14 @@ Pod Object
 Scheduler
 ```
 
+> **Note:** "Node not assigned" concretely means `spec.nodeName` is empty. You can list such Pods with:
+>
+> ```bash
+> kubectl get pods -A --field-selector spec.nodeName=
+> ```
+>
+> The scheduler assigns a node by POSTing a **Binding** (the `pods/binding` subresource), which sets `spec.nodeName`. After that, `spec.nodeName` is immutable — a Pod never moves to another node; it can only be deleted and replaced.
+
 ---
 
 # 7. Scheduler Chooses a Node
@@ -221,19 +198,12 @@ Worker Node 3
 
 The scheduler evaluates the available nodes and chooses a suitable one.
 
-```text
-                 Pod
-                  |
-                  v
-             Scheduler
-                  |
-        +---------+---------+
-        |         |         |
-        v         v         v
-      Node 1    Node 2    Node 3
-                  |
-                  |
-              selected
+```mermaid
+flowchart TB
+    P["Pod"] --> S["Scheduler"]
+    S -.-> N1["Node 1"]
+    S ==>|selected| N2["Node 2"]
+    S -.-> N3["Node 3"]
 ```
 
 The scheduler does NOT run the container.
@@ -257,14 +227,11 @@ Worker Node 2
 
 The kubelet on Node 2 is responsible for making sure the Pod actually runs.
 
-```text
-Worker Node 2
-    |
-    +-- kubelet
-    |
-    +-- container runtime
-    |
-    +-- Pod
+```mermaid
+flowchart TB
+    subgraph N2["Worker Node 2"]
+        KL["kubelet"] --> CR["container runtime"] --> P["Pod"]
+    end
 ```
 
 The kubelet reads the Pod specification and works with the container runtime.
@@ -275,18 +242,9 @@ The kubelet reads the Pod specification and works with the container runtime.
 
 The simplified flow is:
 
-```text
-Pod assigned to Node
-        |
-        v
-      kubelet
-        |
-        | CRI
-        v
-Container Runtime
-        |
-        v
-Container
+```mermaid
+flowchart LR
+    P["Pod assigned to Node"] --> K["kubelet"] -->|CRI| R["Container runtime"] --> C["Container"]
 ```
 
 Typical container runtimes include:
@@ -296,45 +254,38 @@ Typical container runtimes include:
 
 The runtime creates and starts the actual containers.
 
+> **Note — what the kubelet actually does, in order:**
+>
+> ```text
+> 1. Admit the Pod        (enough resources? node-level checks)
+> 2. Create Pod sandbox   (CRI RunPodSandbox -> "pause" container holds the network namespace)
+> 3. CNI plugin           (assigns the Pod IP, wires it into the cluster network)
+> 4. Volumes              (CSI / ConfigMap / Secret / emptyDir mounted)
+> 5. Pull images          (per imagePullPolicy)
+> 6. Init containers      (run one at a time, each must exit 0)
+> 7. App containers       (CRI CreateContainer + StartContainer)
+> 8. Probes               (startup -> liveness / readiness)
+> 9. Report status        (Pod IP, conditions, Ready) back to the API Server
+> ```
+>
+> Steps 2–4 are where most "stuck in `ContainerCreating`" problems live (CNI out of IPs, volume attach failures). `crictl pods` on the node lists the sandboxes from step 2 — see `aks-node-access-and-crictl-runbook.md`.
+
 ---
 
 # 10. Complete Pod Creation Flow
 
 Putting everything together:
 
-```text
-                         CONTROL PLANE
-
-ReplicaSet Object
-       |
-       v
-ReplicaSet Controller
-       |
-       | Desired = 2
-       | Actual  = 0
-       |
-       v
-   API Server
-       |
-       v
-   Pod Object(s)
-       |
-       v
-   Scheduler
-       |
-       | chooses Worker Node
-       v
-
-                    WORKER NODE
-       |
-       v
-     kubelet
-       |
-       v
-Container Runtime
-       |
-       v
-   Containers
+```mermaid
+flowchart TB
+    subgraph CP["CONTROL PLANE"]
+        RSO["ReplicaSet object"] --> RSC["ReplicaSet controller<br/>Desired = 2 · Actual = 0"]
+        RSC --> A["API Server"] --> PO["Pod objects"] --> S["Scheduler<br/>chooses worker node"]
+    end
+    subgraph WN["WORKER NODE"]
+        K["kubelet"] --> R["Container runtime"] --> C["Containers"]
+    end
+    S --> K
 ```
 
 ---
@@ -392,19 +343,10 @@ Actual  = 1
 
 The ReplicaSet Controller detects the difference.
 
-```text
-ReplicaSet Controller
-        |
-        | Desired = 2
-        | Actual  = 1
-        v
-Creates another Pod Object
-        |
-        v
-API Server
-        |
-        v
-New Pod
+```mermaid
+flowchart TB
+    RSC{"ReplicaSet controller<br/>Desired = 2 · Actual = 1"} -->|creates another Pod object| A["API Server"] --> NP["New Pod"]
+    NP --> S["Scheduler"] --> W["Worker Node"] --> K["kubelet"] --> R["Container runtime"]
 ```
 
 Then:
@@ -433,6 +375,17 @@ Actual  = 2
 ```
 
 The system returns to the desired state.
+
+> **Note — what "dies" means matters.**
+>
+> | What happened | Who reacts | Result |
+> |---|---|---|
+> | Container process crashes / OOMKilled | **kubelet** | Same Pod, container restarted in place, `RESTARTS` +1, backoff → `CrashLoopBackOff` |
+> | Liveness probe fails | **kubelet** | Same as above |
+> | Pod deleted (`kubectl delete pod`) or evicted | **ReplicaSet controller** | New Pod object with a new name |
+> | Node dies | **node-lifecycle + taint-eviction controllers**, then ReplicaSet controller | Pods evicted after ~5 min (default `tolerationSeconds: 300`), then replaced elsewhere |
+>
+> So a crash-looping Pod is **not** replaced by the ReplicaSet — it keeps being restarted by the kubelet on the same node. See [`architecture.md` §5.6](./architecture.md#56-node-lifecycle--what-happens-when-a-node-dies).
 
 ---
 
@@ -479,6 +432,17 @@ Desired < Actual
 Remove excess Pods
 ```
 
+> **Note — which Pod gets deleted?** The ReplicaSet controller ranks candidates and deletes the "cheapest" first, roughly:
+>
+> 1. Pods not yet scheduled to a node
+> 2. `Pending` / `Unknown` before `Running`
+> 3. Not-Ready before Ready
+> 4. Lower `controller.kubernetes.io/pod-deletion-cost` annotation first
+> 5. Pods on nodes with more replicas of the same RS first (spreads the remainder)
+> 6. Newer Pods (shorter Ready time) before older ones
+>
+> You can influence it with the `controller.kubernetes.io/pod-deletion-cost` annotation (best-effort, not a guarantee).
+
 ---
 
 # 14. The Fundamental ReplicaSet Rule
@@ -491,25 +455,14 @@ Actual matching Pods = spec.replicas
 
 So:
 
-```text
-             ReplicaSet
-                 |
-          replicas: 2
-                 |
-                 v
-       ReplicaSet Controller
-                 |
-        +--------+--------+
-        |                 |
-   Actual < 2        Actual > 2
-        |                 |
-        v                 v
-  Create Pods        Remove excess
-        |                 |
-        +--------+--------+
-                 |
-                 v
-             Actual = 2
+```mermaid
+flowchart TB
+    RS["ReplicaSet<br/>replicas: 2"] --> C{"ReplicaSet controller<br/>compare actual vs 2"}
+    C -->|"Actual < 2"| CR["Create Pods"]
+    C -->|"Actual > 2"| RM["Remove excess Pods"]
+    C -->|"Actual = 2"| OK["Nothing to do"]
+    CR --> EQ(["Actual = 2"])
+    RM --> EQ
 ```
 
 This is called **reconciliation**.
@@ -562,26 +515,22 @@ The controller may remove an excess matching Pod.
 
 It does NOT create another Pod just because another Pod appeared.
 
+> **Note — adoption and ownerReferences.** The ReplicaSet counts Pods it **owns** (via `metadata.ownerReferences` with `controller: true`). A matching Pod with **no** controller owner is **adopted** — the RS adds itself as owner and then counts it, which is why a hand-made Pod with `app: nginx` can cause one of the RS's Pods to be deleted. A Pod already owned by another controller is **not** adopted. Conversely, if you edit a Pod's labels so it no longer matches, the RS **releases** it (removes the ownerReference) and creates a replacement — a handy trick to pull a misbehaving Pod out of a Service for debugging while keeping it alive.
+>
+> ```bash
+> kubectl get pod <pod> -o jsonpath='{.metadata.ownerReferences}'
+> kubectl label pod <pod> app=debug --overwrite     # detach from RS for debugging
+> ```
+
 ---
 
 # 16. Deployment Makes This One Level More Interesting
 
 If you are using a Deployment, the hierarchy is:
 
-```text
-Deployment
-     |
-     v
-Deployment Controller
-     |
-     v
-ReplicaSet
-     |
-     v
-ReplicaSet Controller
-     |
-     v
-Pods
+```mermaid
+flowchart LR
+    D["Deployment"] --> DC["Deployment controller"] --> RS["ReplicaSet"] --> RSC["ReplicaSet controller"] --> P["Pods"]
 ```
 
 For example:
@@ -619,6 +568,8 @@ ReplicaSets
 
 It manages rollout and revision behavior.
 
+> **Note:** The Deployment controller identifies "which ReplicaSet belongs to which version" using the `pod-template-hash` label — a hash of `spec.template`. Any change to the Pod template (image, env, labels…) produces a new hash → new ReplicaSet → rollout. Changing only `replicas` does **not** create a new ReplicaSet; it just scales the current one. Old ReplicaSets are kept (scaled to 0) up to `revisionHistoryLimit` (default 10) for `kubectl rollout undo`.
+
 ### ReplicaSet Controller
 
 Main responsibility:
@@ -650,49 +601,26 @@ ReplicaSet Controller
 
 # 18. Full Deployment Pod Creation Flow
 
-```text
-User
- |
- | kubectl apply
- v
-API Server
- |
- v
-Deployment Object
- |
- v
-etcd
- |
- v
-Deployment Controller
- |
- v
-ReplicaSet Object
- |
- v
-etcd
- |
- v
-ReplicaSet Controller
- |
- v
-Pod Object
- |
- v
-Scheduler
- |
- | selects node
- v
-Worker Node
- |
- v
-kubelet
- |
- v
-Container Runtime
- |
- v
-Container
+```mermaid
+sequenceDiagram
+    actor U as User
+    participant A as API Server + etcd
+    participant DC as Deployment controller
+    participant RC as ReplicaSet controller
+    participant S as Scheduler
+    participant K as kubelet (worker)
+    participant R as Container runtime
+    U->>A: kubectl apply (Deployment)
+    A-->>DC: watch: Deployment added
+    DC->>A: create ReplicaSet object
+    A-->>RC: watch: ReplicaSet added
+    RC->>A: create Pod object(s)
+    A-->>S: watch: unscheduled Pod
+    S->>A: bind Pod to node
+    A-->>K: watch: Pod assigned to my node
+    K->>R: CRI: sandbox + containers
+    R-->>K: containers running
+    K->>A: update Pod status
 ```
 
 This is the most useful diagram to remember for interviews.
@@ -707,17 +635,10 @@ The controller creates/updates the Pod object through the API Server.
 
 Then the scheduler watches for unscheduled Pods.
 
-```text
-Controller
-    |
-    v
-API Server
-    |
-    v
-Pod Object
-    |
-    v
-Scheduler
+```mermaid
+flowchart LR
+    C["Controller"] -->|create Pod| A["API Server"] --> P["Pod object"]
+    S["Scheduler"] -->|watches for unscheduled Pods| A
 ```
 
 The controller does not normally say:
@@ -732,20 +653,19 @@ Instead, the scheduler independently makes the scheduling decision based on the 
 
 The conceptual architecture is API-driven.
 
-```text
-Scheduler
-    |
-    v
-API Server
-    |
-    v
-Pod gets node assignment
-    |
-    v
-kubelet observes Pod assigned to its node
+```mermaid
+sequenceDiagram
+    participant S as Scheduler
+    participant A as API Server
+    participant K as kubelet
+    S->>A: Binding (spec.nodeName = node-2)
+    A-->>K: watch (fieldSelector spec.nodeName=node-2) delivers Pod
+    K->>K: make the Pod run
 ```
 
 The kubelet then works to make the Pod actually run.
+
+> **Note:** Each kubelet runs a **watch on the API Server filtered to its own node** (`fieldSelector=spec.nodeName=<my-node>`). So "the scheduler tells the kubelet" really means: the scheduler writes `spec.nodeName`, and the kubelet's watch delivers that Pod to it. There is no direct scheduler → kubelet connection.
 
 ---
 
@@ -753,28 +673,9 @@ The kubelet then works to make the Pod actually run.
 
 Because Kubernetes separates responsibilities.
 
-```text
-Controller
-    |
-    | What should exist?
-    v
-
-Scheduler
-    |
-    | Where should it run?
-    v
-
-kubelet
-    |
-    | Make it run here
-    v
-
-Container Runtime
-    |
-    | Actually start containers
-    v
-
-Container
+```mermaid
+flowchart TB
+    C["Controller<br/>WHAT should exist?"] --> S["Scheduler<br/>WHERE should it run?"] --> K["kubelet<br/>make it run HERE"] --> R["Container runtime<br/>actually start containers"] --> CT["Container"]
 ```
 
 This separation makes Kubernetes extensible and resilient.
@@ -793,29 +694,14 @@ kubectl run nginx --image=nginx
 
 Conceptually:
 
-```text
-kubectl
-   |
-   v
-API Server
-   |
-   v
-Pod Object
-   |
-   v
-Scheduler
-   |
-   v
-Worker Node
-   |
-   v
-kubelet
-   |
-   v
-Container Runtime
+```mermaid
+flowchart LR
+    K["kubectl run"] --> A["API Server"] --> P["Pod object"] --> S["Scheduler"] --> W["Worker Node"] --> KL["kubelet"] --> R["Container runtime"]
 ```
 
 There may be **no Deployment or ReplicaSet** in this case.
+
+> **Note:** Since kubectl v1.18, `kubectl run` creates **only a bare Pod** (older versions created a Deployment). A bare Pod has no controller: if you delete it, or its node dies, **nothing recreates it**. That's why bare Pods are fine for experiments/debugging but not for real workloads.
 
 But the Pod still goes through the API Server, scheduler, kubelet, and container runtime.
 
@@ -823,44 +709,16 @@ But the Pod still goes through the API Server, scheduler, kubelet, and container
 
 # 23. Direct Pod vs Deployment
 
-### Direct Pod
-
-```text
-kubectl
-   ↓
-API Server
-   ↓
-Pod
-   ↓
-Scheduler
-   ↓
-kubelet
-   ↓
-Runtime
-```
-
-### Deployment
-
-```text
-kubectl
-   ↓
-API Server
-   ↓
-Deployment
-   ↓
-Deployment Controller
-   ↓
-ReplicaSet
-   ↓
-ReplicaSet Controller
-   ↓
-Pod
-   ↓
-Scheduler
-   ↓
-kubelet
-   ↓
-Runtime
+```mermaid
+flowchart TB
+    subgraph DP["Direct Pod"]
+        direction TB
+        a1["kubectl"] --> a2["API Server"] --> a3["Pod"] --> a4["Scheduler"] --> a5["kubelet"] --> a6["Runtime"]
+    end
+    subgraph DEP["Deployment"]
+        direction TB
+        b1["kubectl"] --> b2["API Server"] --> b3["Deployment"] --> b4["Deployment controller"] --> b5["ReplicaSet"] --> b6["ReplicaSet controller"] --> b7["Pod"] --> b8["Scheduler"] --> b9["kubelet"] --> b10["Runtime"]
+    end
 ```
 
 This is why Pods can exist without Deployments, but Deployments ultimately result in Pods.
@@ -889,14 +747,9 @@ Answer:
 
 > **"The kube-scheduler selects a suitable worker node for an unscheduled Pod."**
 
-```text
-Pod
- |
- v
-Scheduler
- |
- v
-Worker Node
+```mermaid
+flowchart LR
+    P["Pod"] --> S["Scheduler"] --> W["Worker Node"]
 ```
 
 ---
@@ -907,14 +760,11 @@ Answer:
 
 > **"The ReplicaSet Controller runs as part of kube-controller-manager in the Kubernetes control plane."**
 
-```text
-Control Plane
-     |
-     v
-kube-controller-manager
-     |
-     v
-ReplicaSet Controller
+> **Note:** Good follow-up points to add: it runs as one of ~40 loops in that single process; it watches ReplicaSets and Pods through the API Server's shared informers (never etcd); with `--use-service-account-credentials` it acts as the `kube-system:replicaset-controller` ServiceAccount; and in an HA control plane only the KCM replica holding the `kube-controller-manager` Lease is active. On AKS you can't see this process — it lives in the managed control plane. Full detail: [`architecture.md` §5](./architecture.md#5-kube-controller-manager).
+
+```mermaid
+flowchart LR
+    CP["Control Plane"] --> KCM["kube-controller-manager"] --> RSC["ReplicaSet controller"]
 ```
 
 ---
@@ -923,59 +773,19 @@ ReplicaSet Controller
 
 Remember this chain:
 
-```text
-                    DESIRED STATE
-                         |
-                         v
-                 Kubernetes Object
-                         |
-                         v
-                    Controller
-                         |
-                         | Reconcile
-                         v
-                  Pod Object Created
-                         |
-                         v
-                     Scheduler
-                         |
-                         | Select Node
-                         v
-                    Worker Node
-                         |
-                         v
-                      kubelet
-                         |
-                         | CRI
-                         v
-                 Container Runtime
-                         |
-                         v
-                    Containers
+```mermaid
+flowchart TB
+    DS["DESIRED STATE"] --> O["Kubernetes object"] --> C["Controller"]
+    C -->|reconcile| P["Pod object created"] --> S["Scheduler"]
+    S -->|select node| W["Worker Node"] --> K["kubelet"]
+    K -->|CRI| R["Container runtime"] --> CT["Containers"]
 ```
 
 For a Deployment:
 
-```text
-Deployment
-    ↓
-Deployment Controller
-    ↓
-ReplicaSet
-    ↓
-ReplicaSet Controller
-    ↓
-Pod Object
-    ↓
-Scheduler
-    ↓
-Worker Node
-    ↓
-kubelet
-    ↓
-containerd / CRI-O
-    ↓
-Container
+```mermaid
+flowchart LR
+    D["Deployment"] --> DC["Deployment controller"] --> RS["ReplicaSet"] --> RSC["ReplicaSet controller"] --> P["Pod object"] --> S["Scheduler"] --> W["Worker Node"] --> K["kubelet"] --> R["containerd / CRI-O"] --> C["Container"]
 ```
 
 ## The four questions to always separate
