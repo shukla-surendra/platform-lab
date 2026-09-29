@@ -2,6 +2,10 @@
 
 > A concise, practical reference from basics to enterprise practice — tool-general (not AWS-only), with AWS used for concrete examples.
 
+> **Learning Terraform from scratch?** Start with the step-by-step course
+> [`aws/terraform-zero-to-hero/`](../aws/terraform-zero-to-hero/) (25 lessons, from the basics to internals
+> and interview prep), and come back here as a quick reference.
+
 This is a cross-cutting reference, not a service module. It complements the runnable per-service Terraform under [`aws/terraform/`](../aws/terraform/) (VPC, EBS, EFS, SageMaker, Bedrock).
 
 ## Contents
