@@ -1,78 +1,113 @@
-# go_exploration
+# Learn Go, Step by Step
 
-A hands-on Go tutorial in 12 chapters. It goes from syntax to a production-shaped
-HTTP API and a concurrent CLI. Each chapter is a folder with a
-`README.md` (the tutorial text), a runnable `main.go` full of commented
-examples, and tests you can break on purpose.
+A beginner-friendly Go course: **24 small lessons**, from "Hello, World" to a real project.
 
-Standard library only: no third-party dependencies to install.
+- Each lesson teaches **one idea**, in simple words.
+- Each lesson is **a little harder** than the one before.
+- Each lesson has a **`README.md`** (read this first) and a **`main.go`** (run it and change it).
+- Each lesson ends with **practice tasks**, and most have answers you can open.
 
-## Setup
+You don't need to know any other programming language.
 
-```bash
-brew install go        # tested with go1.27.1
-cd go_exploration
-go test ./...          # everything should pass
-```
+---
 
-The whole folder is **one Go module** (`go.mod` → `platformlab/go_exploration`).
-Each chapter is its own package, run by path:
+## Before you start
+
+**1. Install Go** from https://go.dev/dl/ and check it works:
 
 ```bash
-go run ./01_basics
-go test ./01_basics
-go test -v -run TestSlugify ./10_testing
-go test -race ./...    # use this for 08, 09, 11, 12
+go version
 ```
 
-## Chapters
+**2. Open a terminal in this folder** (`go_exploration`).
 
-| # | Chapter | You'll learn |
+**3. Run a lesson:**
+
+```bash
+go run ./01_hello_world
+```
+
+That's all the setup you need.
+
+## How to study each lesson
+
+1. Read the lesson's `README.md`.
+2. Run it: `go run ./<lesson-folder>`
+3. Open `main.go`, **change something**, and run it again. Break it on purpose and read the error.
+4. Do the **Practice** tasks at the bottom of the README.
+
+Don't rush. Typing the code yourself teaches more than reading it.
+
+---
+
+## Part 1: First steps
+
+Start here if you've never written Go.
+
+| # | Lesson | You will learn |
 |---|---|---|
-| 01 | [Basics](01_basics/) | declarations, zero values, types, strings vs runes, `for`/`if`/`switch`, exported names |
-| 02 | [Functions](02_functions/) | multiple returns, variadics, closures, `defer`, `panic`/`recover` |
-| 03 | [Slices & maps](03_slices_maps/) | slice header/capacity, the shared-backing-array gotcha, `slices`/`maps` packages |
-| 04 | [Structs & methods](04_structs_methods/) | value vs pointer receivers, constructors, JSON tags, embedding |
-| 05 | [Interfaces](05_interfaces/) | implicit satisfaction, type switches, `io.Reader`/`io.Writer`, the nil-interface trap |
-| 06 | [Errors](06_errors/) | sentinel vs custom errors, `%w` wrapping, `errors.Is`/`As`/`Join` |
-| 07 | [Generics](07_generics/) | type parameters, constraints (`any`, `comparable`, `~int`), generic types |
-| 08 | [Goroutines & channels](08_goroutines_channels/) | WaitGroup, pipelines, worker pool, `select` + timeouts, leaks |
-| 09 | [sync & context](09_sync_context/) | Mutex/RWMutex, atomics, `Once`, cancellation, deadlines |
-| 10 | [Testing](10_testing/) | table tests, subtests, helpers, benchmarks, examples, fuzzing |
-| 11 | [HTTP server](11_http_server/) | 1.22 routing, JSON API, middleware, graceful shutdown, `httptest` |
-| 12 | [Capstone CLI](12_cli_tool/) | concurrent health checker: flags, context, exit codes, cross-compiling |
+| 01 | [Hello, World](01_hello_world/) | write and run your first program |
+| 02 | [Variables](02_variables/) | store values: text, numbers, true/false |
+| 03 | [Printing](03_printing/) | `Println` vs `Printf`, and a very common mistake |
+| 04 | [Math and text](04_math_and_strings/) | `+ - * /`, working with text, changing types |
+| 05 | [if / else](05_if_else/) | making decisions |
+| 06 | [Loops](06_loops/) | repeating things with `for` |
+| 07 | [switch](07_switch/) | choosing between many options |
 
-**Then build something real:** [`taskapi/`](taskapi/) is a production-shaped REST API with
-Postgres. It shows project layout, layering, migrations, a testing strategy,
-Docker, and graceful shutdown. It's a separate Go module with its own `go.mod`.
+## Part 2: Organising code and data
 
-Suggested path: 01 → 06 in order (the language), then 08 → 09 together
-(concurrency), then 10 → 12 (building real things). 07 fits anywhere after 05.
+| # | Lesson | You will learn |
+|---|---|---|
+| 08 | [Functions](08_functions/) | reusable blocks of code, returning values |
+| 09 | [Arrays and slices](09_arrays_and_slices/) | lists of values |
+| 10 | [Maps](10_maps/) | look things up by name (like a dictionary) |
+| 11 | [Structs](11_structs/) | make your own types (like a form with fields) |
+| 12 | [Pointers](12_pointers/) | change the original, not a copy |
+| 13 | [Methods](13_methods/) | functions that belong to a type |
+| 14 | [Interfaces](14_interfaces/) | one function that works with many types |
+| 15 | [Errors](15_errors/) | handling things that go wrong, the Go way |
+| 16 | [Packages](16_packages/) | split code into files and folders |
+| 17 | [Generics](17_generics/) | one function for many types, without copy-paste |
 
-Every chapter ends with **"Try it"** exercises. Change the code, predict
-the output, and run the tests to check.
+## Part 3: Doing many things at once
 
-## Go in one screen (for Python/Rust people)
+| # | Lesson | You will learn |
+|---|---|---|
+| 18 | [Goroutines](18_goroutines/) | run functions at the same time |
+| 19 | [Channels](19_channels/) | send data between goroutines |
+| 20 | [Mutex](20_mutex/) | safely share a variable |
+| 21 | [Context](21_context/) | cancel work or give it a time limit |
 
-| Idea | Go's take |
-|---|---|
-| Classes | none. Structs + methods + interfaces |
-| Inheritance | none. Embedding (composition) |
-| Exceptions | none. `error` return values; `panic` only for bugs |
-| Interfaces | implicit: having the methods is enough |
-| Concurrency | goroutines + channels built into the language |
-| Memory | garbage-collected; pointers exist, pointer arithmetic doesn't |
-| Formatting | `gofmt`, one style, not configurable |
-| Build output | one static binary; `GOOS=linux go build` cross-compiles |
+## Part 4: Building real things
 
-## Toolchain cheat sheet
+| # | Lesson | You will learn |
+|---|---|---|
+| 22 | [Testing](22_testing/) | write code that checks your code |
+| 23 | [Web server](23_web_server/) | build a small JSON API |
+| 24 | [Final project](24_final_project/) | a website checker that uses everything you learned |
+
+## After the course
+
+[`taskapi/`](taskapi/) is a **real-world project**: a REST API with a Postgres database, a clean folder layout, tests, and Docker.
+It shows how professionals organise a Go application. Study it after Lesson 24.
+
+`00_exploration/` is a scratch folder for your own experiments.
+
+---
+
+## Commands you'll use
 
 ```bash
-go mod init <path>     # start a module
-go mod tidy            # add/remove deps to match imports
-go fmt ./...           # format
-go vet ./...           # catch suspicious code (copied locks, bad printf verbs, …)
-go test -cover ./...   # tests + coverage
-go build -o bin/x ./12_cli_tool
-go doc strings.Fields  # stdlib docs in the terminal
+go run ./06_loops          # run a lesson
+go build -o myapp ./24_final_project   # make a program file
+go fmt ./...               # auto-format all code (Go has one standard style)
+go vet ./...               # find common mistakes
+go test ./22_testing       # run tests (Lesson 22)
+go doc strings             # read the docs for a package in the terminal
 ```
+
+## Getting stuck?
+
+- **Read the error message slowly.** Go's errors usually say exactly which file, which line, and what's wrong.
+- **Go's official tour:** https://go.dev/tour
+- **Go by Example** (short recipes): https://gobyexample.com

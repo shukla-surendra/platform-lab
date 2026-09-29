@@ -5,7 +5,7 @@ on purpose so the **project structure and development workflow** are what
 you notice: layout, layering, dependency wiring, migrations, testing
 strategy, config, containerisation, and graceful shutdown.
 
-The chapters in [`../`](../) teach the language. This project shows how
+The 24 lessons in [`../`](../) teach the language. This project shows how
 those pieces fit together in a codebase you'd ship.
 
 ## Quick start
@@ -103,7 +103,7 @@ Conventions worth knowing:
 - `task` imports **nothing** from `httpapi` or `database`. The domain
   doesn't know it's being served over HTTP or stored in Postgres.
 - `httpapi` declares its own small `TaskService` interface (the **consumer
-  defines the interface**, from chapter 05), which `*task.Service` satisfies
+  defines the interface**, from Lesson 14), which `*task.Service` satisfies
   implicitly.
 - Only `main.go` knows about every concrete type. This is **dependency
   injection with no framework**: plain constructor calls.
