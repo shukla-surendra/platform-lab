@@ -1,0 +1,1 @@
+`sudo hostnamectl set-hostname vmware-vm-ubuntu`
