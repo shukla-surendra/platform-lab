@@ -1,0 +1,16 @@
+# A second Service for the SAME pods (selector app=hello), type LoadBalancer.
+# Kubernetes asks AWS to create a load balancer for it.
+# Apply:   kubectl apply -f k8s/hello-lb.yaml
+# Delete:  kubectl -n demo delete svc hello-lb   (do this before terraform destroy)
+apiVersion: v1
+kind: Service
+metadata:
+  name: hello-lb
+  namespace: demo
+spec:
+  type: LoadBalancer
+  selector:
+    app: hello
+  ports:
+    - port: 80
+      targetPort: 80
