@@ -1,0 +1,4 @@
+apiVersion: v1          # Namespace is a core object, so no group prefix
+kind: Namespace
+metadata:
+  name: nginx-demo      # the only required field
