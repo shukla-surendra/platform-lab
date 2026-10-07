@@ -57,9 +57,40 @@ az storage blob upload --account-name $SA --container-name raw --name people.csv
 Same pipeline, same datasets, different file. That is the point of parameters.
 
 ### 4. Look at it in the portal
-Portal > Data factories > `adf-tutorial-...` > **Launch studio**:
-- **Author**: open `pl_copy_file`, click the Copy activity, check Source/Sink (the dataset parameter is filled with `@pipeline().parameters.fileName`).
-- **Monitor** > Pipeline runs: your runs, with duration and rows copied.
+Find the exact names first:
+```bash
+terraform output resource_group_name
+terraform output data_factory_name
+```
+Then:
+1. Go to `portal.azure.com` > **Resource groups** > the resource group above (`rg-adf-tutorial`).
+2. Click the data factory `adf-tutorial-<suffix>`.
+3. On the Overview page click **Launch studio** (opens `adf.azure.com`). The portal page itself does not list pipelines.
+4. In Studio click **Author** (pencil icon, left sidebar). Under **Factory Resources** expand **Pipelines** > `pl_copy_file`. Datasets (`ds_raw_csv`, `ds_processed_csv`) are in the same panel.
+5. Click the Copy activity `CopyRawToProcessed` and check Source/Sink (the dataset parameter is filled with `@pipeline().parameters.fileName`).
+
+Where the other objects are:
+
+| Object | Studio location |
+|---|---|
+| Pipeline `pl_copy_file` | Author > Pipelines |
+| Datasets | Author > Datasets |
+| Linked service `ls_storage` | Manage > Linked services |
+| Trigger `tr_daily` | Manage > Triggers |
+| Runs (duration, rows copied) | Monitor > Pipeline runs |
+
+To run it from the studio: open `pl_copy_file` > **Add trigger** > **Trigger now**.
+
+**Can't see the pipeline?**
+- Check the directory / subscription / factory name in the top bar. You may be in a different factory.
+- If a Git repo is attached to the factory, switch to **Live mode** (branch dropdown at the top). Terraform deploys to the live service, not to Git.
+- Hard-refresh the page.
+- Confirm it exists from the CLI:
+  ```bash
+  az datafactory pipeline list -g $(terraform output -raw resource_group_name) \
+    --factory-name $(terraform output -raw data_factory_name) -o table
+  ```
+- If nothing is listed, check `terraform state list | grep pipeline`. It is empty if you ran `terraform destroy`.
 
 > Terraform owns these objects. Edits made in the studio are **not** saved to Terraform and will be reverted by the next `terraform apply`. Change `main.tf` instead.
 
@@ -81,6 +112,7 @@ az datafactory trigger stop  -g ... --factory-name ... --name tr_daily
 Note: Terraform created it with `activated = false`. If you start it by CLI, `terraform apply` will want to switch it back off.
 
 ### 7. Experiments
+- How are *new* files tracked? ADF does not track it for you. See [DYNAMIC-SOURCES.md](DYNAMIC-SOURCES.md) for patterns and best practices.
 - Add a second activity (e.g. a Web activity or `Delete`) in `activities_json` with `dependsOn`.
 - Change `frequency = "Hour"` and watch `terraform plan`.
 - Remove the `azurerm_role_assignment` and apply: the next run fails with 403. That shows the identity does nothing until it is granted a role.
@@ -99,3 +131,4 @@ terraform destroy
 | Run fails 403 right after apply | Role propagation delay, wait ~5 min |
 | `MissingSubscriptionRegistration` | Register `Microsoft.DataFactory` (see REQUIREMENTS.md) |
 | `az datafactory` not found | `az extension add --name datafactory` |
+| Pipeline not visible in ADF Studio | Wrong factory/subscription, Git mode instead of Live mode, or not on the **Author** tab (see step 4) |
