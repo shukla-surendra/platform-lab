@@ -1,0 +1,63 @@
+# REQUIRED = Kubernetes rejects the manifest without it.
+# OPTIONAL = works without it, but you usually want it.
+
+# [REQUIRED] Which API group/version defines this object type.
+# Deployment lives in the "apps" group, version v1. (Pod/Service use plain "v1".)
+# Find it with: kubectl api-resources | grep deployment
+apiVersion: apps/v1
+
+# [REQUIRED] What type of object you are creating (Deployment, Service, Pod, ...).
+# A Deployment manages a set of identical Pods and handles rollouts/self-healing.
+kind: Deployment
+
+# [REQUIRED] Identity of the object itself.
+metadata:
+  # [REQUIRED] Unique name of this Deployment within its namespace.
+  name: nginx-deployment
+  # [OPTIONAL] Which namespace to create it in (defaults to "default").
+  # The namespace must already exist: see namespace.yml.
+  namespace: nginx-demo
+  # [OPTIONAL] labels: tags on the Deployment itself.
+
+# [REQUIRED] The desired state: what you want Kubernetes to maintain.
+spec:
+  # [OPTIONAL, default 1] How many Pod copies to keep running.
+  # If one dies, the Deployment controller creates a replacement.
+  replicas: 2
+
+  # [REQUIRED] How the Deployment finds the Pods it owns.
+  # It is a filter: "manage every Pod that has these labels".
+  selector:
+    matchLabels:
+      # MUST match template.metadata.labels below, or the API rejects it.
+      # Otherwise the Deployment couldn't recognise its own Pods.
+      app: nginx
+
+  # [REQUIRED] Blueprint for each Pod the Deployment creates.
+  # Everything under here is basically a Pod definition without apiVersion/kind.
+  template:
+    # Metadata stamped onto every Pod created from this template.
+    metadata:
+      # [REQUIRED in practice] Labels given to the Pods.
+      # Must include the selector's labels (app: nginx), and a Service
+      # will later use the same label to route traffic to these Pods.
+      labels:
+        app: nginx
+
+    # [REQUIRED] The Pod's actual spec.
+    spec:
+      # [REQUIRED] List of containers in the Pod (at least one).
+      containers:
+        # [REQUIRED] Container name, unique within the Pod. Used in logs/exec:
+        #   kubectl logs <pod> -c nginx
+        - name: nginx
+
+          # [REQUIRED] Image to run. Avoid ":latest" in real use; pin a version
+          # (e.g. nginx:1.27) so rollouts are predictable and reproducible.
+          image: nginx:latest
+
+          # [OPTIONAL] Ports the container listens on. Mostly documentation
+          # (it doesn't open/block anything), but Services and tools can reference it.
+          ports:
+            # nginx listens on 80 inside the container.
+            - containerPort: 80
