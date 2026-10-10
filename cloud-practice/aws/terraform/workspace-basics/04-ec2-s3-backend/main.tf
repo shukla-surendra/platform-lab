@@ -8,7 +8,7 @@ terraform {
   #   dev  -> env/dev/ec2/terraform.tfstate
   #   qa   -> env/qa/ec2/terraform.tfstate
   backend "s3" {
-    bucket               = "REPLACE_WITH_YOUR_STATE_BUCKET"
+    bucket               = "tfstate-680143075966-us-east-1"
     key                  = "ec2/terraform.tfstate"
     workspace_key_prefix = "env"
     region               = "us-east-1"
