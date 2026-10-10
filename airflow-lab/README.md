@@ -34,11 +34,22 @@ Give Docker Desktop at least 4 GB RAM (Settings -> Resources).
 
 Production would use `CeleryExecutor` or `KubernetesExecutor`, so tasks run on separate workers/pods instead of inside the scheduler.
 
+## Docs
+
+- [CONCEPTS.md](CONCEPTS.md): the ideas behind Airflow (architecture, scheduling, trigger rules, best practices)
+- [BACKFILL.md](BACKFILL.md): backfills and idempotency
+- [DEPLOYMENT.md](DEPLOYMENT.md): how teams deliver DAGs
+- [AWS.md](AWS.md): connecting Airflow to AWS
+
 ## Lessons (in `dags/`)
 
 1. `01_hello_world.py`: `@dag`, `@task`, passing data between tasks (XCom).
 2. `02_schedule_and_catchup.py`: schedules, `data_interval_*`, `catchup`.
 3. `03_retries_and_branching.py`: retries, branching, trigger rules.
+4. `04_backfill_demo.py`: backfilling past dates, and writing idempotent output (one file per day in `logs/backfill_demo/`). Full explanation: [BACKFILL.md](BACKFILL.md).
+5. `05_complex_pipeline.py`: a non-linear DAG: fan-out/fan-in, task groups, dynamic task mapping, branching, trigger rules, `cross_downstream`.
+6. `06_dependency_maze.py`: graph shape only: 29 tasks, 7 layers, criss-cross joins, diamonds, `cross_downstream`. Use the Graph and Gantt views.
+7. `07_aws_s3.py`: S3 through an Airflow connection (operator, sensor, hook). Setup in [AWS.md](AWS.md); needs an AWS account.
 
 Do them in order: unpause the DAG in the UI, trigger it, then open the Graph and Logs tabs.
 Edit a file and the change shows up in about 30 seconds, because `dags/` is mounted into the containers.
@@ -51,6 +62,8 @@ docker compose exec airflow-scheduler airflow tasks test 01_hello_world total 20
 ```
 
 ## How do you "deploy" things on Airflow?
+
+> Team setup (separate DevOps and data-engineer repos, multiple DAG folders, Git): see [DEPLOYMENT.md](DEPLOYMENT.md).
 
 A DAG is just a Python file. Deploying means getting that file into the folder the **dag-processor** reads. There is no build step and no restart.
 
