@@ -1,0 +1,38 @@
+# Same promotion flow as the folder version; only the "select env" step differs.
+name: terraform-apply-workspaces
+on:
+  push:
+    branches: [main]
+    paths: ["cloud-practice/aws/terraform/multi-env-workspaces/**"]
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: terraform-apply-workspaces
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    strategy:
+      max-parallel: 1
+      matrix:
+        env: [dev, qa, stage, prod]
+    environment: ${{ matrix.env }}
+    defaults:
+      run:
+        working-directory: cloud-practice/aws/terraform/multi-env-workspaces
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.DEPLOY_ROLE_ARN }}
+          aws-region: us-east-1
+      - run: |
+          terraform init -input=false
+          terraform workspace select ${{ matrix.env }} || terraform workspace new ${{ matrix.env }}
+          terraform plan  -input=false -lock-timeout=5m -var-file=vars/${{ matrix.env }}.tfvars -out=tfplan
+          terraform apply -input=false -lock-timeout=5m tfplan

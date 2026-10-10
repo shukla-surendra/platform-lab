@@ -1,0 +1,54 @@
+# PR gate: fmt + validate + tflint + plan for every env. Read-only, no apply.
+name: terraform-plan
+on:
+  pull_request:
+    paths: ["cloud-practice/aws/terraform/multi-env-platform/**"]
+
+permissions:
+  id-token: write   # OIDC
+  contents: read
+  pull-requests: write
+
+defaults:
+  run:
+    working-directory: cloud-practice/aws/terraform/multi-env-platform
+
+jobs:
+  static:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+      - run: terraform fmt -check -recursive
+      - uses: terraform-linters/setup-tflint@v4
+      - run: tflint --recursive
+      - uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: config
+          scan-ref: cloud-practice/aws/terraform/multi-env-platform
+          exit-code: "1"
+          severity: HIGH,CRITICAL
+
+  plan:
+    needs: static
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        env: [dev, qa, stage, prod]
+    environment: ${{ matrix.env }}-plan   # no approval rule on *-plan envs
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.DEPLOY_ROLE_ARN }}   # per-environment variable
+          aws-region: us-east-1
+      - working-directory: cloud-practice/aws/terraform/multi-env-platform/envs/${{ matrix.env }}
+        run: |
+          terraform init -input=false
+          terraform plan -input=false -lock-timeout=5m -out=tfplan | tee plan.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: plan-${{ matrix.env }}
+          path: cloud-practice/aws/terraform/multi-env-platform/envs/${{ matrix.env }}/plan.txt

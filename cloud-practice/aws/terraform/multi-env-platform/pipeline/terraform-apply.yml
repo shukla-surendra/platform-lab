@@ -1,0 +1,36 @@
+# On merge to main: promote dev -> qa -> stage -> prod, in order.
+# Approval gates are GitHub Environment "required reviewers" (set on stage + prod).
+name: terraform-apply
+on:
+  push:
+    branches: [main]
+    paths: ["cloud-practice/aws/terraform/multi-env-platform/**"]
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: terraform-apply     # never two applies at once
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    strategy:
+      max-parallel: 1        # sequential promotion
+      matrix:
+        env: [dev, qa, stage, prod]
+    environment: ${{ matrix.env }}   # <- reviewers/wait timers configured here
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.DEPLOY_ROLE_ARN }}
+          aws-region: us-east-1
+      - working-directory: cloud-practice/aws/terraform/multi-env-platform/envs/${{ matrix.env }}
+        run: |
+          terraform init -input=false
+          terraform plan -input=false -lock-timeout=5m -out=tfplan
+          terraform apply -input=false -lock-timeout=5m tfplan
