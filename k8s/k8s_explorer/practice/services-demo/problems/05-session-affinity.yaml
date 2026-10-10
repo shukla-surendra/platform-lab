@@ -1,0 +1,18 @@
+# PROBLEM: the app keeps per-client state in memory (a login session, a shopping cart) and breaks
+# when consecutive requests from the same client land on different Pods.
+# sessionAffinity: ClientIP pins a client IP to one Pod for timeoutSeconds. It is a blunt tool:
+# clients behind one NAT share a Pod, and a better fix is usually to move state out of the Pod.
+apiVersion: v1
+kind: Service
+metadata:
+  name: web-sticky
+spec:
+  selector:
+    app: web-backend
+  sessionAffinity: ClientIP
+  sessionAffinityConfig:
+    clientIP:
+      timeoutSeconds: 60
+  ports:
+  - port: 80
+    targetPort: 80

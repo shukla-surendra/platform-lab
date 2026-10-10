@@ -1,0 +1,15 @@
+# PROBLEM: "the Service exists, but nothing answers."
+# A Service finds Pods ONLY through labels. Here the selector has a typo (web-backnd), so it
+# matches zero Pods: the Service gets a ClusterIP and DNS name, but its EndpointSlice is empty.
+# Requests to it hang or are refused. This is the most common Service bug.
+# Fix: make spec.selector match the Pod LABELS (not the Deployment name).
+apiVersion: v1
+kind: Service
+metadata:
+  name: web-broken
+spec:
+  selector:
+    app: web-backnd        # typo: Pods are labelled app=web-backend
+  ports:
+  - port: 80
+    targetPort: 80

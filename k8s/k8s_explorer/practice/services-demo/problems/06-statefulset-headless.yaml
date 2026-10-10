@@ -1,0 +1,42 @@
+# PROBLEM: replicas are NOT interchangeable (database primary vs replicas, Kafka brokers, etcd
+# members) and clients or peers must reach one SPECIFIC replica by a name that survives restarts.
+# A headless Service (clusterIP: None) plus a StatefulSet gives every Pod its own stable DNS name:
+#   db-0.db.default.svc.cluster.local, db-1.db..., db-2.db...
+# A normal ClusterIP would hide the individual Pods behind one random-picking address.
+apiVersion: v1
+kind: Service
+metadata:
+  name: db
+spec:
+  clusterIP: None
+  selector:
+    app: db
+  ports:
+  - port: 80
+    name: http
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: db
+spec:
+  serviceName: db               # MUST name the headless Service: this is what creates the per-Pod DNS names
+  replicas: 3
+  selector:
+    matchLabels:
+      app: db
+  template:
+    metadata:
+      labels:
+        app: db
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:alpine
+        ports:
+        - containerPort: 80
+        command: ["/bin/sh", "-c"]
+        args:
+        - |
+          echo "I am $(hostname)" > /usr/share/nginx/html/index.html
+          nginx -g 'daemon off;'
