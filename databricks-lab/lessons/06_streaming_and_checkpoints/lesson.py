@@ -42,7 +42,8 @@ print("== run 3 after 1 new row: sink rows =", spark.read.format("delta").load(S
 
 print("\n== checkpoint contents: offsets (what was read), commits (what finished), sources, metadata")
 for p in sorted(Path(CP).iterdir()):
-    print("  ", p.name, "/" if p.is_dir() else "")
+    if not p.name.endswith(".crc"):
+        print("  ", p.name, "/" if p.is_dir() else "")
 
 print("\n== delete the checkpoint and run again: the stream starts from scratch, duplicating rows")
 import shutil
@@ -51,6 +52,9 @@ run_copy_stream()
 print("   sink rows =", spark.read.format("delta").load(SINK).count(), "(3 originals + 3 re-read = 6; this is why you never delete checkpoints casually)")
 
 print("\n== windowed aggregation with a watermark (state is bounded by the watermark)")
+# A much later event moves the watermark forward (watermark = max event time - 5 minutes),
+# which is what CLOSES the earlier windows so append mode can emit them.
+add_events([(4, "c", D(2026, 1, 1, 11, 0))])
 q = (spark.readStream.format("delta").load(SRC)
      .withWatermark("event_time", "5 minutes")
      .groupBy(window("event_time", "2 minutes"), "user").count()
@@ -58,4 +62,4 @@ q = (spark.readStream.format("delta").load(SRC)
      .option("checkpointLocation", CP2).trigger(availableNow=True).start(AGG))
 q.awaitTermination()
 spark.read.format("delta").load(AGG).orderBy("window", "user").show(truncate=False)
-print("(append mode only emits windows the watermark has closed; the newest window may still be open)")
+print("(append mode emits only windows the watermark has closed: the 11:00 window is still open, so it is missing)")

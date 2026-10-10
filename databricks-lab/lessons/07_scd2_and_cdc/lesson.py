@@ -28,16 +28,18 @@ EFFECTIVE = 5
 dim = DeltaTable.forPath(spark, DIM)
 current = spark.read.format("delta").load(DIM).filter("is_current")
 
-# rows that really changed or are new
+# rows that really changed or are new; is_new = there is no current row for this key yet
 changed = (changes.alias("s").join(current.alias("t"), "customer_id", "left")
            .filter(col("t.city").isNull() | (col("s.city") != col("t.city")))
-           .select("customer_id", col("s.city").alias("city")))
+           .select("customer_id", col("s.city").alias("city"), col("t.city").isNull().alias("is_new")))
 
-# the trick: every changed row appears twice
+# the trick: a CHANGED existing row appears twice
 #   copy 1: real key         -> MATCHES the current row    -> closes it
 #   copy 2: merge_key = NULL -> matches nothing            -> INSERTS the new version
-staged = (changed.withColumn("merge_key", col("customer_id"))
-          .unionByName(changed.withColumn("merge_key", lit(None).cast("int"))))
+# a brand-new key only needs copy 2 (nothing to close). Emitting copy 1 as well would insert it twice.
+close_old = changed.filter("NOT is_new").withColumn("merge_key", col("customer_id"))
+insert_new = changed.withColumn("merge_key", lit(None).cast("int"))
+staged = close_old.unionByName(insert_new)
 
 (dim.alias("t").merge(staged.alias("s"), "t.customer_id = s.merge_key AND t.is_current = true")
     .whenMatchedUpdate(set={"is_current": lit(False), "valid_to": lit(EFFECTIVE)})

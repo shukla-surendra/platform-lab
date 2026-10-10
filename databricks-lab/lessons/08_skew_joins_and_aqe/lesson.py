@@ -20,7 +20,8 @@ spark.conf.set("spark.sql.adaptive.enabled", "false")             # and AQE OFF 
 facts = (spark.range(1_000_000)
          .withColumn("key", when(rand(7) < 0.7, lit(0)).otherwise((rand(11) * 1000).cast("int") + 1))
          .withColumn("v", lit(1)))
-dim = spark.range(0, 1001).withColumnRenamed("id", "key").withColumn("label", concat_ws("-", lit("k"), col("key")))
+# cast to INT so both sides have the SAME type: joining int to bigint adds a cast on the key in the plan
+dim = spark.range(0, 1001).select(col("id").cast("int").alias("key")).withColumn("label", concat_ws("-", lit("k"), col("key")))
 
 
 def timed(name, df):
@@ -58,11 +59,18 @@ timed("two-phase with salt", salted)
 same = direct.orderBy("key").collect() == salted.orderBy("key").collect()
 print("  results identical:", same)
 
-print("\n== 4. AQE: re-plans at runtime using real sizes")
+print("\n== 4. AQE: re-plans at runtime using the REAL sizes of the shuffle output")
 spark.conf.set("spark.sql.adaptive.enabled", "true")
-spark.conf.set("spark.sql.adaptive.skewJoin.enabled", "true")
-spark.conf.set("spark.sql.autoBroadcastJoinThreshold", "10m")
-ja = facts.join(dim.filter("key < 500"), "key")
-ja.explain()
+spark.conf.set("spark.sql.autoBroadcastJoinThreshold", "-1")                   # force a shuffle join so AQE has something to optimise
+spark.conf.set("spark.sql.adaptive.advisoryPartitionSizeInBytes", "1m")        # tiny thresholds because our data is tiny
+spark.conf.set("spark.sql.adaptive.skewJoin.skewedPartitionThresholdInBytes", "1m")
+spark.conf.set("spark.sql.adaptive.skewJoin.skewedPartitionFactor", "2")
+ja = facts.join(dim, "key")
+ja.explain()                                    # BEFORE running: isFinalPlan=false, AQE has not decided yet
 timed("join with AQE on", ja)
-print("  (see AdaptiveSparkPlan in the plan; with a 10 MB threshold AQE/the planner can choose a broadcast)")
+ja2 = facts.join(dim, "key")
+ja2.collect()                                   # run it, then show the plan that was ACTUALLY executed
+ja2.explain()
+print("  Look at the second plan: isFinalPlan=true, SortMergeJoin(skew=true) and 'AQEShuffleRead coalesced and skewed'")
+print("  show AQE split the hot partition and merged tiny ones at runtime. Compare with the Initial Plan below it.")
+print("  (Timings on a laptop are too small to mean anything: use the plan as the evidence.)")

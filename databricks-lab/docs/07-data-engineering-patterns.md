@@ -96,6 +96,12 @@ A job can be re-run (retry, backfill, repair) and produce the same result.
 | Dataset | Row counts vs source, freshness, uniqueness, null rate | SQL checks, Lakehouse Monitoring, Great Expectations / Soda |
 | Cross-system | Reconcile with source totals | Reconciliation jobs |
 
+**Spark 4 ANSI mode (found while building lesson 5):** Spark 4 enables ANSI SQL mode by default, so
+`CAST('abc' AS DOUBLE)` and invalid dates **raise an error and fail the job** instead of returning `NULL`.
+For validation, use `try_cast` (or `expr("try_cast(x AS DOUBLE)")`) so bad values become `NULL` and
+can be routed to a rejects table. Older Spark versions (3.x) silently returned `NULL`, so old code can
+behave differently after an upgrade.
+
 Failure policy per rule: **warn**, **drop/quarantine**, or **fail the job**. Choose deliberately, since
 silently dropping rows hides outages.
 

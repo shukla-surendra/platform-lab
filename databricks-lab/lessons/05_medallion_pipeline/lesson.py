@@ -10,7 +10,7 @@ from common import fresh, get_spark, show_files
 
 from delta.tables import DeltaTable
 from pyspark.sql import Window
-from pyspark.sql.functions import col, current_timestamp, lit, row_number, sum as sum_, to_date
+from pyspark.sql.functions import col, current_timestamp, expr, lit, row_number, sum as sum_, to_date
 
 spark = get_spark()
 root = fresh("l05")
@@ -34,8 +34,10 @@ def ingest_bronze(rows, batch_id):
 def build_silver(batch_id):
     """SILVER: typed, validated, deduplicated. Bad rows go to a rejects table with a reason."""
     b = spark.read.format("delta").load(BRONZE).filter(col("_batch_id") == batch_id)
-    typed = (b.withColumn("amount_d", col("amount").cast("double"))
-               .withColumn("order_ts_t", col("order_ts").cast("timestamp")))
+    # Spark 4 has ANSI mode ON: cast("abc" AS DOUBLE) raises an error and kills the job.
+    # try_cast returns NULL instead, so the bad row can be routed to the rejects table.
+    typed = (b.withColumn("amount_d", expr("try_cast(amount AS DOUBLE)"))
+               .withColumn("order_ts_t", expr("try_cast(order_ts AS TIMESTAMP)")))
     reason = (col("customer").isNull() | col("amount_d").isNull())
     rejects = typed.filter(reason).withColumn(
         "reason", lit("missing customer or non-numeric amount")).select("order_id", "customer", "amount", "reason", "_batch_id")

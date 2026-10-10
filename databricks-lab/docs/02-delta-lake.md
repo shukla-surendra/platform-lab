@@ -20,6 +20,62 @@ Each commit lists **actions**: `add` (file), `remove` (file), `metaData` (schema
 `protocol` (reader/writer versions), `commitInfo` (who/what/when), `txn` (streaming app progress).
 The current table = replay the log (starting from the latest checkpoint) to get the live set of files.
 
+## Anatomy of a table folder: every file you will see
+
+A real listing from lesson 1 (`ls -a`, Delta 4.0.0 on a local disk):
+
+```
+orders/
+├── _delta_log/
+│   ├── 00000000000000000000.json            Delta   commit 0: the actions (add/metaData/protocol/commitInfo)
+│   ├── 00000000000000000000.crc             Delta   version checksum for version 0
+│   ├── 00000000000000000001.json            Delta   commit 1
+│   ├── 00000000000000000001.crc             Delta   version checksum for version 1
+│   ├── .00000000000000000000.json.crc       Hadoop  checksum OF the .json file
+│   ├── .00000000000000000000.crc.crc        Hadoop  checksum OF the Delta .crc file
+│   ├── .00000000000000000001.json.crc       Hadoop
+│   ├── .00000000000000000001.crc.crc        Hadoop
+│   └── _staged_commits/                     Delta   (empty here; see note below)
+├── part-00000-<uuid>-c000.snappy.parquet    Spark   data file
+├── .part-00000-<uuid>-c000.snappy.parquet.crc   Hadoop  checksum OF the data file
+└── ...
+```
+
+| File | Written by | What it is | Needed? |
+|---|---|---|---|
+| `_delta_log/NNNN.json` | Delta | One commit: the list of actions. **This defines the table.** | **Yes** |
+| `_delta_log/NNNN.checkpoint.parquet` | Delta | Snapshot of the full table state at version N, so readers skip replaying every commit (default: every 10 commits) | Optimisation, but readers expect it once written |
+| `_delta_log/_last_checkpoint` | Delta | Pointer to the latest checkpoint | Optimisation |
+| `_delta_log/NNNN.crc` | Delta | **Version checksum file**: JSON with table size, file count, and a copy of the metadata and protocol at that version. Used to validate state and load snapshots faster | Optional in the protocol; don't rely on it existing |
+| `part-*.parquet` | Spark | A data file, referenced by an `add` action | **Yes** |
+| `.<name>.crc` (leading dot) | **Hadoop** local filesystem | Checksum of the file named `<name>`, to detect corruption on read | No (not part of Delta) |
+| `_staged_commits/` | Delta | Directory used by newer commit mechanisms; empty in this lab (purpose not verified here) | n/a |
+| `col=value/` folders | Spark | Partition folders, when the table is partitioned | Yes, if partitioned |
+| deletion vector files | Delta | Bitmaps of deleted rows, when deletion vectors are on | Yes, if referenced |
+
+### The two kinds of `.crc`, and the `.crc.crc` confusion
+
+- **`00000000000000000001.crc`** (no leading dot) is **Delta's** version checksum file. It is JSON; a
+  version's file looked like `{"tableSizeBytes":3170,"numFiles":3,"numMetadata":1,"numProtocol":1,...,"metadata":{...}}`.
+- **`.<anything>.crc`** (leading dot) is **Hadoop's**. When Spark writes through Hadoop's local
+  filesystem, that layer adds a hidden checksum file beside **every** file it writes, including Delta's own `.crc`.
+- So **`.00000000000000000001.crc.crc`** is Hadoop's checksum of Delta's checksum file:
+  `.` + `00000000000000000001.crc` + `.crc`. And `.00000000000000000001.json.crc` is Hadoop's checksum of the commit file.
+- On S3, ADLS and GCS these hidden files normally **do not appear**, because those filesystems don't add
+  them. You mostly see them in local runs.
+
+### Handling the hidden `.crc` files
+
+- Safe to ignore. They are not part of the table.
+- Don't delete them by hand from a table you still read through Hadoop's local filesystem: a missing
+  checksum file is tolerated, but a file changed without updating its checksum gives a checksum error on read.
+- Don't edit commit JSON or data files by hand for the same reason (and because it corrupts the table).
+- When copying a table, copy the **whole folder including `_delta_log`**. Data files without the log are
+  just Parquet files, and the log without its data files is a broken table.
+- Tools that list "the files of a table" should ask Delta (`DESCRIBE DETAIL`, `DeltaTable.detail()`,
+  or read the log), not list the directory: the folder also holds files that are no longer part of the
+  current version until `VACUUM` removes them.
+
 ## ACID on object storage
 
 - **Atomicity:** a commit is one log file written atomically. Either it exists or it doesn't.

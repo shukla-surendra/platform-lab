@@ -49,6 +49,7 @@ Each lesson folder has a short `README.md` (idea, what to watch for, an exercise
 | [06 Unity Catalog and governance](docs/06-unity-catalog-governance.md) | Object model, privileges, masks, lineage, Delta Sharing, security |
 | [07 Data engineering patterns](docs/07-data-engineering-patterns.md) | Load strategies, dedup, SCD, CDC, late data, modelling, data quality, testing |
 | [08 Cost, operations, troubleshooting](docs/08-cost-operations-and-troubleshooting.md) | Cost levers, compute choice, monitoring, failure playbook |
+| [09 Delta packages and ecosystem](docs/09-delta-packages-and-ecosystem.md) | Where Delta lives (JARs vs pip), versions, configuration layers, who builds it, the protocol and other implementations, Delta vs Unity Catalog |
 | [**Interview questions**](docs/INTERVIEW.md) | 50 hard questions with answers, plus a rapid-fire table |
 
 Suggested order: read docs 01 and 02 → do lessons 1–4 → doc 03 → lessons 5–8 → docs 04–07 → interview questions.

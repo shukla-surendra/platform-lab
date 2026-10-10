@@ -37,6 +37,8 @@ try:
     spark.createDataFrame([(5, "ok", "x"), (-1, "bad", "x")], "id INT, kind STRING, device STRING") \
         .write.format("delta").mode("append").save(path)
 except Exception as e:
-    print("  FAILED as expected:", str(e).splitlines()[0][:110])
+    # the first line is just a Py4J wrapper; the real reason is further down
+    reason = next((l for l in str(e).splitlines() if "constraint" in l.lower()), str(e).splitlines()[0])
+    print("  FAILED as expected:", reason.strip()[:140])
 print("  rows after the failed write (the good row 5 was NOT written either):")
 spark.read.format("delta").load(path).orderBy("id").show()

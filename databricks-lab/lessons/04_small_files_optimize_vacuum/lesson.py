@@ -37,10 +37,14 @@ spark.sql(f"VACUUM delta.`{path}` RETAIN 0 HOURS")
 print(f"  parquet files physically on disk now: {len(list(Path(path).glob('*.parquet')))}")
 
 print("\n== consequence: time travel to an old version now fails because its files are gone")
+# NB: count() alone can be answered from the statistics in the log without reading any file,
+# so it would "succeed". Force a real read of the data instead.
 try:
-    spark.read.format("delta").option("versionAsOf", 1).load(path).count()
+    spark.read.format("delta").option("versionAsOf", 1).load(path).agg({"id": "sum"}).collect()
+    print("  did NOT fail (unexpected): the files for that version still exist")
 except Exception as e:
-    print("  FAILED as expected:", str(e).splitlines()[0][:110])
+    msg = next((l for l in str(e).splitlines() if "FileNotFound" in l or "does not exist" in l), str(e).splitlines()[0])
+    print("  FAILED as expected:", msg.strip()[:140])
 
 print("\n== Z-ORDER co-locates values so data skipping works")
 spark.sql(f"OPTIMIZE delta.`{path}` ZORDER BY (sensor)")
