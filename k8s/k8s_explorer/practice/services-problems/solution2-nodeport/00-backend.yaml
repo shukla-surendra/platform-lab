@@ -1,0 +1,32 @@
+# The BACKEND for the solution lab: 3 Pods, each replying 'Hello from <its pod name>'.
+# Own namespace (solution2) so this folder is independent of problem2.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: solution2
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  namespace: solution2
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: backend
+  template:
+    metadata:
+      labels:
+        app: backend
+    spec:
+      containers:
+      - name: web
+        image: nginx:alpine
+        ports:
+        - containerPort: 80
+        command: ["/bin/sh", "-c"]
+        args:
+        - |
+          echo "Hello from $(hostname)" > /usr/share/nginx/html/index.html
+          nginx -g 'daemon off;'

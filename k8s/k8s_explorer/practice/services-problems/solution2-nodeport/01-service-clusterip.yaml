@@ -1,0 +1,13 @@
+# The "BEFORE": a plain ClusterIP Service. Fine inside the cluster, unreachable from outside.
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-svc
+  namespace: solution2
+spec:
+  type: ClusterIP
+  selector:
+    app: backend
+  ports:
+  - port: 80
+    targetPort: 80
