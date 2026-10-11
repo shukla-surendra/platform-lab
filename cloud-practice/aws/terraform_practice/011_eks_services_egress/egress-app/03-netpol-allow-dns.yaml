@@ -1,0 +1,26 @@
+# STEP 2: allow DNS to CoreDNS in kube-system. Policies are additive: this adds to the (empty) allow list from step 1.
+# Names resolve again, but connections to the internet are still blocked.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-dns-egress
+  namespace: egress-app
+spec:
+  podSelector:
+    matchLabels:
+      app: egress-app
+  policyTypes:
+  - Egress
+  egress:
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: kube-system
+      podSelector:
+        matchLabels:
+          k8s-app: kube-dns
+    ports:
+    - protocol: UDP
+      port: 53
+    - protocol: TCP
+      port: 53

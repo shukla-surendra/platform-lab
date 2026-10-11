@@ -1,0 +1,13 @@
+# STEP 1: block ALL outbound traffic from egress-app Pods (an empty egress list with policyTypes: [Egress]).
+# Includes DNS, so even name lookups fail. Ingress is untouched (this Pod receives nothing anyway).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-egress
+  namespace: egress-app
+spec:
+  podSelector:
+    matchLabels:
+      app: egress-app
+  policyTypes:
+  - Egress

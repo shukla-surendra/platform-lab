@@ -1,0 +1,31 @@
+# The app every Service exercise points at: 2 nginx Pods, each replying with its own name.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: lab
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+  namespace: lab
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: web
+  template:
+    metadata:
+      labels:
+        app: web
+    spec:
+      containers:
+      - name: web
+        image: nginx:alpine
+        ports:
+        - containerPort: 80
+        command: ["/bin/sh", "-c"]
+        args:
+        - |
+          echo "web, answered by pod $(hostname)" > /usr/share/nginx/html/index.html
+          nginx -g 'daemon off;'

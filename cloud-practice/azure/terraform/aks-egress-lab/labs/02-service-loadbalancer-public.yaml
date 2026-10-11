@@ -1,0 +1,14 @@
+# COSTS MONEY while it exists: Azure gives this Service its own PUBLIC IP address (billed per hour) plus a rule on
+# the cluster's load balancer. Apply it, test it, delete it. Don't leave it running.
+apiVersion: v1
+kind: Service
+metadata:
+  name: web-lb-public
+  namespace: lab
+spec:
+  type: LoadBalancer
+  selector:
+    app: web
+  ports:
+  - port: 80
+    targetPort: 80

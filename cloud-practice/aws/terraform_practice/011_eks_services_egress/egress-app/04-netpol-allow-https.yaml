@@ -1,0 +1,20 @@
+# STEP 3: allow outbound HTTPS (TCP 443) to anywhere. Everything else (other ports) stays blocked.
+# ipBlock 0.0.0.0/0 means "any IPv4 address", it is not limited to one site.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-https-egress
+  namespace: egress-app
+spec:
+  podSelector:
+    matchLabels:
+      app: egress-app
+  policyTypes:
+  - Egress
+  egress:
+  - to:
+    - ipBlock:
+        cidr: 0.0.0.0/0
+    ports:
+    - protocol: TCP
+      port: 443

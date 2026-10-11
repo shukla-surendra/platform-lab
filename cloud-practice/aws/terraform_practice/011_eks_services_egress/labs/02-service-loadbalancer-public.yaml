@@ -1,0 +1,22 @@
+# COSTS MONEY while it exists: AWS creates a load balancer for this Service (billed per hour, plus data), and it needs a
+# public IPv4 address. Apply it, test it, DELETE it, and wait for it to disappear before you destroy the cluster.
+#
+# Without the AWS Load Balancer Controller installed (it is NOT installed in this lab), a Service of type LoadBalancer
+# gets a CLASSIC load balancer by default, as far as I know. Check what you got:
+#   aws elb describe-load-balancers --region us-east-1 --query 'LoadBalancerDescriptions[].LoadBalancerName'
+#   aws elbv2 describe-load-balancers --region us-east-1 --query 'LoadBalancers[].LoadBalancerName'
+apiVersion: v1
+kind: Service
+metadata:
+  name: web-lb-public
+  namespace: lab
+  # annotations:
+  #   # Optional: ask for a Network Load Balancer instead of a Classic one. Behavior depends on your cluster; try it and check the CLI output above.
+  #   service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+spec:
+  type: LoadBalancer
+  selector:
+    app: web
+  ports:
+  - port: 80
+    targetPort: 80

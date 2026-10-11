@@ -1,0 +1,25 @@
+# STEP 4: allow outbound HTTPS (port 443) to the internet, but not to private ranges.
+# 0.0.0.0/0 means "any address"; the "except" list keeps traffic away from private networks and the cloud metadata IP.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-internet-https-egress
+  namespace: lab
+spec:
+  podSelector:
+    matchLabels:
+      app: egress-client
+  policyTypes:
+  - Egress
+  egress:
+  - to:
+    - ipBlock:
+        cidr: 0.0.0.0/0
+        except:
+        - 10.0.0.0/8
+        - 172.16.0.0/12
+        - 192.168.0.0/16
+        - 169.254.0.0/16
+    ports:
+    - protocol: TCP
+      port: 443

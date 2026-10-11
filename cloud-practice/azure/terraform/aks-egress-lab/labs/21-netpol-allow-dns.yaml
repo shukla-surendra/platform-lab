@@ -1,0 +1,26 @@
+# STEP 2: allow DNS lookups (to CoreDNS in kube-system). Names will resolve again, but connections are still blocked.
+# NetworkPolicies are additive: this ADDS to what default-deny-egress allows (which was nothing).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-dns-egress
+  namespace: lab
+spec:
+  podSelector:
+    matchLabels:
+      app: egress-client
+  policyTypes:
+  - Egress
+  egress:
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: kube-system
+      podSelector:
+        matchLabels:
+          k8s-app: kube-dns
+    ports:
+    - protocol: UDP
+      port: 53
+    - protocol: TCP
+      port: 53
