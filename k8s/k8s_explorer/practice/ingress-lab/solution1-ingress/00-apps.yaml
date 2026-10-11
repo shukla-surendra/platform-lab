@@ -1,0 +1,129 @@
+# SOLUTION lab: the same three apps, but their Services are plain ClusterIP (no external exposure).
+# One Ingress (01-ingress.yaml) is the only way in.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ingress-s1
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: shop
+  namespace: ingress-s1
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: shop
+  template:
+    metadata:
+      labels:
+        app: shop
+    spec:
+      containers:
+      - name: web
+        image: nginx:alpine
+        ports:
+        - containerPort: 80
+        command: ["/bin/sh", "-c"]
+        args:
+        - |
+          # the app answers on / and on /shop (a file named "shop"), so both host- and path-based routing can be tested
+          echo "shop app, answered by pod $(hostname)" > /usr/share/nginx/html/index.html
+          cp /usr/share/nginx/html/index.html /usr/share/nginx/html/shop
+          nginx -g 'daemon off;'
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: shop-svc
+  namespace: ingress-s1
+spec:
+  type: ClusterIP
+  selector:
+    app: shop
+  ports:
+  - port: 80
+    targetPort: 80
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: blog
+  namespace: ingress-s1
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: blog
+  template:
+    metadata:
+      labels:
+        app: blog
+    spec:
+      containers:
+      - name: web
+        image: nginx:alpine
+        ports:
+        - containerPort: 80
+        command: ["/bin/sh", "-c"]
+        args:
+        - |
+          # the app answers on / and on /blog (a file named "blog"), so both host- and path-based routing can be tested
+          echo "blog app, answered by pod $(hostname)" > /usr/share/nginx/html/index.html
+          cp /usr/share/nginx/html/index.html /usr/share/nginx/html/blog
+          nginx -g 'daemon off;'
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: blog-svc
+  namespace: ingress-s1
+spec:
+  type: ClusterIP
+  selector:
+    app: blog
+  ports:
+  - port: 80
+    targetPort: 80
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api
+  namespace: ingress-s1
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: api
+  template:
+    metadata:
+      labels:
+        app: api
+    spec:
+      containers:
+      - name: web
+        image: nginx:alpine
+        ports:
+        - containerPort: 80
+        command: ["/bin/sh", "-c"]
+        args:
+        - |
+          # the app answers on / and on /api (a file named "api"), so both host- and path-based routing can be tested
+          echo "api app, answered by pod $(hostname)" > /usr/share/nginx/html/index.html
+          cp /usr/share/nginx/html/index.html /usr/share/nginx/html/api
+          nginx -g 'daemon off;'
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: api-svc
+  namespace: ingress-s1
+spec:
+  type: ClusterIP
+  selector:
+    app: api
+  ports:
+  - port: 80
+    targetPort: 80
