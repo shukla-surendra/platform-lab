@@ -17,15 +17,25 @@ variable "cluster_name" {
   default     = "my-eks-cluster"
 }
 
+# A "data" block READS or BUILDS something, it creates nothing in AWS. This one builds a JSON policy document in memory
+# (read it as `data.aws_iam_policy_document.eks_assume.json`, which is what the IAM role below uses).
+# This particular policy is a TRUST policy: it says WHO is allowed to use the role (not what the role can do).
 data "aws_iam_policy_document" "eks_assume" {
   statement {
+    # The permission being granted: "assume this role", i.e. get temporary credentials for it.
     actions = ["sts:AssumeRole"]
+
+    # WHO may do that.
     principals {
-      type        = "Service"
-      identifiers = ["eks.amazonaws.com"]
+      type        = "Service"                  # an AWS service, not a user or another account
+      identifiers = ["eks.amazonaws.com"]      # the EKS service: so the EKS control plane can act as this role
     }
+    # (effect defaults to "Allow")
   }
 }
+# Result, in plain words: "the EKS service is allowed to assume this role".
+# The role's PERMISSIONS come separately: aws_iam_role_policy_attachment attaches AmazonEKSClusterPolicy to it.
+# Without this trust policy, EKS could not use the role and cluster creation would fail.
 
 resource "aws_iam_role" "cluster" {
   name               = "${var.cluster_name}-cluster-role"
