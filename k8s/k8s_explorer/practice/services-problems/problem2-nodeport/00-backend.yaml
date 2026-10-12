@@ -1,0 +1,47 @@
+# The BACKEND: 3 Pods of a tiny web server, each replying 'Hello from <its pod name>'.
+# Own namespace (problem2) so this folder is independent and cleanup is one command.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: problem2
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  namespace: problem2
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: backend
+  template:
+    metadata:
+      labels:
+        app: backend
+    spec:
+      containers:
+      - name: web
+        image: nginx:alpine
+        ports:
+        - containerPort: 80
+        command: ["/bin/sh", "-c"]
+        args:
+        - |
+          echo "Hello from $(hostname)" > /usr/share/nginx/html/index.html
+          nginx -g 'daemon off;'
+---
+# A plain ClusterIP Service in front of them (the solution from lesson 1).
+# It works for callers INSIDE the cluster. The problem is everyone OUTSIDE.
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-svc
+  namespace: problem2
+spec:
+  type: ClusterIP
+  selector:
+    app: backend
+  ports:
+  - port: 80
+    targetPort: 80

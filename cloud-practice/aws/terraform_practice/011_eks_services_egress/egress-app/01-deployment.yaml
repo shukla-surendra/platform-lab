@@ -1,0 +1,45 @@
+# A Deployment whose only job is to make OUTBOUND (egress) calls, every 10 seconds, and log the result:
+#   dns   = can it resolve a name?          (needs DNS egress to CoreDNS)
+#   https = can it reach the internet?       (needs egress to port 443)
+#   ip    = which public IP the internet sees (on this cluster: the public IP of the NODE the Pod runs on)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: egress-app
+  namespace: egress-app
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: egress-app
+  template:
+    metadata:
+      labels:
+        app: egress-app
+    spec:
+      containers:
+      - name: caller
+        image: curlimages/curl:8.10.1
+        env:
+        - name: NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        command:
+        - sh
+        - -c
+        - |
+          while true; do
+            if getent hosts checkip.amazonaws.com >/dev/null 2>&1; then dns=OK; else dns=FAILED; fi
+            if ip=$(curl -s -m 5 https://checkip.amazonaws.com); then https=OK; else https=FAILED; ip=-; fi
+            echo "$(date +%T) pod=$POD_NAME node=$NODE_NAME dns=$dns https=$https egressIP=$ip"
+            sleep 10
+          done
+        resources:
+          requests:
+            cpu: 10m
+            memory: 16Mi

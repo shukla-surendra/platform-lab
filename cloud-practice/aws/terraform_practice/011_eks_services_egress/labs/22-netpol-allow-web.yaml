@@ -1,0 +1,21 @@
+# STEP 3: allow egress to the app's own Pods (app=web) on port 80, inside the cluster.
+# The internet is still blocked. Only this one destination is open.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-web-egress
+  namespace: lab
+spec:
+  podSelector:
+    matchLabels:
+      app: egress-client
+  policyTypes:
+  - Egress
+  egress:
+  - to:
+    - podSelector:
+        matchLabels:
+          app: web
+    ports:
+    - protocol: TCP
+      port: 80

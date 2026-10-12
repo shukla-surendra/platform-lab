@@ -1,0 +1,41 @@
+# A 4th app, added later. Note it needs NO new external port: only a rule in the Ingress (03-ingress-with-docs.yaml).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: docs
+  namespace: ingress-s1
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: docs
+  template:
+    metadata:
+      labels:
+        app: docs
+    spec:
+      containers:
+      - name: web
+        image: nginx:alpine
+        ports:
+        - containerPort: 80
+        command: ["/bin/sh", "-c"]
+        args:
+        - |
+          # the app answers on / and on /docs (a file named "docs"), so both host- and path-based routing can be tested
+          echo "docs app, answered by pod $(hostname)" > /usr/share/nginx/html/index.html
+          cp /usr/share/nginx/html/index.html /usr/share/nginx/html/docs
+          nginx -g 'daemon off;'
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: docs-svc
+  namespace: ingress-s1
+spec:
+  type: ClusterIP
+  selector:
+    app: docs
+  ports:
+  - port: 80
+    targetPort: 80

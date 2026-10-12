@@ -1,0 +1,17 @@
+# PROBLEM: with NodePort/LoadBalancer, a request that arrives on node A may be forwarded to a Pod on
+# node B (an extra hop), and the Pod then sees the NODE's IP instead of the real client's IP (SNAT).
+# externalTrafficPolicy: Local only sends traffic to Pods ON THE SAME NODE: no extra hop, and the
+# client source IP is preserved. Cost: a node with no local Pod drops (or fails the LB health check
+# for) traffic, and load can be uneven. Only meaningful with 2+ working nodes.
+apiVersion: v1
+kind: Service
+metadata:
+  name: web-local
+spec:
+  type: NodePort
+  externalTrafficPolicy: Local   # default is Cluster
+  selector:
+    app: web-backend
+  ports:
+  - port: 80
+    targetPort: 80

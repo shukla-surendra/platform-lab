@@ -1,0 +1,55 @@
+# Databricks Asset Bundle: workloads as code.
+#   databricks bundle validate
+#   databricks bundle deploy -t dev
+#   databricks bundle run orders_job -t dev
+bundle:
+  name: orders_etl
+
+variables:
+  catalog:
+    description: Unity Catalog catalog for this environment
+    default: dev
+
+targets:
+  dev:
+    mode: development                 # names are prefixed with your user, schedules paused
+    default: true
+    workspace:
+      host: https://<dev-workspace-url>
+  prod:
+    mode: production
+    variables:
+      catalog: prod
+    workspace:
+      host: https://<prod-workspace-url>
+    run_as:
+      service_principal_name: <service-principal-application-id>   # jobs never run as a person in prod
+
+resources:
+  pipelines:
+    customers_pipeline:
+      name: customers_${bundle.target}
+      catalog: ${var.catalog}
+      schema: silver
+      serverless: true
+      libraries:
+        - file: { path: ./lakeflow_pipeline.py }
+
+  jobs:
+    orders_job:
+      name: orders_${bundle.target}
+      schedule:
+        quartz_cron_expression: "0 0 6 * * ?"
+        timezone_id: UTC
+      tasks:
+        - task_key: ingest
+          spark_python_task: { python_file: ./autoloader.py }
+          environment_key: default
+        - task_key: refresh_customers
+          depends_on: [{ task_key: ingest }]
+          pipeline_task: { pipeline_id: ${resources.pipelines.customers_pipeline.id} }
+      environments:
+        - environment_key: default
+          spec: { client: "2" }
+      email_notifications:
+        on_failure: [<team-email>]

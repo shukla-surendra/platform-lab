@@ -1,0 +1,12 @@
+[project]
+name = "databricks-lab"
+version = "0.1.0"
+description = "Databricks and data-engineering concepts, with lessons that run locally on open-source Spark + Delta Lake."
+requires-python = ">=3.12"
+dependencies = [
+  "pyspark==4.0.0",
+  "delta-spark==4.0.0",
+]
+
+[tool.uv]
+package = false

@@ -1,0 +1,32 @@
+# PROBLEM: give an in-cluster name to something that is NOT selected by labels and has an IP but no
+# DNS name (a VM, an on-prem database). ExternalName needs a DNS NAME; this needs only an IP.
+# A Service WITHOUT a selector gets no automatic endpoints. You write the EndpointSlice yourself,
+# and the Service then load-balances over the addresses you list.
+#
+# POD_IP is a placeholder: in the lab we borrow a web-backend Pod's IP as the "external" thing.
+#   POD_IP=$(kubectl get pod -l app=web-backend -o jsonpath='{.items[0].status.podIP}')
+#   sed "s/POD_IP/$POD_IP/" 04-selectorless-endpointslice.yaml | kubectl apply -f -
+# Real use: replace it with the IP of your VM / database host (it must be reachable from the Pods).
+# Note: do NOT point it at a node IP + NodePort: the DNAT for NodePorts is applied only once per
+# connection, so an already-rewritten packet never matches the NodePort rule (connection refused).
+apiVersion: v1
+kind: Service
+metadata:
+  name: legacy-backend
+spec:
+  ports:
+  - port: 80
+    targetPort: 80
+---
+apiVersion: discovery.k8s.io/v1
+kind: EndpointSlice
+metadata:
+  name: legacy-backend-manual
+  labels:
+    kubernetes.io/service-name: legacy-backend   # this label ties the slice to the Service
+addressType: IPv4
+ports:
+- port: 80
+  protocol: TCP
+endpoints:
+- addresses: ["POD_IP"]

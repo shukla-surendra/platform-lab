@@ -1,0 +1,27 @@
+# One Pod per NODE, each printing the IP the internet sees for its node's outbound traffic.
+# On this cluster (public subnets, no NAT) a Pod's outbound traffic is rewritten to its NODE's public IP, so each node
+# should show a DIFFERENT address, and it should match that node's EXTERNAL-IP in `kubectl get nodes -o wide`.
+# (Expected from how the VPC CNI normally works. Observe it rather than trust it.)
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: egress-ip
+  namespace: lab
+spec:
+  selector:
+    matchLabels:
+      app: egress-ip
+  template:
+    metadata:
+      labels:
+        app: egress-ip
+    spec:
+      containers:
+      - name: curl
+        image: curlimages/curl:8.10.1
+        command: ["sh", "-c", "echo \"node=$NODE_NAME egress IP seen by the internet: $(curl -s -m 10 https://checkip.amazonaws.com || echo FAILED)\"; sleep 3600"]
+        env:
+        - name: NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName

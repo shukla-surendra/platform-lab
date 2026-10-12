@@ -1,0 +1,39 @@
+# PROBLEM: "traffic reaches Pods that are not ready to serve it" (starting up, warming a cache,
+# lost its database connection). A Service only sends traffic to Pods whose readiness probe passes;
+# a failing Pod is removed from the EndpointSlice WITHOUT being restarted.
+# Here a Pod is "ready" only when /usr/share/nginx/html/ready exists. Nothing creates it, so all
+# Pods start NOT ready and the Service has no endpoints until you create the file (see README).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gated-app
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: gated-app
+  template:
+    metadata:
+      labels:
+        app: gated-app
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:alpine
+        ports:
+        - containerPort: 80
+        readinessProbe:
+          exec:
+            command: ["test", "-f", "/usr/share/nginx/html/ready"]
+          periodSeconds: 2
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gated
+spec:
+  selector:
+    app: gated-app
+  ports:
+  - port: 80
+    targetPort: 80

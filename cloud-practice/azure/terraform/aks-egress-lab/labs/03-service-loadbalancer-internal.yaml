@@ -1,0 +1,16 @@
+# A LoadBalancer that is PRIVATE: Azure gives it an IP from your network, not a public one, so it is reachable only
+# from inside the VNet. No public IP to pay for. (The annotation is what makes it internal.)
+apiVersion: v1
+kind: Service
+metadata:
+  name: web-lb-internal
+  namespace: lab
+  annotations:
+    service.beta.kubernetes.io/azure-load-balancer-internal: "true"
+spec:
+  type: LoadBalancer
+  selector:
+    app: web
+  ports:
+  - port: 80
+    targetPort: 80

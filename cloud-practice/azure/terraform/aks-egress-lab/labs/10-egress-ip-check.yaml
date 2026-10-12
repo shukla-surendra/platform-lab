@@ -1,0 +1,21 @@
+# Which IP does the internet see when a Pod calls out? Run this Job twice, or from several Pods:
+# with outbound_type = loadBalancer every Pod uses the cluster load balancer's outbound IP(s).
+# The service called here only echoes your public IP back.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: egress-ip-check
+  namespace: lab
+spec:
+  backoffLimit: 0
+  ttlSecondsAfterFinished: 300
+  template:
+    metadata:
+      labels:
+        app: egress-client            # the label the NetworkPolicies below select on
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: curl
+        image: curlimages/curl:8.10.1
+        command: ["sh", "-c", "echo -n 'egress IP seen by the internet: '; curl -s -m 10 https://checkip.amazonaws.com || echo 'FAILED to reach the internet'"]

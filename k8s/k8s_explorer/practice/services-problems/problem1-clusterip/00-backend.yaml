@@ -1,0 +1,33 @@
+# The BACKEND: 3 copies (Pods) of a tiny web server.
+# Each Pod answers "Hello from <its own pod name>", so you can see WHICH Pod replied.
+# Everything lives in its own namespace (problem1) so cleanup is one command.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: problem1
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  namespace: problem1
+spec:
+  replicas: 3                  # keep 3 Pods alive; if one dies, create a replacement
+  selector:
+    matchLabels:
+      app: backend             # "the Pods I manage are the ones labelled app=backend"
+  template:
+    metadata:
+      labels:
+        app: backend           # every Pod made from this template gets this label
+    spec:
+      containers:
+      - name: web
+        image: nginx:alpine
+        ports:
+        - containerPort: 80
+        command: ["/bin/sh", "-c"]
+        args:
+        - |
+          echo "Hello from $(hostname)" > /usr/share/nginx/html/index.html
+          nginx -g 'daemon off;'

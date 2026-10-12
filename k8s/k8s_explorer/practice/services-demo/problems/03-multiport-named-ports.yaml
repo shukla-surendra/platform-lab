@@ -1,0 +1,46 @@
+# PROBLEM: one app exposes several ports (traffic + metrics/admin), and you don't want to
+# hard-code container port NUMBERS in every Service.
+# - ports[].name is REQUIRED once a Service has more than one port.
+# - targetPort can be a NAME. The Service then follows whatever number the container declares for
+#   that name, so the app can change 8081 -> 9090 without touching the Service.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: multiport-app
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: multiport-app
+  template:
+    metadata:
+      labels:
+        app: multiport-app
+    spec:
+      containers:
+      - name: web
+        image: nginx:alpine
+        ports:
+        - name: http            # <- the name the Service refers to
+          containerPort: 80
+      - name: metrics
+        image: busybox:1.36
+        command: ["sh", "-c", "mkdir -p /www && echo 'metrics: ok' > /www/index.html && httpd -f -p 8081 -h /www"]
+        ports:
+        - name: metrics
+          containerPort: 8081
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: multiport
+spec:
+  selector:
+    app: multiport-app
+  ports:
+  - name: http
+    port: 80
+    targetPort: http            # by name
+  - name: metrics
+    port: 9100                  # clients use 9100 ...
+    targetPort: metrics         # ... the container listens on 8081 (looked up by name)

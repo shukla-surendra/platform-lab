@@ -1,0 +1,10 @@
+# EGRESS to something outside the cluster that has a DNS name: give it an in-cluster name.
+# DNS only (a CNAME). Nothing is proxied, so traffic leaves the cluster the same way as any other outbound call.
+apiVersion: v1
+kind: Service
+metadata:
+  name: external-checkip
+  namespace: lab
+spec:
+  type: ExternalName
+  externalName: checkip.amazonaws.com

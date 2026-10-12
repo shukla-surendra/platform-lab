@@ -1,0 +1,14 @@
+# THE SOLUTION: a Service. It gets ONE stable IP and ONE stable DNS name ("backend-svc"),
+# and forwards to whichever Pods currently have the label app=backend.
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-svc
+  namespace: solution1
+spec:
+  type: ClusterIP              # the default: reachable only from inside the cluster
+  selector:
+    app: backend               # <- the link to the Pods: "send traffic to Pods with this label"
+  ports:
+  - port: 80                   # the port callers use on the Service
+    targetPort: 80             # the port the container actually listens on

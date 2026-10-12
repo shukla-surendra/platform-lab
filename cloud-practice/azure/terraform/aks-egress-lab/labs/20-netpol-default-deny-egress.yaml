@@ -1,0 +1,14 @@
+# STEP 1 of the egress NetworkPolicy exercise: block ALL outbound traffic from Pods labelled app=egress-client.
+# An empty "egress" list with policyTypes: [Egress] means "nothing is allowed out", including DNS.
+# Needs a network policy engine: this cluster uses Cilium (enable_network_policy = true in Terraform).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-egress
+  namespace: lab
+spec:
+  podSelector:
+    matchLabels:
+      app: egress-client
+  policyTypes:
+  - Egress
