@@ -1,0 +1,437 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Redis Field Guide</title>
+<style>
+  :root {
+    --bg: #fbfbf9; --surface: #ffffff; --surface-2: #f2f2ee; --text: #1d1d1b; --muted: #62625c;
+    --border: #dcdcd5; --accent: #2f5fb3; --accent-soft: #e6edf9; --good: #2e7d4f; --warn: #a86512; --bad: #b3372f;
+    --warn-soft: #fbf1e3;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #161615; --surface: #1f1f1d; --surface-2: #262624; --text: #e9e9e4; --muted: #a3a39b;
+      --border: #3a3a36; --accent: #86a8ec; --accent-soft: #233150; --good: #6cc495; --warn: #e0a252; --bad: #ec8a82;
+      --warn-soft: #3a2c18;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #161615; --surface: #1f1f1d; --surface-2: #262624; --text: #e9e9e4; --muted: #a3a39b;
+    --border: #3a3a36; --accent: #86a8ec; --accent-soft: #233150; --good: #6cc495; --warn: #e0a252; --bad: #ec8a82;
+    --warn-soft: #3a2c18;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.65 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 860px; margin: 0 auto; padding: 36px 16px 80px; }
+  h1 { font-size: 1.8rem; line-height: 1.25; margin: 4px 0 8px; }
+  h2 { font-size: 1.3rem; margin: 48px 0 10px; padding-top: 8px; border-top: 1px solid var(--border); }
+  h3 { font-size: 1.05rem; margin: 26px 0 8px; }
+  a { color: var(--accent); }
+  .lead { color: var(--muted); font-size: 1.05rem; }
+  code { font: .88em ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--surface-2); padding: 1px 5px; border-radius: 4px; }
+  pre { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; overflow-x: auto; font-size: .82rem; line-height: 1.5; }
+  pre code { background: none; padding: 0; }
+  .tw { overflow-x: auto; border: 1px solid var(--border); border-radius: 8px; margin: 12px 0; }
+  table { border-collapse: collapse; width: 100%; font-size: .9rem; background: var(--surface); }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { background: var(--surface-2); }
+  ul, ol { padding-left: 22px; } li { margin: 5px 0; }
+  .idea { background: var(--accent-soft); border-left: 3px solid var(--accent); border-radius: 6px; padding: 10px 14px; margin: 16px 0; }
+  .warn { background: var(--warn-soft); border-left: 3px solid var(--warn); border-radius: 6px; padding: 10px 14px; margin: 16px 0; }
+  .toc { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px 18px; margin: 20px 0; }
+  .toc ol { margin: 6px 0; } .toc li { margin: 2px 0; }
+  .rule { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; margin: 10px 0; }
+  .rule b:first-child { color: var(--accent); }
+  .muted { color: var(--muted); font-size: .9rem; }
+</style>
+</head>
+<body><main>
+
+<h1>Redis field guide</h1>
+<p class="lead">Why Redis exists, where it is really used, and the lessons people usually learn only after years of running it. Written to give you the judgement of an experienced Redis engineer without first making every mistake yourself.</p>
+
+<p class="muted">Defaults marked "lab" were read with <code>CONFIG GET</code> from <code>redis:7-alpine</code> (Redis 7.4.11), the image used in <code>tools/redis/</code>. Notes on Redis 8 and Valkey are called out where they differ. Hands-on companions: <code>tools/redis/</code> (examples, <code>production-scenarios.md</code>, and <code>cluster/</code> for Redis Cluster) and <code>system_design_foundation/00_prerequisite_concepts/25_redis_as_a_system_design_primitive.md</code>. Sister pages: <a href="kafka_field_guide.html">Kafka field guide</a>, <a href="rabbitmq_field_guide.html">RabbitMQ field guide</a>.</p>
+
+<nav class="toc"><strong>Contents</strong>
+<ol>
+  <li><a href="#why">Why we need Redis</a></li>
+  <li><a href="#model">The mental model in one page</a></li>
+  <li><a href="#usecases">Practical use cases</a></li>
+  <li><a href="#not">When not to use Redis</a></li>
+  <li><a href="#notebook">An experienced engineer's notebook</a>
+    <ol>
+      <li><a href="#keys">Keys, values and data modelling</a></li>
+      <li><a href="#caching">Caching done right</a></li>
+      <li><a href="#memory">Memory and eviction</a></li>
+      <li><a href="#perf">Performance: the single thread</a></li>
+      <li><a href="#durability">Persistence and durability</a></li>
+      <li><a href="#ha">Replication, Sentinel and Cluster</a></li>
+      <li><a href="#messaging">Redis as a queue or message bus</a></li>
+      <li><a href="#locks">Locks and coordination</a></li>
+      <li><a href="#clients">Clients and connections</a></li>
+      <li><a href="#security">Security</a></li>
+      <li><a href="#monitor">What to monitor</a></li>
+      <li><a href="#incidents">Incidents everyone has eventually</a></li>
+      <li><a href="#ecosystem">The ecosystem, licences and what to pick</a></li>
+    </ol>
+  </li>
+  <li><a href="#review">Design review checklist</a></li>
+  <li><a href="#numbers">Numbers to keep in your head</a></li>
+  <li><a href="#path">A fast path to expertise</a></li>
+</ol></nav>
+
+<!-- ================================================================== -->
+<h2 id="why">1. Why we need Redis</h2>
+
+<h3>The problem it solves</h3>
+<p>A product page needs the product, its price, stock, reviews summary and the user's cart. Each comes from a database query taking 5–50 ms. Under load, the same queries run thousands of times a second for the same popular products, and the database becomes the bottleneck. Meanwhile, you also need a counter of login attempts per IP, a leaderboard, a place to keep sessions shared by 20 web pods, and a way to make sure only one pod runs the nightly job.</p>
+<pre><code>20 web pods ──▶ database   (same 100 queries, 5,000 times/s; 30 ms each)
+            ──▶ ??? shared sessions
+            ──▶ ??? rate limit per IP
+            ──▶ ??? "only one pod runs this"</code></pre>
+
+<h3>What Redis changes</h3>
+<p>Redis is an <strong>in-memory data structure server</strong>. Every read and write is served from RAM, typically in well under a millisecond, and every value has a type with its own atomic operations: counters, lists, sets, sorted sets, hashes, streams. So it's not only a cache; it's a toolbox of shared, fast, atomic building blocks for all your pods.</p>
+<div class="tw"><table>
+<tr><th>Property</th><th>What it gives you</th></tr>
+<tr><td><strong>Speed</strong></td><td>Sub-millisecond operations; one instance handles on the order of 100,000+ simple operations per second.</td></tr>
+<tr><td><strong>Data structures</strong></td><td>Strings, hashes, lists, sets, sorted sets, streams, bitmaps, HyperLogLog, geo, and (Redis 8 / modules) JSON, search and vectors.</td></tr>
+<tr><td><strong>Atomicity for free</strong></td><td>Commands run one at a time, so <code>INCR</code>, <code>SET NX</code>, <code>ZADD</code> never race. Lua scripts and <code>MULTI</code> run several steps atomically.</td></tr>
+<tr><td><strong>Expiry</strong></td><td>Any key can have a TTL; Redis deletes it for you. Perfect for caches, sessions, rate-limit windows and locks.</td></tr>
+<tr><td><strong>Shared state</strong></td><td>All pods see the same data, unlike in-process memory.</td></tr>
+<tr><td><strong>Simplicity</strong></td><td>A single binary, a text protocol, clients for every language.</td></tr>
+</table></div>
+<div class="idea"><strong>One sentence:</strong> Redis is shared, very fast, in-memory data structures with atomic operations and expiry, used as a cache and as the building blocks for counters, sessions, rate limits, leaderboards, locks and light queues.</div>
+
+<!-- ================================================================== -->
+<h2 id="model">2. The mental model in one page</h2>
+<pre><code>client ──TCP (RESP protocol)──▶ redis-server
+                                 ┌───────────────────────────────┐
+                                 │ one main thread runs commands  │  ← one at a time: atomic, but a slow
+                                 │ (I/O threads optional)         │    command blocks everyone
+                                 │ RAM: keyspace                  │
+                                 │   "user:42"    → hash          │
+                                 │   "views:p:9"  → string (int)  │
+                                 │   "leaderboard"→ sorted set    │
+                                 │   "jobs"       → list / stream │
+                                 └──────┬──────────────┬─────────┘
+                                        │ RDB / AOF    │ async replication
+                                        ▼              ▼
+                                      disk           replicas (Sentinel or Cluster for failover)</code></pre>
+<div class="tw"><table>
+<tr><th>Type</th><th>What it is</th><th>Typical use</th></tr>
+<tr><td>String</td><td>Bytes, or an integer you can <code>INCR</code></td><td>Cache entries, counters, flags, locks</td></tr>
+<tr><td>Hash</td><td>A small map of fields</td><td>An object (user profile, session)</td></tr>
+<tr><td>List</td><td>Ordered list, push/pop at both ends</td><td>Simple queues, recent items</td></tr>
+<tr><td>Set</td><td>Unique members</td><td>Tags, "who's online", deduplication</td></tr>
+<tr><td>Sorted set (ZSET)</td><td>Members ordered by a score</td><td>Leaderboards, priority queues, sliding-window rate limits, scheduled jobs</td></tr>
+<tr><td>Stream</td><td>Append-only log with consumer groups and acks</td><td>Durable-ish queues and event streams</td></tr>
+<tr><td>Bitmap / HyperLogLog</td><td>Bits; probabilistic unique count</td><td>Daily active users, "seen" flags with little memory</td></tr>
+<tr><td>Geo</td><td>Sorted set of coordinates</td><td>"Drivers within 2 km"</td></tr>
+<tr><td>Pub/Sub</td><td>Fire-and-forget broadcast (not stored)</td><td>Live notifications, cache invalidation signals</td></tr>
+</table></div>
+<p>Five facts explain most of Redis's behaviour:</p>
+<ol>
+  <li><strong>Everything is in RAM.</strong> Memory is the capacity limit and the cost.</li>
+  <li><strong>One command runs at a time.</strong> That's why it's atomic, and why one slow command (<code>KEYS *</code>, a huge <code>DEL</code>, a long Lua script) freezes every client.</li>
+  <li><strong>Durability is optional and asynchronous.</strong> By default you can lose recent writes on a crash, and replicas lag the primary.</li>
+  <li><strong>Data structures are the API.</strong> Choosing the right type turns a hard problem into one command.</li>
+  <li><strong>Expiry is the cleanup mechanism.</strong> Keys without TTLs live forever and eventually fill memory.</li>
+</ol>
+
+<!-- ================================================================== -->
+<h2 id="usecases">3. Practical use cases</h2>
+
+<h3>3.1 Caching (cache-aside)</h3>
+<p>The number one use. Read: <code>GET</code> from Redis; on a miss, query the database, <code>SET key value EX 300</code>, return. Write: update the database, then <code>DEL</code> the cache key. Cuts database load by 90%+ for read-heavy apps.</p>
+<p><strong>What matters:</strong> TTLs with jitter, stampede protection, invalidation, what happens when Redis is down (see <a href="#caching">5.2</a>).</p>
+
+<h3>3.2 Session store</h3>
+<p>Web sessions as hashes with a TTL that's refreshed on each request. Any pod can serve any user. <strong>What matters:</strong> persistence and a replica, because losing Redis logs everyone out.</p>
+
+<h3>3.3 Rate limiting</h3>
+<p>Fixed window: <code>INCR rl:{ip}:{minute}</code> + <code>EXPIRE</code>. Sliding window: a sorted set of request timestamps, trimmed with <code>ZREMRANGEBYSCORE</code>. Token bucket: a small Lua script. Used by API gateways, login protection, partner API quotas.</p>
+
+<h3>3.4 Counters and real-time analytics</h3>
+<p>Page views, likes, stock counts with <code>INCR</code>/<code>HINCRBY</code>; unique visitors with HyperLogLog (<code>PFADD</code>/<code>PFCOUNT</code>, ~12 KB per counter with ~0.81% error); daily activity with bitmaps. Flushed periodically to the database for long-term storage.</p>
+
+<h3>3.5 Leaderboards and rankings</h3>
+<p>A sorted set: <code>ZINCRBY leaderboard 10 user:42</code>, <code>ZREVRANGE leaderboard 0 9 WITHSCORES</code> for the top 10, <code>ZREVRANK</code> for "your position". Logarithmic time even for millions of players.</p>
+
+<h3>3.6 Queues and background jobs</h3>
+<p>Lists (<code>LPUSH</code> + <code>BLMOVE</code> into a processing list for reliability) power Sidekiq, RQ, BullMQ, and Celery's Redis broker. Streams (<code>XADD</code>, <code>XREADGROUP</code>, <code>XACK</code>, <code>XAUTOCLAIM</code>) add consumer groups and acks. Good for moderate volume where Redis is already in place (see <a href="#messaging">5.7</a> for the limits).</p>
+
+<h3>3.7 Distributed locks and leader election</h3>
+<p><code>SET lock:nightly-job &lt;random-token&gt; NX PX 30000</code>: only one pod gets it. Release only if you still hold it (check the token in a Lua script). Fine for efficiency ("don't run twice"), not for correctness without fencing (see <a href="#locks">5.8</a>).</p>
+
+<h3>3.8 Pub/Sub and real-time fan-out</h3>
+<p>Chat messages, live dashboards, WebSocket fan-out across pods (Socket.IO and similar use a Redis adapter), "invalidate this cache key" broadcasts. Fire-and-forget: a disconnected subscriber misses messages.</p>
+
+<h3>3.9 Deduplication and idempotency keys</h3>
+<p><code>SET idem:{request_id} 1 NX EX 86400</code> returns whether this request was already seen; a set of processed message ids makes queue consumers idempotent. Used in payment APIs and webhook receivers.</p>
+
+<h3>3.10 Geo, feature flags, and vector search</h3>
+<p>Geo commands for "nearby drivers"; hashes for feature flags read on every request; and with Redis 8 (or Redis Stack / modules) JSON documents, secondary indexes and vector similarity search for semantic caching and RAG retrieval. Online feature stores (Feast's Redis online store) keep ML features here for millisecond lookups.</p>
+
+<!-- ================================================================== -->
+<h2 id="not">4. When not to use Redis</h2>
+<div class="tw"><table>
+<tr><th>Situation</th><th>Why Redis is a poor fit</th><th>Use instead</th></tr>
+<tr><td>The only copy of important data (orders, payments)</td><td>Async persistence and replication can lose recent writes; RAM is expensive for large data</td><td>Postgres or another database, with Redis as a cache in front</td></tr>
+<tr><td>Data much larger than RAM</td><td>Everything must fit in memory</td><td>A database; disk-based stores</td></tr>
+<tr><td>Ad-hoc queries, joins, reporting</td><td>You can only look up by key (or by indexes you maintain yourself, or Redis Query Engine)</td><td>SQL database, search engine</td></tr>
+<tr><td>Guaranteed delivery event streaming, long retention, many replaying consumers</td><td>Streams live in RAM and replication is async</td><td>Kafka</td></tr>
+<tr><td>Complex job routing, retries, DLQs at scale</td><td>You build it all yourself</td><td>RabbitMQ, SQS, a job framework</td></tr>
+<tr><td>Locks that protect correctness (money, inventory)</td><td>Failover can let two clients hold the "same" lock</td><td>Database row locks or a consensus system (etcd, ZooKeeper) with fencing tokens</td></tr>
+<tr><td>Pub/sub where messages must not be lost</td><td>Pub/sub stores nothing</td><td>Streams, RabbitMQ, Kafka</td></tr>
+</table></div>
+
+<!-- ================================================================== -->
+<h2 id="notebook">5. An experienced engineer's notebook</h2>
+<p>What follows is written in the voice of someone who has designed, run and been paged for Redis over many years. Each note is a lesson that usually costs an incident to learn.</p>
+
+<!-- ------------------------------------------------------------------ -->
+<h3 id="keys">5.1 Keys, values and data modelling</h3>
+
+<div class="rule"><b>Name keys with a clear scheme.</b> <code>&lt;app&gt;:&lt;entity&gt;:&lt;id&gt;[:&lt;field&gt;]</code>, for example <code>shop:product:9:price</code>. It makes <code>SCAN MATCH</code>, debugging, memory analysis and later migration possible. Keep keys short but readable; at hundreds of millions of keys, key length is real memory.</div>
+
+<div class="rule"><b>Every key needs an owner and a lifetime.</b> Ask for every key pattern: who writes it, who deletes it, and what its TTL is. Keys "nobody deletes" are the most common cause of slow memory growth. If a key must live forever, document why.</div>
+
+<div class="rule"><b>Avoid big keys.</b> A single hash, list, set or sorted set with millions of members, or a string of tens of MB, makes every operation on it slow, blocks the server on <code>DEL</code>, unbalances a cluster shard and spikes network use. Split by bucket (<code>followers:42:0..15</code>), and delete big keys with <code>UNLINK</code> (frees memory in the background). Find them with <code>redis-cli --bigkeys</code> / <code>--memkeys</code>.</div>
+
+<div class="rule"><b>Watch for hot keys.</b> One key read 200,000 times a second (a celebrity's profile, a global config) maxes out one thread on one shard while others idle. Fix with client-side caching (Redis 6+ tracking, or a short in-process cache), or by copying the value under several keys and reading one at random. Find them with <code>redis-cli --hotkeys</code> (needs an LFU eviction policy) or by sampling <code>MONITOR</code> briefly on a non-critical replica.</div>
+
+<div class="rule"><b>Pick the type for the operations, not the shape.</b> Need ranking? Sorted set. Need membership? Set. Need to update one field of an object? Hash, not a JSON string you rewrite whole. Small hashes, lists and sets use compact encodings (listpack) that are much more memory-efficient, so many small hashes beat one giant one.</div>
+
+<div class="rule"><b>Serialize deliberately.</b> JSON is readable; MessagePack or Protobuf are smaller and faster. Include a version in the value or key (<code>v2:</code>) so a deploy that changes the format doesn't crash on old cached values. Compress large values on the client.</div>
+
+<div class="rule"><b>Don't use multiple numbered databases.</b> <code>SELECT 3</code> looks like namespacing, but databases share one thread and memory, can't be limited separately, and Redis Cluster supports only database 0. Use key prefixes, or separate instances for workloads that need isolation (cache vs queue vs sessions).</div>
+
+<!-- ------------------------------------------------------------------ -->
+<h3 id="caching">5.2 Caching done right</h3>
+
+<div class="rule"><b>Cache-aside, delete on write.</b> On update: write the database first, then <code>DEL</code> the key (don't <code>SET</code> the new value; two concurrent writers can leave the older value in the cache). The next read repopulates it. Accept that there's a short window of staleness, and set a TTL as the safety net for any invalidation you miss.</div>
+
+<div class="rule"><b>Add jitter to TTLs.</b> Keys written together with the same TTL expire together, and the database gets every miss at the same moment. Use <code>TTL = base + random(0, 10%)</code>.</div>
+
+<div class="rule"><b>Protect against stampedes.</b> When a hot key expires, a thousand requests miss at once and all query the database (thundering herd). Options: a short lock so only one request rebuilds (<code>SET rebuild:key 1 NX EX 10</code>, others wait briefly or serve stale); refresh ahead of expiry in the background; or store a "soft expiry" inside the value and serve stale while one request refreshes.</div>
+
+<div class="rule"><b>Cache misses too.</b> Requests for things that don't exist (deleted products, bots probing ids) miss every time and hit the database (cache penetration). Cache a "not found" marker with a short TTL, or check a Bloom filter first.</div>
+
+<div class="rule"><b>Plan for Redis being down.</b> A cache is an optimization; the app must survive without it. Use short client timeouts (tens of ms), a circuit breaker, and fall back to the database at a limited rate. And know the scary case: if the database can't handle full traffic without the cache, then Redis isn't "just a cache" anymore, it's critical infrastructure. Treat it that way (replicas, failover, warm-up plans).</div>
+
+<div class="rule"><b>Warm up after a cold start.</b> A restarted or new cache sends 100% of traffic to the database. Keep persistence on cache instances if a cold start would hurt, or pre-load hot keys, or ramp traffic gradually.</div>
+
+<!-- ------------------------------------------------------------------ -->
+<h3 id="memory">5.3 Memory and eviction</h3>
+
+<div class="rule"><b>Always set <code>maxmemory</code>.</b> The default is 0 (no limit, lab). Without a limit Redis grows until the OS or Kubernetes OOM-kills it, which loses everything not yet persisted. Set it to roughly 60–75% of the machine's or container's memory, leaving room for fork copy-on-write, client buffers and fragmentation.</div>
+
+<div class="rule"><b>Choose the eviction policy for the workload.</b> The default is <code>noeviction</code> (lab): when full, writes fail with <code>OOM command not allowed</code>. That's right for queues, sessions and anything you can't lose, and wrong for a cache. For caches use <code>allkeys-lru</code> or <code>allkeys-lfu</code> (LFU keeps popular keys better). <code>volatile-*</code> policies only evict keys with a TTL. Mixing a cache and important data in one instance with one policy is a classic mistake: separate them.</div>
+
+<div class="rule"><b>Know where memory goes.</b> <code>INFO memory</code>: <code>used_memory</code> (data), <code>used_memory_rss</code> (what the OS sees), <code>mem_fragmentation_ratio</code> (rss ÷ used; above ~1.5 means wasted memory; consider <code>activedefrag yes</code>). <code>MEMORY USAGE key</code> for one key. Client output buffers (slow pub/sub subscribers, replicas) can quietly use gigabytes.</div>
+
+<div class="rule"><b>Expired keys aren't deleted instantly.</b> Redis removes them when accessed, plus a background sampling process. Millions of keys expiring at once costs CPU. Spread expiry times.</div>
+
+<!-- ------------------------------------------------------------------ -->
+<h3 id="perf">5.4 Performance: the single thread</h3>
+
+<div class="rule"><b>Never run <code>KEYS *</code> in production.</b> It walks the whole keyspace in one blocking command; with 50 million keys, Redis freezes for seconds and every client times out. Use <code>SCAN</code> with a cursor (and <code>HSCAN</code>, <code>SSCAN</code>, <code>ZSCAN</code>). Many teams rename or disable <code>KEYS</code>, <code>FLUSHALL</code>, <code>FLUSHDB</code> and <code>DEBUG</code> via ACLs.</div>
+
+<div class="rule"><b>Watch O(N) commands.</b> <code>HGETALL</code>, <code>SMEMBERS</code>, <code>LRANGE 0 -1</code>, <code>ZRANGE 0 -1</code>, <code>DEL</code> on a big key, <code>SORT</code>, <code>SUNION</code> on large sets. Fine on small values, server-freezing on big ones. Check <code>SLOWLOG GET</code> (logs commands over 10 ms by default, lab <code>slowlog-log-slower-than 10000</code> µs).</div>
+
+<div class="rule"><b>Pipeline round trips.</b> 1,000 <code>GET</code>s one by one = 1,000 network round trips; pipelined (or <code>MGET</code>) = about one. Network latency, not Redis, is usually the bottleneck. Batch everything you can.</div>
+
+<div class="rule"><b>Lua scripts and <code>MULTI</code> are atomic, and blocking.</b> A script runs to completion with nothing else served. Keep scripts short and bounded. A script that loops over a growing key gets slower every day until it's an outage. Redis 7 functions (<code>FUNCTION LOAD</code>) are the managed successor to <code>EVAL</code> scripts.</div>
+
+<div class="rule"><b>Scaling CPU.</b> One Redis process uses about one core for commands. <code>io-threads</code> (1 by default, lab) offloads network reads/writes and helps with many clients and large replies. Beyond one core of command work, shard (Redis Cluster) or use read replicas for read-heavy, stale-tolerant traffic.</div>
+
+<div class="rule"><b>Latency has OS causes too.</b> Disable Transparent Huge Pages (latency spikes during fork), avoid swap (Redis in swap is unusable), put clients close to the server (same zone), and use <code>LATENCY DOCTOR</code> / <code>redis-cli --latency</code> to measure.</div>
+
+<!-- ------------------------------------------------------------------ -->
+<h3 id="durability">5.5 Persistence and durability</h3>
+<div class="tw"><table>
+<tr><th>Option</th><th>How it works</th><th>You can lose</th></tr>
+<tr><td>None</td><td>Pure in-memory</td><td>Everything on restart</td></tr>
+<tr><td>RDB snapshots</td><td>Periodic full snapshot via <code>fork()</code>. Lab default: <code>save 3600 1 300 100 60 10000</code></td><td>Everything since the last snapshot (minutes)</td></tr>
+<tr><td>AOF, <code>appendfsync everysec</code></td><td>Log every write, fsync once a second (off by default, lab <code>appendonly no</code>)</td><td>About 1 second</td></tr>
+<tr><td>AOF, <code>appendfsync always</code></td><td>fsync every write</td><td>Almost nothing, at a large throughput cost</td></tr>
+<tr><td>RDB + AOF</td><td>AOF with an RDB preamble (the default AOF format): fast restarts, ~1 s loss</td><td>About 1 second</td></tr>
+</table></div>
+
+<div class="rule"><b>Fork needs memory.</b> RDB snapshots and AOF rewrites <code>fork()</code> the process. Pages written during the snapshot are copied (copy-on-write), so a write-heavy instance can briefly need up to double its memory. Set <code>vm.overcommit_memory=1</code> on Linux (Redis warns otherwise) and leave headroom under <code>maxmemory</code>, or the fork fails or the OOM killer strikes mid-snapshot.</div>
+
+<div class="rule"><b>Replication doesn't make writes durable.</b> Replication is asynchronous: the primary acknowledges a write before replicas have it. If the primary dies, a promoted replica may be missing the last writes. <code>WAIT 1 100</code> waits for replicas but still doesn't make Redis a strongly consistent database.</div>
+
+<div class="rule"><b>Test restores.</b> Back up RDB files off the machine (S3) on a schedule, and actually restore one now and then. A backup you've never restored is a hope, not a backup.</div>
+
+<div class="rule"><b>Danger: a primary with no persistence and auto-restart.</b> If it restarts empty, its replicas faithfully sync the empty dataset and wipe themselves. If you run without persistence, don't let the primary auto-restart before failover happens.</div>
+
+<!-- ------------------------------------------------------------------ -->
+<h3 id="ha">5.6 Replication, Sentinel and Cluster</h3>
+<div class="tw"><table>
+<tr><th>Setup</th><th>What it gives</th><th>Use when</th></tr>
+<tr><td>Single instance</td><td>Simplicity</td><td>Dev, or a cache you can lose</td></tr>
+<tr><td>Primary + replicas</td><td>Read scaling, a warm copy</td><td>Read-heavy, manual failover acceptable</td></tr>
+<tr><td>Sentinel (3+ sentinels)</td><td>Automatic failover for one primary; clients ask Sentinel who the primary is</td><td>Data fits one machine, need HA</td></tr>
+<tr><td>Redis Cluster</td><td>Sharding over 16384 hash slots, each shard with replicas and automatic failover</td><td>Data or throughput beyond one machine</td></tr>
+</table></div>
+
+<div class="rule"><b>Cluster changes your code.</b> Keys are spread by <code>CRC16(key) mod 16384</code>. Multi-key commands (<code>MGET</code>, <code>MULTI</code>, Lua with several keys, <code>SUNION</code>) work only if all keys are in the same slot, otherwise <code>CROSSSLOT</code> error. Use hash tags, <code>{user:42}:cart</code> and <code>{user:42}:profile</code>, to force related keys together, but too much tagging creates a hot shard. (Demonstrated in <code>tools/redis/cluster/examples/crossslot_and_hashtags.py</code>.)</div>
+
+<div class="rule"><b>Use a cluster-aware client.</b> It caches the slot map and follows <code>MOVED</code>/<code>ASK</code> redirects during resharding and failover. Point it at several seed nodes.</div>
+
+<div class="rule"><b>Failover takes seconds and can lose writes.</b> Expect a few seconds of errors during failover (node timeout + election), with retries in clients. Writes acknowledged by the old primary but not yet replicated are lost. Design callers to tolerate both.</div>
+
+<div class="rule"><b>Reading from replicas means stale reads.</b> Replica lag is usually milliseconds, but under load or after a resync it can be seconds. Read-your-own-writes paths must use the primary.</div>
+
+<div class="rule"><b>Size the replication backlog.</b> If a replica disconnects briefly and the backlog (1 MB by default, lab <code>repl-backlog-size 1048576</code>) has been overwritten, it needs a full resync: a fork and a full RDB transfer. On busy primaries raise it to hundreds of MB to survive short network blips.</div>
+
+<!-- ------------------------------------------------------------------ -->
+<h3 id="messaging">5.7 Redis as a queue or message bus</h3>
+<div class="tw"><table>
+<tr><th>Mechanism</th><th>Stored?</th><th>Ack / redelivery</th><th>Fits</th></tr>
+<tr><td>Pub/Sub</td><td>No: only connected subscribers get it</td><td>No</td><td>Live notifications, cache-invalidation signals, WebSocket fan-out</td></tr>
+<tr><td>List + <code>BRPOP</code></td><td>Yes</td><td>No: a crash after pop loses the job</td><td>Simple, loss-tolerant jobs</td></tr>
+<tr><td>List + <code>BLMOVE</code> to a processing list</td><td>Yes</td><td>Manual: a reaper requeues stuck items</td><td>Reliable simple queues (what many job libraries do)</td></tr>
+<tr><td>Streams + consumer groups</td><td>Yes, until trimmed</td><td>Yes: <code>XACK</code>, pending list, <code>XAUTOCLAIM</code> for stuck messages</td><td>Kafka-like light event streams and work queues</td></tr>
+</table></div>
+
+<div class="rule"><b>Pub/sub loses messages, by design.</b> A subscriber that disconnects for one second misses that second. A slow subscriber's output buffer grows until the client is killed (lab: <code>pubsub 32mb 8mb 60</code>: hard limit 32 MB, or 8 MB for 60 s). Use it only where loss is fine.</div>
+
+<div class="rule"><b>Trim streams.</b> Streams grow forever unless you trim: <code>XADD ... MAXLEN ~ 1000000</code> or <code>MINID</code>. The <code>~</code> makes trimming cheap. Also watch the pending entries list (<code>XPENDING</code>): messages delivered but never acked stay there and need <code>XAUTOCLAIM</code> to move to a live consumer.</div>
+
+<div class="rule"><b>Know the ceiling.</b> A Redis queue lives in RAM, replication is async, and a failover can lose or duplicate messages. That's fine for many background-job systems (Sidekiq and BullMQ run huge workloads this way), but if a lost job means lost money, use a broker with real durability or make jobs reconstructable from the database.</div>
+
+<!-- ------------------------------------------------------------------ -->
+<h3 id="locks">5.8 Locks and coordination</h3>
+
+<div class="rule"><b>The correct single-instance lock.</b> Acquire: <code>SET lock:res &lt;unique-token&gt; NX PX 30000</code>. Release: a Lua script that deletes the key only if its value is still your token. Never <code>DEL</code> blindly: your lock may have expired and now belong to someone else.</div>
+
+<div class="rule"><b>A lock with a TTL can expire while you're still working.</b> A GC pause, a slow network call, a stalled VM, and your lease is gone; another client takes the lock; both now run. Extend the lease while working (watchdog), and for correctness pass a <strong>fencing token</strong> (an increasing number from <code>INCR</code>) to the resource you protect, which rejects older tokens. The same idea is tested in <a href="postgres_as_a_queue.html">Postgres as a queue</a> with real pods.</div>
+
+<div class="rule"><b>Redlock is debated.</b> The multi-instance Redlock algorithm is widely used, and widely criticized (Martin Kleppmann's analysis) for relying on timing assumptions. Practical stance: Redis locks are great for <em>efficiency</em> (avoid duplicate work); for <em>correctness</em> (never double-charge), use database constraints, transactions, or etcd/ZooKeeper with fencing.</div>
+
+<!-- ------------------------------------------------------------------ -->
+<h3 id="clients">5.9 Clients and connections</h3>
+
+<div class="rule"><b>Use a connection pool and set timeouts.</b> Connect and command timeouts in tens or hundreds of milliseconds, not the library's default (sometimes none). Without timeouts, a slow Redis makes every web thread hang, and the outage spreads.</div>
+
+<div class="rule"><b>Retry carefully.</b> Retrying a read is safe. Retrying a write like <code>INCR</code> after a timeout may apply it twice (the first may have succeeded). Use idempotent writes (<code>SET</code> with a value) or accept the risk knowingly.</div>
+
+<div class="rule"><b>Connection storms.</b> 500 pods × a pool of 50 = 25,000 connections; <code>maxclients</code> is 10000 by default (lab). Size pools to real concurrency, and watch <code>connected_clients</code> and <code>rejected_connections</code>. After a Redis restart, all clients reconnect at once; jittered backoff helps.</div>
+
+<div class="rule"><b>Blocking commands need their own connections.</b> <code>BLPOP</code>, <code>XREAD BLOCK</code> and <code>SUBSCRIBE</code> hold a connection while waiting. Don't take them from the pool your web requests use.</div>
+
+<!-- ------------------------------------------------------------------ -->
+<h3 id="security">5.10 Security</h3>
+
+<div class="rule"><b>Never expose Redis to the internet.</b> Unprotected Redis instances are found and abused within minutes (data wiped, crypto-miners installed via config tricks). Bind to private interfaces, keep protected mode on, put it behind network policies or security groups.</div>
+
+<div class="rule"><b>Use ACLs (Redis 6+).</b> A user per application with only the commands and key patterns it needs (<code>~shop:*</code>, <code>-@dangerous</code>). Disable the default user or give it a strong password. TLS in transit for anything crossing a network you don't fully control.</div>
+
+<!-- ------------------------------------------------------------------ -->
+<h3 id="monitor">5.11 What to monitor</h3>
+<div class="tw"><table>
+<tr><th>Metric (<code>INFO</code>)</th><th>Why</th><th>Alert when</th></tr>
+<tr><td><code>used_memory</code> vs <code>maxmemory</code></td><td>Capacity</td><td>&gt; 80%</td></tr>
+<tr><td><code>evicted_keys</code></td><td>Cache is too small, or important keys are being evicted</td><td>Rising on a non-cache instance; any at all with <code>noeviction</code> means writes fail instead</td></tr>
+<tr><td>Cache hit ratio (<code>keyspace_hits</code> ÷ (hits + misses))</td><td>Whether the cache is doing its job</td><td>Drop from baseline</td></tr>
+<tr><td>Latency (p99 from clients, <code>LATENCY</code>, <code>SLOWLOG</code>)</td><td>Slow commands, big keys, fork stalls</td><td>Above SLO</td></tr>
+<tr><td><code>connected_clients</code>, <code>rejected_connections</code>, <code>blocked_clients</code></td><td>Connection leaks, storms</td><td>Near <code>maxclients</code>, any rejections</td></tr>
+<tr><td><code>mem_fragmentation_ratio</code></td><td>Wasted memory</td><td>&gt; 1.5 sustained, or &lt; 1 (swapping)</td></tr>
+<tr><td>Replication: <code>master_link_status</code>, replica offset lag</td><td>Replica freshness, failover safety</td><td>Link down; lag growing</td></tr>
+<tr><td><code>rdb_last_bgsave_status</code>, <code>aof_last_write_status</code></td><td>Persistence failures (often disk full or fork failure)</td><td>Not <code>ok</code></td></tr>
+<tr><td>CPU of the main thread</td><td>Saturation of the single command thread</td><td>&gt; 80% of one core</td></tr>
+</table></div>
+<p>Tools: <code>redis_exporter</code> for Prometheus with Grafana dashboards; <code>redis-cli --stat</code>, <code>--bigkeys</code>, <code>--memkeys</code>, <code>--latency</code>; RedisInsight for browsing; cloud provider metrics on managed services.</p>
+
+<!-- ------------------------------------------------------------------ -->
+<h3 id="incidents">5.12 Incidents everyone has eventually</h3>
+<div class="tw"><table>
+<tr><th>Symptom</th><th>Usual cause</th><th>Fix / prevention</th></tr>
+<tr><td>Every client times out for several seconds</td><td><code>KEYS *</code>, <code>DEL</code> of a huge key, a long Lua script, <code>FLUSHALL</code> sync</td><td><code>SCAN</code>, <code>UNLINK</code>, short scripts, ACLs blocking dangerous commands</td></tr>
+<tr><td>Redis killed by OOM, data gone</td><td>No <code>maxmemory</code>; fork during snapshot doubled memory</td><td>Set <code>maxmemory</code> with headroom; overcommit setting; monitor</td></tr>
+<tr><td>Writes fail with <code>OOM command not allowed</code></td><td>Memory full with <code>noeviction</code> (keys without TTLs)</td><td>TTLs; right eviction policy; separate cache from data</td></tr>
+<tr><td>Database melts right after a Redis restart or deploy</td><td>Cold cache; or all keys expired together</td><td>Persistence/warm-up; TTL jitter; rate-limited fallback</td></tr>
+<tr><td>Database spikes every N minutes on one query</td><td>Stampede on a hot key's expiry</td><td>Rebuild lock, early refresh, serve stale</td></tr>
+<tr><td>Users see old data after an update</td><td>Cache set instead of deleted on write; race between writers; replica lag</td><td>Delete on write; TTL safety net; read from primary where needed</td></tr>
+<tr><td>Memory grows slowly for months</td><td>Keys without TTL; unbounded lists/streams; client output buffers</td><td>Key ownership and TTL review; trimming; buffer limits</td></tr>
+<tr><td>One cluster shard at 100% CPU, others idle</td><td>Hot key, or too many keys in one hash tag</td><td>Client-side caching; spread keys</td></tr>
+<tr><td>Replica stuck in endless full resyncs</td><td>Backlog too small; output buffer limit for replicas exceeded during sync</td><td>Bigger <code>repl-backlog-size</code> and replica buffer limits</td></tr>
+<tr><td>Two pods ran the "exclusive" job at once</td><td>Lock TTL expired during a pause; or failover lost the lock</td><td>Lease extension, fencing tokens, idempotent jobs</td></tr>
+<tr><td>Subscribers missed notifications</td><td>Pub/sub doesn't store; subscriber reconnected</td><td>Streams, or reconcile from the source on reconnect</td></tr>
+<tr><td>Instance wiped, strange keys / config changed</td><td>Exposed to the internet without auth</td><td>Private network, ACLs, protected mode</td></tr>
+<tr><td>Latency spikes every hour</td><td>RDB fork on a large dataset; THP enabled</td><td>Snapshot from a replica; disable THP</td></tr>
+</table></div>
+
+<!-- ------------------------------------------------------------------ -->
+<h3 id="ecosystem">5.13 The ecosystem, licences and what to pick</h3>
+<div class="tw"><table>
+<tr><th>Need</th><th>Options</th><th>Notes</th></tr>
+<tr><td>Open-source Redis-compatible server</td><td>Redis (8.x offers AGPLv3 as one licence option), Valkey (Linux Foundation fork of Redis 7.2.4, BSD)</td><td>Redis changed from BSD to RSAL/SSPL in 2024; Valkey forked in response, and Redis 8 added AGPL. Check what your company's legal team allows.</td></tr>
+<tr><td>Managed</td><td>AWS ElastiCache (Valkey / Redis OSS) and MemoryDB (durable, multi-AZ log), Azure Managed Redis / Azure Cache for Redis, Google Memorystore, Redis Cloud, Upstash (serverless)</td><td>Managed is usually the right call; MemoryDB when you need Redis as a durable primary store</td></tr>
+<tr><td>On Kubernetes</td><td>Bitnami/Valkey Helm charts, Redis operators (e.g. OT-Container-Kit), the Redis Enterprise operator</td><td>Stateful: use PVCs, anti-affinity and PDBs</td></tr>
+<tr><td>Alternatives / compatible</td><td>Dragonfly (multi-threaded), KeyDB, Microsoft Garnet, Memcached (pure cache, multi-threaded, no data types)</td><td>Memcached is still great when you only need GET/SET caching</td></tr>
+<tr><td>Job libraries on Redis</td><td>Sidekiq (Ruby), BullMQ (Node), RQ / Celery / Dramatiq / arq (Python)</td><td>Read how each handles crashes and acks</td></tr>
+<tr><td>Search, JSON, vectors</td><td>Redis 8 built-in Query Engine and JSON, vector sets; Redis Stack on older versions</td><td>Useful for semantic caching and small RAG indexes</td></tr>
+</table></div>
+
+<!-- ================================================================== -->
+<h2 id="review">6. Design review checklist</h2>
+<ol>
+  <li>Is Redis a cache (losable) or holding data that must survive? Then which persistence and HA?</li>
+  <li>What are the key patterns, their owners and their TTLs?</li>
+  <li>Any key that can become big (millions of members, MBs) or hot (very high request rate)?</li>
+  <li><code>maxmemory</code> set, with headroom for fork and buffers? Eviction policy right for this data?</li>
+  <li>Cache: how is it invalidated on writes? Stampede protection? TTL jitter? Negative caching?</li>
+  <li>What happens to the app when Redis is slow or down? Timeouts, circuit breaker, fallback?</li>
+  <li>Can the database survive a cold cache?</li>
+  <li>Any O(N) commands or scripts on growing data in hot paths?</li>
+  <li>Cluster: are multi-key operations in the same slot (hash tags)? Is the client cluster-aware?</li>
+  <li>Queues/streams: what if a consumer crashes mid-job? Trimming? Pending-entry reclaim?</li>
+  <li>Locks: what if the lock expires during work, or a failover happens? Fencing?</li>
+  <li>Connection pool size × number of pods vs <code>maxclients</code>?</li>
+  <li>Network exposure, ACL user per app, TLS?</li>
+  <li>Alerts on memory, evictions, latency, replication and persistence status?</li>
+</ol>
+
+<!-- ================================================================== -->
+<h2 id="numbers">7. Numbers to keep in your head</h2>
+<div class="tw"><table>
+<tr><th>Setting / fact</th><th>Default or typical value</th></tr>
+<tr><td>Port</td><td>6379 (Sentinel 26379; Cluster bus = port + 10000)</td></tr>
+<tr><td><code>maxmemory</code> / <code>maxmemory-policy</code></td><td>0 (no limit) / <code>noeviction</code> (lab)</td></tr>
+<tr><td>Persistence</td><td>RDB <code>save 3600 1 300 100 60 10000</code>; AOF off; <code>appendfsync everysec</code> when on (lab)</td></tr>
+<tr><td>Max value size (<code>proto-max-bulk-len</code>)</td><td>512 MB (lab); keep values to KBs</td></tr>
+<tr><td><code>maxclients</code></td><td>10000 (lab)</td></tr>
+<tr><td>Slow log threshold</td><td>10 ms (lab <code>slowlog-log-slower-than 10000</code> µs)</td></tr>
+<tr><td>Pub/sub client buffer limit</td><td>32 MB hard, 8 MB for 60 s (lab)</td></tr>
+<tr><td>Replication backlog</td><td>1 MB (lab); raise on busy primaries</td></tr>
+<tr><td>Numbered databases</td><td>16 (lab); Cluster supports only 0</td></tr>
+<tr><td>Cluster hash slots</td><td>16384</td></tr>
+<tr><td>HyperLogLog</td><td>~12 KB per counter, ~0.81% standard error</td></tr>
+<tr><td>Throughput</td><td>~100k+ simple ops/s per instance; network round trips usually dominate</td></tr>
+<tr><td>AOF everysec possible loss</td><td>~1 second of writes</td></tr>
+</table></div>
+
+<!-- ================================================================== -->
+<h2 id="path">8. A fast path to expertise</h2>
+<div class="tw"><table>
+<tr><th>Step</th><th>Do this</th><th>You learn</th></tr>
+<tr><td>1</td><td>Read <code>25_redis_as_a_system_design_primitive.md</code></td><td>Data structures as building blocks, pub/sub limits, locks, persistence trade-offs</td></tr>
+<tr><td>2</td><td><code>tools/redis/</code> examples and <code>production-scenarios.md</code></td><td>Real commands, replication, failure modes</td></tr>
+<tr><td>3</td><td><code>tools/redis/cluster/</code>: <code>cluster_basics.py</code>, <code>crossslot_and_hashtags.py</code>, <code>failover_demo.sh</code></td><td>Slots, CROSSSLOT errors, hash tags, failover</td></tr>
+<tr><td>4</td><td>Load 5 million keys, then run <code>KEYS *</code> while another terminal runs <code>redis-cli --latency</code></td><td>What blocking the single thread feels like</td></tr>
+<tr><td>5</td><td>Set <code>maxmemory 50mb</code>, fill it with <code>noeviction</code>, then with <code>allkeys-lfu</code></td><td>OOM errors vs evictions; choosing a policy</td></tr>
+<tr><td>6</td><td>Build cache-aside in front of the Postgres in <code>postgres_queue_lab</code>; expire a hot key under load with and without a rebuild lock</td><td>Stampedes and how to stop them</td></tr>
+<tr><td>7</td><td>Implement sliding-window rate limiting with a sorted set, then token bucket in Lua</td><td>Atomic multi-step logic</td></tr>
+<tr><td>8</td><td>Build a stream consumer group; kill a consumer mid-message; reclaim with <code>XAUTOCLAIM</code></td><td>Acks, pending entries, at-least-once in Redis</td></tr>
+<tr><td>9</td><td>Lock with <code>SET NX PX 2000</code>, sleep 3 s in the holder, start a second holder</td><td>Why fencing tokens exist</td></tr>
+<tr><td>10</td><td>Go through the <a href="#review">design review checklist</a> for a "product page cache + sessions" design</td><td>Putting it all together</td></tr>
+</table></div>
+<p>Then read: the redis.io docs on "Persistence", "Replication", "Scaling with Redis Cluster", "Eviction" and "Latency diagnosis", and Martin Kleppmann's "How to do distributed locking".</p>
+
+</main></body></html>

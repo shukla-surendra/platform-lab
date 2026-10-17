@@ -1,0 +1,429 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kafka Field Guide</title>
+<style>
+  :root {
+    --bg: #fbfbf9; --surface: #ffffff; --surface-2: #f2f2ee; --text: #1d1d1b; --muted: #62625c;
+    --border: #dcdcd5; --accent: #2f5fb3; --accent-soft: #e6edf9; --good: #2e7d4f; --warn: #a86512; --bad: #b3372f;
+    --warn-soft: #fbf1e3;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #161615; --surface: #1f1f1d; --surface-2: #262624; --text: #e9e9e4; --muted: #a3a39b;
+      --border: #3a3a36; --accent: #86a8ec; --accent-soft: #233150; --good: #6cc495; --warn: #e0a252; --bad: #ec8a82;
+      --warn-soft: #3a2c18;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #161615; --surface: #1f1f1d; --surface-2: #262624; --text: #e9e9e4; --muted: #a3a39b;
+    --border: #3a3a36; --accent: #86a8ec; --accent-soft: #233150; --good: #6cc495; --warn: #e0a252; --bad: #ec8a82;
+    --warn-soft: #3a2c18;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.65 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 860px; margin: 0 auto; padding: 36px 16px 80px; }
+  h1 { font-size: 1.8rem; line-height: 1.25; margin: 4px 0 8px; }
+  h2 { font-size: 1.3rem; margin: 48px 0 10px; padding-top: 8px; border-top: 1px solid var(--border); }
+  h3 { font-size: 1.05rem; margin: 26px 0 8px; }
+  a { color: var(--accent); }
+  .lead { color: var(--muted); font-size: 1.05rem; }
+  code { font: .88em ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--surface-2); padding: 1px 5px; border-radius: 4px; }
+  pre { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; overflow-x: auto; font-size: .82rem; line-height: 1.5; }
+  pre code { background: none; padding: 0; }
+  .tw { overflow-x: auto; border: 1px solid var(--border); border-radius: 8px; margin: 12px 0; }
+  table { border-collapse: collapse; width: 100%; font-size: .9rem; background: var(--surface); }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { background: var(--surface-2); }
+  ul, ol { padding-left: 22px; } li { margin: 5px 0; }
+  .idea { background: var(--accent-soft); border-left: 3px solid var(--accent); border-radius: 6px; padding: 10px 14px; margin: 16px 0; }
+  .warn { background: var(--warn-soft); border-left: 3px solid var(--warn); border-radius: 6px; padding: 10px 14px; margin: 16px 0; }
+  .toc { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px 18px; margin: 20px 0; }
+  .toc ol { margin: 6px 0; } .toc li { margin: 2px 0; }
+  .rule { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; margin: 10px 0; }
+  .rule b:first-child { color: var(--accent); }
+  .good { color: var(--good); font-weight: 600; } .bad { color: var(--bad); font-weight: 600; }
+  .muted { color: var(--muted); font-size: .9rem; }
+</style>
+</head>
+<body><main>
+
+<h1>Kafka field guide</h1>
+<p class="lead">Why Kafka exists, where it is really used, and the lessons people usually learn only after years of running it. Written to give you the judgement of an experienced Kafka engineer, so you can design, review and debug Kafka systems without first making every mistake yourself.</p>
+
+<p class="muted">Defaults and versions are for Apache Kafka 4.x and the Java client unless noted. The Python client used in this repo (<code>confluent-kafka</code>, built on librdkafka) has a few different defaults, called out where they matter. Hands-on companions: <a href="rabbitmq_kafka_lab/">rabbitmq_kafka_lab</a> (lessons 04–06 and <code>topic1_playground</code>) and <code>tools/kafka/production-scenarios.md</code> (a 3-broker cluster with failures triggered live). Sister pages: <a href="rabbitmq_field_guide.html">RabbitMQ field guide</a>, <a href="redis_field_guide.html">Redis field guide</a>.</p>
+
+<nav class="toc"><strong>Contents</strong>
+<ol>
+  <li><a href="#why">Why we need Kafka</a></li>
+  <li><a href="#model">The mental model in one page</a></li>
+  <li><a href="#usecases">Practical use cases</a></li>
+  <li><a href="#not">When not to use Kafka</a></li>
+  <li><a href="#notebook">An experienced engineer's notebook</a>
+    <ol>
+      <li><a href="#design">Designing topics, keys and events</a></li>
+      <li><a href="#producer">Producers</a></li>
+      <li><a href="#consumer">Consumers</a></li>
+      <li><a href="#errors">Failures, retries and dead letters</a></li>
+      <li><a href="#eos">Exactly-once, honestly</a></li>
+      <li><a href="#ops">Running the cluster</a></li>
+      <li><a href="#monitor">What to monitor</a></li>
+      <li><a href="#incidents">Incidents everyone has eventually</a></li>
+      <li><a href="#ecosystem">The ecosystem, and what to pick</a></li>
+    </ol>
+  </li>
+  <li><a href="#review">Design review checklist</a></li>
+  <li><a href="#numbers">Numbers to keep in your head</a></li>
+  <li><a href="#path">A fast path to expertise</a></li>
+</ol></nav>
+
+<!-- ================================================================== -->
+<h2 id="why">1. Why we need Kafka</h2>
+
+<h3>The problem it solves</h3>
+<p>Picture a company with an orders service. When an order is placed, several other systems need to know: payments, inventory, shipping, email, analytics, fraud detection, the data warehouse. The obvious first design is for the orders service to call each of them directly.</p>
+<pre><code>orders ──▶ payments
+       ──▶ inventory
+       ──▶ shipping          every new consumer = a code change in orders
+       ──▶ email             any consumer down  = orders slows down or fails
+       ──▶ analytics         a burst of orders  = every consumer hit at once
+       ──▶ warehouse         a bug last Tuesday = no way to re-run Tuesday</code></pre>
+<p>This breaks down as the company grows:</p>
+<ul>
+  <li><strong>Tight coupling.</strong> The producer must know every consumer. Adding one means changing and redeploying the producer.</li>
+  <li><strong>Failures spread.</strong> If email is down, does the order fail? Retrying in the caller ties its health to every downstream system.</li>
+  <li><strong>No buffer.</strong> Traffic spikes hit every consumer at the same instant, at the speed of the fastest producer.</li>
+  <li><strong>No history.</strong> Once a call is made, it's gone. A new system can't catch up on last month's orders, and a bug fix can't be re-applied to past data.</li>
+  <li><strong>N × M integrations.</strong> With many producers and many consumers, point-to-point links multiply.</li>
+</ul>
+
+<h3>What Kafka changes</h3>
+<p>Kafka puts a durable, shared <strong>log of events</strong> in the middle. The orders service writes "order 123 was placed" once. Every interested system reads it, at its own pace, whenever it likes, as many times as it likes.</p>
+<pre><code>orders ──▶ [ topic "orders": 0 1 2 3 4 5 6 7 ... ] ──▶ payments   (group "payments",  at offset 7)
+                                                   ──▶ email      (group "email",     at offset 5, catching up)
+                                                   ──▶ warehouse  (group "warehouse", replaying from 0)</code></pre>
+<div class="tw"><table>
+<tr><th>Property</th><th>What it gives you</th></tr>
+<tr><td><strong>Decoupling</strong></td><td>Producers don't know who reads. New consumers are added without touching the producer.</td></tr>
+<tr><td><strong>Durability</strong></td><td>Events are written to disk and copied to several brokers before they're acknowledged.</td></tr>
+<tr><td><strong>Buffering</strong></td><td>A slow or broken consumer just falls behind (builds <em>lag</em>) and catches up later. The producer is unaffected.</td></tr>
+<tr><td><strong>Replay</strong></td><td>Events stay for days, weeks or forever. Any consumer can rewind and process history again.</td></tr>
+<tr><td><strong>Fan-out</strong></td><td>One event, any number of independent readers, each with its own position.</td></tr>
+<tr><td><strong>Ordering</strong></td><td>All events with the same key (one customer, one order) are read in the order they were written.</td></tr>
+<tr><td><strong>Scale</strong></td><td>Topics are split into partitions spread over many machines. Large clusters handle millions of messages per second.</td></tr>
+</table></div>
+<div class="idea"><strong>One sentence:</strong> Kafka is a distributed, replicated, append-only log that many systems write events to and read events from, independently, with the history kept.</div>
+
+<!-- ================================================================== -->
+<h2 id="model">2. The mental model in one page</h2>
+<pre><code>cluster: brokers 1, 2, 3 (KRaft controllers elect a leader for cluster metadata; no ZooKeeper since 4.0)
+
+topic "orders"                                   replication factor 3
+  partition 0  leader=b1  followers=b2,b3   [0][1][2][3][4][5]  ← append only
+  partition 1  leader=b2  followers=b3,b1   [0][1][2][3]
+  partition 2  leader=b3  followers=b1,b2   [0][1][2][3][4]
+
+producer: picks partition = hash(key) % 3, sends to that partition's leader
+consumer group "billing": c1 ← p0, c2 ← p1, c3 ← p2   (one owner per partition)
+consumer group "audit":   a1 ← p0, p1, p2              (its own copy, its own offsets)</code></pre>
+<div class="tw"><table>
+<tr><th>Word</th><th>Meaning</th></tr>
+<tr><td>Broker</td><td>A Kafka server. A cluster is several brokers.</td></tr>
+<tr><td>Topic</td><td>A named stream of events, like a table name.</td></tr>
+<tr><td>Partition</td><td>One ordered log inside a topic. The unit of ordering, parallelism and replication.</td></tr>
+<tr><td>Offset</td><td>A message's position in its partition: 0, 1, 2… Address = (topic, partition, offset).</td></tr>
+<tr><td>Key</td><td>Chooses the partition. Same key → same partition → ordered.</td></tr>
+<tr><td>Replica / leader / ISR</td><td>Each partition is copied to N brokers. The leader takes reads and writes; the in-sync replicas (ISR) are followers that are caught up.</td></tr>
+<tr><td>Consumer group</td><td>A team of consumers sharing a topic: each partition goes to one member. Different groups each get everything.</td></tr>
+<tr><td>Committed offset</td><td>A group's bookmark per partition. Committing is Kafka's "ack"; it never deletes anything.</td></tr>
+<tr><td>Lag</td><td>Latest offset − committed offset. How far behind a group is. The single most important number.</td></tr>
+<tr><td>Retention</td><td>How long data is kept (time or size), or "latest value per key" with compaction.</td></tr>
+</table></div>
+<p>Five facts explain most of Kafka's behaviour:</p>
+<ol>
+  <li><strong>Reading doesn't delete.</strong> Only retention does.</li>
+  <li><strong>Order exists only within a partition.</strong></li>
+  <li><strong>Within a group, one partition has one reader</strong>, so partitions cap parallelism.</li>
+  <li><strong>The consumer owns its position.</strong> The broker doesn't track per-message state, which is why Kafka is fast and why retries are your problem.</li>
+  <li><strong>Brokers are "dumb", clients are "smart".</strong> Batching, partitioning, retries, ordering and offset handling all live in client settings. Most Kafka bugs are client configuration bugs.</li>
+</ol>
+
+<!-- ================================================================== -->
+<h2 id="usecases">3. Practical use cases</h2>
+<p>These are the patterns you'll meet again and again. For each: what flows through Kafka, what the key usually is, and what matters most.</p>
+
+<h3>3.1 Event-driven microservices</h3>
+<p>Services publish facts ("OrderPlaced", "PaymentCaptured", "ShipmentDispatched") and react to each other's facts instead of calling each other. Adding a new service (loyalty points, say) means subscribing a new consumer group.</p>
+<p><strong>Key:</strong> the entity id (order id). <strong>What matters:</strong> event design and schemas, idempotent consumers, the outbox pattern so the database and Kafka never disagree (see <a href="#producer">5.2</a>).</p>
+
+<h3>3.2 Change data capture (CDC)</h3>
+<p>A tool such as Debezium reads a database's transaction log (Postgres WAL, MySQL binlog) and publishes every insert, update and delete as an event. Other systems keep search indexes, caches, read models or the warehouse in sync without touching the source app.</p>
+<p><strong>Key:</strong> the row's primary key. <strong>What matters:</strong> per-key ordering, compacted topics for "current state", handling schema changes in the source table, and the initial snapshot.</p>
+
+<h3>3.3 Data pipelines into lakes and warehouses</h3>
+<p>Kafka is the collection point for events from many apps; Kafka Connect sink connectors write them to S3, BigQuery, Snowflake, Elasticsearch and so on. Batches of events land in the lake every few minutes instead of nightly ETL.</p>
+<p><strong>Key:</strong> often none, or a tenant id. <strong>What matters:</strong> schemas (one bad record shouldn't stop the pipeline), throughput, exactly-once sinks or deduplication downstream.</p>
+
+<h3>3.4 Log and metrics aggregation</h3>
+<p>Application logs, audit logs and metrics are shipped into Kafka from thousands of hosts, then fanned out to storage, search and alerting. Kafka absorbs bursts so the downstream systems don't fall over during incidents, exactly when logs spike.</p>
+<p><strong>Key:</strong> usually none (spread evenly). <strong>What matters:</strong> throughput, compression, short retention, tolerating some loss for cheaper settings.</p>
+
+<h3>3.5 Activity tracking and clickstreams</h3>
+<p>Kafka was created at LinkedIn for this: every page view, click, search and impression as an event. Feeds recommendations, A/B test analysis and dashboards.</p>
+<p><strong>Key:</strong> user or session id. <strong>What matters:</strong> very high volume, hot keys (bots, celebrities), cost of retention.</p>
+
+<h3>3.6 Real-time stream processing</h3>
+<p>Kafka Streams, Flink or ksqlDB read topics, join, aggregate and window them, and write results to new topics. Examples: fraud scoring on card transactions within milliseconds, live order counts per minute, anomaly detection on sensor data, surge pricing.</p>
+<p><strong>Key:</strong> whatever you group or join by. <strong>What matters:</strong> co-partitioning (joined topics need the same key and partition count), state stores, event time vs processing time, late data, exactly-once.</p>
+
+<h3>3.7 Event sourcing and audit trails</h3>
+<p>The log of events is the source of truth; current state is rebuilt by replaying it. Even without full event sourcing, a long-retention topic makes a tamper-evident audit history of "who did what when".</p>
+<p><strong>Key:</strong> aggregate id. <strong>What matters:</strong> infinite or very long retention, compaction plus snapshots, schema evolution over years.</p>
+
+<h3>3.8 Machine learning feature pipelines</h3>
+<p>Events feed both online features (a stream processor keeps "transactions in the last 10 minutes" fresh in a feature store such as Feast) and offline training data (the same events land in the lake). Replay lets you rebuild features after fixing a bug.</p>
+<p><strong>What matters:</strong> the same logic online and offline, point-in-time correctness, replay.</p>
+
+<h3>3.9 IoT and telemetry</h3>
+<p>Vehicles, meters and devices send readings; often MQTT at the edge, bridged into Kafka in the core. <strong>Key:</strong> device id. <strong>What matters:</strong> huge numbers of small messages, out-of-order arrival, bursty reconnects.</p>
+
+<h3>3.10 Cross-region and cross-team data sharing</h3>
+<p>Topics become a company's "data products": a team owns a topic and its schema, others subscribe. MirrorMaker 2 or Cluster Linking copy topics between regions or clusters for disaster recovery and locality.</p>
+
+<!-- ================================================================== -->
+<h2 id="not">4. When not to use Kafka</h2>
+<p>An experienced engineer says "no" to Kafka often. It is operationally heavy, and it is a log, not a queue.</p>
+<div class="tw"><table>
+<tr><th>Situation</th><th>Why Kafka is a poor fit</th><th>Use instead</th></tr>
+<tr><td>Background jobs that take seconds to hours (video encoding, LLM agent runs, reports)</td><td>One slow job blocks its partition; long processing gets the consumer kicked out of its group; no per-message retry or delay</td><td>RabbitMQ, SQS, a Postgres queue, Celery, Temporal (see <a href="long_running_agent_jobs.html">long-running agent jobs</a>)</td></tr>
+<tr><td>Request/response between services</td><td>Kafka is asynchronous; faking RPC over it adds latency and complexity</td><td>HTTP or gRPC</td></tr>
+<tr><td>Low volume, few consumers, small team</td><td>A cluster to run, upgrade and monitor for a few messages a second</td><td>A database table, Redis, a managed queue</td></tr>
+<tr><td>Per-message routing, priorities, delays, TTL</td><td>None of this is built in</td><td>RabbitMQ</td></tr>
+<tr><td>Huge numbers of tiny topics (one per user)</td><td>Each partition costs memory, files and metadata</td><td>Pulsar, NATS, or a different data model</td></tr>
+<tr><td>Storing large files</td><td>Messages are about 1 MB by default and big ones hurt everyone</td><td>Object storage, with a link in the event</td></tr>
+<tr><td>Querying data ("orders for customer X")</td><td>Kafka reads by offset, not by value</td><td>A database, fed from Kafka if needed</td></tr>
+</table></div>
+<p>More detail: <a href="messaging_tools_compared.html">Messaging tools compared</a>, section 2 "Is Kafka a queue?".</p>
+
+<!-- ================================================================== -->
+<h2 id="notebook">5. An experienced engineer's notebook</h2>
+<p>What follows is written in the voice of someone who has designed, run and been paged for Kafka systems over many years. Each note is a lesson that usually costs an incident to learn.</p>
+
+<!-- ------------------------------------------------------------------ -->
+<h3 id="design">5.1 Designing topics, keys and events</h3>
+
+<div class="rule"><b>Pick the key before anything else.</b> The key decides ordering, partition balance and which consumer sees what. Ask: "which events must be processed in order relative to each other?" That's your key: order id, account id, device id. If nothing needs ordering, use no key (even spread) rather than a random one.</div>
+
+<div class="rule"><b>Watch for hot keys.</b> One giant tenant, a bot, or a <code>null</code>-ish default like <code>"unknown"</code> can put 40% of traffic on one partition, and its one consumer becomes the bottleneck for everybody on that partition. Check the key distribution before launch. If one key is genuinely huge, split it (<code>tenant-7#0..#7</code>) and accept you lose total ordering for that tenant.</div>
+
+<div class="rule"><b>Partition count: plan for 2–3 years.</b> You can add partitions but never remove them, and adding them moves keys to different partitions. Rough sizing: partitions ≥ max(target throughput ÷ throughput one consumer can handle, number of consumers you'll ever want). Common choices are 6, 12, 24, 48 (numbers with many divisors spread evenly over consumers). Don't go to 1000 "just in case": every partition costs broker memory, file handles, recovery time and rebalance time.</div>
+
+<div class="rule"><b>Name topics like an API.</b> Something like <code>&lt;domain&gt;.&lt;entity&gt;.&lt;event-type&gt;.v1</code>, for example <code>payments.payment.captured.v1</code>. Topics outlive teams. Turn off <code>auto.create.topics.enable</code> so a typo doesn't silently create <code>paymnets</code> with 1 partition and replication factor 1. Create topics through code review (Terraform, Strimzi <code>KafkaTopic</code>, a GitOps repo).</div>
+
+<div class="rule"><b>One event type per topic, mostly.</b> Mixing types forces every consumer to filter. The exception: when several event types for the same entity must stay in order relative to each other (OrderCreated → OrderPaid → OrderCancelled), put them in one topic with the same key.</div>
+
+<div class="rule"><b>Use a schema, always.</b> JSON without a schema works until someone renames a field and three teams' consumers crash at 2am. Use Avro or Protobuf (or JSON Schema) with a Schema Registry and enforce <strong>backward-compatible</strong> changes: add optional fields with defaults, never remove or rename required ones, never change a field's type. Breaking change? New topic, <code>.v2</code>, run both while consumers migrate.</div>
+
+<div class="rule"><b>Give every event an envelope.</b> At minimum: a unique <code>event_id</code> (for deduplication), <code>event_type</code>, <code>occurred_at</code> (when it happened, not when it was sent), the entity id, a schema version, and a <code>trace_id</code>/correlation id in headers. You'll need every one of these during your first serious incident.</div>
+
+<div class="rule"><b>Events are facts, in the past tense.</b> "OrderPlaced", not "PlaceOrder". A fact can be read by anyone and never needs a reply. Commands ("SendEmail") have one intended receiver and often expect a result; they fit queues better. Decide whether events carry the full state ("fat", consumers need nothing else) or just ids ("thin", consumers call back for details). Fat events decouple better; thin events leak load back onto the source service and race with later updates.</div>
+
+<div class="rule"><b>Keep messages small.</b> Default max is about 1 MB, and the sweet spot is a few KB. For anything big, store it in object storage and send the link (the "claim check" pattern). Raising <code>message.max.bytes</code> means also raising it on topics, producers (<code>max.request.size</code>), consumers (<code>fetch.max.bytes</code>) and replication. It's a trap.</div>
+
+<div class="rule"><b>Choose retention on purpose.</b> Ask "how far back might we ever need to replay?" A week is a common default. Compaction (<code>cleanup.policy=compact</code>) keeps the latest value per key forever, which is ideal for "current state" topics (customer profile, CDC tables). To delete a key from a compacted topic, send a <em>tombstone</em> (that key with a <code>null</code> value). Tiered storage (generally available since Kafka 3.9) moves old segments to object storage, which makes long retention affordable.</div>
+
+<!-- ------------------------------------------------------------------ -->
+<h3 id="producer">5.2 Producers</h3>
+
+<div class="rule"><b>For data you care about: <code>acks=all</code> plus idempotence.</b> <code>acks=all</code> waits for every in-sync replica. <code>enable.idempotence=true</code> stops retries from writing duplicates and keeps order with up to 5 requests in flight. Both are the defaults in the Java client since 3.0. <strong>In librdkafka / confluent-kafka-python, idempotence is off by default</strong>, so set it explicitly.</div>
+
+<div class="rule"><b><code>acks=all</code> means nothing without <code>min.insync.replicas</code>.</b> With replication factor 3 and <code>min.insync.replicas=1</code>, "all" can be one broker, and losing it loses data. The standard is RF=3, <code>min.insync.replicas=2</code>: you survive one broker down for writes and never acknowledge data that exists on only one machine. (Demonstrated in <code>tools/kafka/production-scenarios.md</code>.)</div>
+
+<div class="rule"><b>Sending is asynchronous; check the result.</b> <code>produce()</code> puts the message in a local buffer and returns immediately. The real outcome arrives in the delivery callback or future. Code that ignores it loses messages silently. Always call <code>flush()</code> on shutdown, or the last buffered messages vanish when the process exits.</div>
+
+<div class="rule"><b>Retries are bounded by time, not count.</b> Modern clients retry essentially forever within <code>delivery.timeout.ms</code> (2 minutes by default). After that the message fails. Decide what your app does then: crash, write to a local fallback, alert. "Log and move on" is data loss.</div>
+
+<div class="rule"><b>Throughput comes from batching.</b> Producers group messages per partition. <code>linger.ms</code> (wait a few ms to fill a batch; 5 ms default in recent clients), <code>batch.size</code> and <code>compression.type</code> (<code>lz4</code> or <code>zstd</code>; compression works per batch, so bigger batches compress better) are the three knobs. Raising <code>linger.ms</code> to 10–50 ms often doubles throughput for a small latency cost.</div>
+
+<div class="rule"><b>Never write to the database and Kafka separately.</b> "Save order, then publish OrderPlaced" fails halfway sooner or later: the order exists but the event doesn't, or the reverse. Use the <strong>transactional outbox</strong>: in the same database transaction, insert the order and a row into an <code>outbox</code> table; a separate relay (Debezium CDC, or a poller) publishes outbox rows to Kafka. Now the event is published if and only if the order was saved. This is the most important pattern in event-driven systems.</div>
+
+<div class="rule"><b>Create producers once.</b> A producer holds connections and buffers and is thread-safe. One per process, reused. Creating one per request is a classic way to melt a cluster with connection storms.</div>
+
+<div class="rule"><b>Don't let a custom partitioner surprise you.</b> Different clients have used different hash functions for keys (Java uses murmur2; librdkafka defaults to a different one unless <code>partitioner=murmur2_random</code>). If a Java and a Python producer write the same keys to one topic, the same key can land on two partitions. Align them.</div>
+
+<!-- ------------------------------------------------------------------ -->
+<h3 id="consumer">5.3 Consumers</h3>
+
+<div class="rule"><b>Commit after processing, not before.</b> Process, then commit = <strong>at-least-once</strong>: a crash means some messages are processed again. Commit, then process = <strong>at-most-once</strong>: a crash loses them. Almost everyone wants at-least-once, which means…</div>
+
+<div class="rule"><b>…every consumer must be idempotent.</b> Duplicates will happen: after crashes, rebalances, deploys, replays. Make processing safe to repeat: upserts instead of inserts, a <code>processed_events(event_id)</code> table checked in the same transaction as the side effect, an idempotency key on the payment API call. Ask of every consumer: "what happens if this message arrives twice?" If the answer is "a customer gets charged twice", fix it before launch.</div>
+
+<div class="rule"><b>Auto-commit is less safe than it looks.</b> With <code>enable.auto.commit=true</code>, offsets are committed on a timer for messages the consumer has <em>received</em>, which may be before your code finished. If you hand messages to another thread, auto-commit can mark unprocessed work as done. Commit manually when correctness matters.</div>
+
+<div class="rule"><b>Respect the poll deadline.</b> If the consumer doesn't call <code>poll()</code> within <code>max.poll.interval.ms</code> (5 minutes), it is removed from the group, its partitions are reassigned, and its in-flight message is processed again elsewhere; its late commit is rejected. Slow per-message work × <code>max.poll.records</code> (500 by default) can exceed that. Lower <code>max.poll.records</code>, speed up the work, or <code>pause()</code> the partitions and do the work on another thread while still polling. (Seen live in lab lesson 06.)</div>
+
+<div class="rule"><b>Rebalances are the main source of pain.</b> Every deploy, crash, scale-up or slow consumer triggers one, and with the old "eager" protocol the whole group stops while it happens. Remedies, in order: the <code>cooperative-sticky</code> assignor (only moved partitions pause); <strong>static membership</strong> (<code>group.instance.id</code>, so a restarting pod gets its partitions back without a rebalance); and in Kafka 4.0+ the new consumer group protocol (<code>group.protocol=consumer</code>, KIP-848), which moves assignment to the broker and makes rebalances incremental by design.</div>
+
+<div class="rule"><b>Know what a new group does.</b> <code>auto.offset.reset=latest</code> (the default) means a new group skips everything already in the topic; <code>earliest</code> means it processes all of history, maybe millions of messages and their side effects. Choose deliberately, especially when renaming a group: a new name is a new group with no bookmark.</div>
+
+<div class="rule"><b>Scale out = more partitions, then more consumers.</b> Consumers beyond the partition count sit idle. If one partition is the bottleneck, more consumers won't help; better keys, faster processing, or parallelism inside the consumer (per-key worker threads, e.g. Confluent's parallel consumer) will.</div>
+
+<div class="rule"><b>Consumer groups expire.</b> A group with no members longer than <code>offsets.retention.minutes</code> (7 days) loses its committed offsets. A monthly batch job then starts from <code>auto.offset.reset</code>: either skipping a month or reprocessing everything.</div>
+
+<div class="rule"><b>Replaying is a feature; plan for it.</b> <code>kafka-consumer-groups.sh --reset-offsets --to-datetime</code> rewinds a group to any time still in retention, so a bug fix can be re-applied to the last 3 days. It only works safely if consumers are idempotent and their side effects (emails, payments, webhooks) are guarded. Practise a replay before you need one.</div>
+
+<!-- ------------------------------------------------------------------ -->
+<h3 id="errors">5.4 Failures, retries and dead letters</h3>
+
+<p>Kafka has no per-message retry, delay or dead-letter queue. You build them. Sort failures into two kinds first:</p>
+<div class="tw"><table>
+<tr><th>Kind</th><th>Examples</th><th>Handling</th></tr>
+<tr><td><strong>Transient</strong></td><td>Database timeout, downstream 503, network blip</td><td>Retry in place with backoff, a few times. Pause the partition rather than block the poll loop.</td></tr>
+<tr><td><strong>Permanent ("poison pill")</strong></td><td>Can't deserialize, missing required field, violates a business rule, references something that doesn't exist</td><td>Retrying forever blocks the partition. Send it to a dead-letter topic with error details in headers, commit, move on.</td></tr>
+</table></div>
+
+<div class="rule"><b>The usual layout:</b> <code>orders</code> → on failure → <code>orders.retry.1m</code> → <code>orders.retry.10m</code> → <code>orders.dlt</code>. Retry consumers wait until the message's due time before processing. This keeps the main partition flowing, but breaks ordering for retried keys. If per-key order matters, you must hold back later messages for that key too, which is much harder; often the honest answer is "stop the partition and alert".</div>
+
+<div class="rule"><b>A dead-letter topic nobody watches is a trash can.</b> Alert on DLT growth, include the original topic/partition/offset, the exception and the time in headers, and have a tool to re-publish fixed messages. Treat the DLT as a work queue for humans.</div>
+
+<div class="rule"><b>Deserialization errors happen before your code runs.</b> A bad byte sequence can make the client throw on every poll, forever, at the same offset. Handle deserialization inside your loop (read raw bytes, decode yourself) or use the framework's error-handling deserializer, so a bad record goes to the DLT instead of crash-looping the pod.</div>
+
+<!-- ------------------------------------------------------------------ -->
+<h3 id="eos">5.5 Exactly-once, honestly</h3>
+
+<p>Kafka does offer exactly-once semantics (EOS), but its scope is narrow and often misunderstood:</p>
+<ul>
+  <li><strong>What it covers:</strong> read from Kafka → process → write to Kafka. With transactions (<code>transactional.id</code>), the output messages and the input offsets are committed atomically, and downstream consumers with <code>isolation.level=read_committed</code> never see aborted output. Kafka Streams turns this on with <code>processing.guarantee=exactly_once_v2</code>.</li>
+  <li><strong>What it does not cover:</strong> anything outside Kafka. Sending an email, calling a payment API or writing to Postgres is still at-least-once. There, "exactly-once" means <em>at-least-once delivery + idempotent processing</em>.</li>
+  <li><strong>Cost:</strong> transactions add latency (commit intervals) and operational complexity (zombie fencing, transaction timeouts, stuck "last stable offset" blocking read_committed consumers).</li>
+</ul>
+<div class="idea">Rule of thumb from experience: use EOS inside Kafka Streams/Flink pipelines where it's built in; everywhere else, design for duplicates with idempotency keys. That works with every system, not just Kafka.</div>
+
+<!-- ------------------------------------------------------------------ -->
+<h3 id="ops">5.6 Running the cluster</h3>
+
+<div class="rule"><b>The production baseline.</b> At least 3 brokers, spread over 3 availability zones with rack awareness (<code>broker.rack</code>) so replicas of a partition land in different zones; RF=3, <code>min.insync.replicas=2</code>; <code>unclean.leader.election.enable=false</code> (the default: never elect an out-of-date replica as leader, which would silently drop data); auto topic creation off; KRaft with 3 (or 5) dedicated controllers for large clusters. ZooKeeper is gone in Kafka 4.0, so clusters on 3.x must migrate to KRaft before upgrading.</div>
+
+<div class="rule"><b>Disk is the resource that bites.</b> Size it: <em>write rate × replication factor × retention</em>, plus 30–50% headroom. 10 MB/s × 3 × 7 days ≈ 18 TB across the cluster. A full disk takes a broker offline. Always set a size-based limit or alert well before full, and know that one runaway producer can fill a cluster in hours.</div>
+
+<div class="rule"><b>Kafka loves the page cache.</b> Consumers that keep up read recent data from the OS page cache, not disk. A consumer replaying old data forces disk reads and can slow everyone on that broker. Give brokers plenty of RAM that is <em>not</em> JVM heap (a 6–8 GB heap is plenty; leave the rest to the OS).</div>
+
+<div class="rule"><b>Partitions have a cost.</b> Every partition replica means files, memory and work at leader election. Keep to a few thousand partition replicas per broker unless you have measured otherwise (KRaft raises the cluster-wide ceiling a lot, but per-broker cost remains). Delete unused topics.</div>
+
+<div class="rule"><b>Leadership doesn't rebalance by itself immediately.</b> After a broker restarts, the partitions it used to lead stay led by others until preferred-leader election runs (<code>auto.leader.rebalance.enable</code>, checked every 5 minutes, or run it by hand). Until then, load is uneven. (Seen live in <code>tools/kafka/production-scenarios.md</code>.)</div>
+
+<div class="rule"><b>Adding a broker doesn't move data.</b> New brokers sit empty until you reassign partitions to them (<code>kafka-reassign-partitions.sh</code>, Cruise Control, or the managed service's tooling). Throttle reassignments, or the copy traffic starves real traffic.</div>
+
+<div class="rule"><b>Upgrades are rolling, one broker at a time.</b> Wait for under-replicated partitions to return to zero before the next broker. Upgrade brokers before clients. Read the release notes for removed configs and protocol changes; 4.0 removed ZooKeeper mode and very old client protocol versions.</div>
+
+<div class="rule"><b>Security from day one.</b> TLS in transit, SASL (SCRAM or OAuth/OIDC, or IAM on managed services) for identity, ACLs per topic and group, and quotas so one client can't starve the rest. Retrofitting auth onto a cluster with 200 clients is a quarter-long project.</div>
+
+<!-- ------------------------------------------------------------------ -->
+<h3 id="monitor">5.7 What to monitor</h3>
+<div class="tw"><table>
+<tr><th>Metric</th><th>Why</th><th>Alert when</th></tr>
+<tr><td><strong>Consumer lag</strong> (per group, per partition), and lag in <em>time</em></td><td>The best single health signal of a Kafka system. Time lag ("5 minutes behind") is easier to reason about than message count.</td><td>Growing steadily, or above the business's tolerance</td></tr>
+<tr><td>Under-replicated partitions</td><td>A follower has fallen behind or a broker is down. Your safety margin is gone.</td><td>&gt; 0 for more than a few minutes</td></tr>
+<tr><td>Under-min-ISR / offline partitions</td><td>Producers with <code>acks=all</code> are failing; partitions are unavailable</td><td>&gt; 0, page immediately</td></tr>
+<tr><td>Active controller count</td><td>Exactly one controller should be active</td><td>≠ 1</td></tr>
+<tr><td>Disk used per broker</td><td>Full disk = broker down</td><td>&gt; 70–80%</td></tr>
+<tr><td>Request latency (produce, fetch) p99</td><td>Cluster overload, slow disks, network trouble</td><td>Big jump from baseline</td></tr>
+<tr><td>Producer error and retry rate</td><td>Messages failing or about to</td><td>Any sustained errors</td></tr>
+<tr><td>Rebalance rate per group</td><td>Rebalance storms from crash loops or slow processing</td><td>Frequent rebalances</td></tr>
+<tr><td>DLT message count</td><td>Messages nobody processed</td><td>Any growth</td></tr>
+</table></div>
+<p>Tools: Prometheus JMX exporter or the managed service's metrics; kafka-lag-exporter or Burrow for lag; Kafka UI (kafbat), AKHQ or Conduktor for browsing; Cruise Control for balancing.</p>
+
+<!-- ------------------------------------------------------------------ -->
+<h3 id="incidents">5.8 Incidents everyone has eventually</h3>
+<p>Typical shapes, the symptom you'll see first, and the cause behind it.</p>
+<div class="tw"><table>
+<tr><th>Symptom</th><th>Usual cause</th><th>Fix / prevention</th></tr>
+<tr><td>Lag grows on one partition only</td><td>Hot key, or one poison message being retried</td><td>Check key distribution and the consumer's logs at that offset; DLT for poison messages; better key</td></tr>
+<tr><td>Lag grows on all partitions after a deploy</td><td>New code is slower, or a downstream dependency is slow</td><td>Roll back; measure per-message time; this is why lag dashboards belong in deploy checks</td></tr>
+<tr><td>Group rebalances every few minutes, throughput near zero</td><td>Processing exceeds <code>max.poll.interval.ms</code>, or pods crash-loop</td><td>Fewer records per poll, faster processing, static membership, fix the crash</td></tr>
+<tr><td>Same message processed many times</td><td>Commit rejected after a rebalance; crash before commit</td><td>Idempotent consumers; shorter processing; commit after each batch</td></tr>
+<tr><td>Emails or charges sent twice after "fixing" something</td><td>Offsets reset to replay, side effects not guarded</td><td>Idempotency keys on external calls; dry-run replays</td></tr>
+<tr><td>A batch job suddenly reprocesses a month, or skips a month</td><td>Group offsets expired after 7 days unused</td><td>Raise <code>offsets.retention.minutes</code> for such groups' clusters, or store offsets yourself</td></tr>
+<tr><td>Producers time out cluster-wide</td><td>Broker disk full, or under-min-ISR after losing a broker</td><td>Disk alerts and size-based retention; fix the broker; don't lower <code>min.insync.replicas</code> in panic</td></tr>
+<tr><td>Consumers crash-loop at one offset</td><td>Deserialization failure after an incompatible schema change</td><td>Schema registry with compatibility checks in CI; error-handling deserializer</td></tr>
+<tr><td>Events for one order processed out of order</td><td>Partitions were added; or two producers hash keys differently; or retries without idempotence</td><td>Don't add partitions to ordered topics casually; align partitioners; enable idempotence</td></tr>
+<tr><td><code>RecordTooLargeException</code> / <code>MSG_SIZE_TOO_LARGE</code></td><td>A message over ~1 MB</td><td>Claim-check pattern</td></tr>
+<tr><td>Mystery topic with 1 partition, RF 1</td><td>Auto-creation from a typo</td><td>Disable auto-creation; topics via code review</td></tr>
+<tr><td>Data lost after a broker failure</td><td><code>acks=1</code>, or RF=3 with <code>min.insync.replicas=1</code>, or unclean leader election on</td><td>The production baseline in 5.6</td></tr>
+<tr><td>One broker overloaded after restarts</td><td>Leadership not moved back; new brokers never given partitions</td><td>Preferred leader election; reassign partitions or use Cruise Control</td></tr>
+</table></div>
+
+<!-- ------------------------------------------------------------------ -->
+<h3 id="ecosystem">5.9 The ecosystem, and what to pick</h3>
+<div class="tw"><table>
+<tr><th>Need</th><th>Options</th><th>Notes</th></tr>
+<tr><td>Don't want to run brokers</td><td>Confluent Cloud, Amazon MSK (incl. Serverless), Aiven, Azure Event Hubs (Kafka-compatible API), Redpanda Cloud</td><td>Usually the right call unless you have a platform team. Event Hubs speaks the Kafka protocol but isn't Kafka: check feature gaps (e.g. compaction, transactions) for your tier.</td></tr>
+<tr><td>Run on Kubernetes</td><td>Strimzi operator</td><td>Topics, users and clusters as Kubernetes resources; the common open-source route</td></tr>
+<tr><td>Move data in or out without code</td><td>Kafka Connect (Debezium, S3, JDBC, Elasticsearch connectors)</td><td>Run in distributed mode; watch connector task failures; use a DLT for sink errors</td></tr>
+<tr><td>Stream processing</td><td>Kafka Streams (a library in your app), Apache Flink (separate cluster), ksqlDB (SQL)</td><td>Streams for service-embedded logic; Flink for large stateful jobs and SQL over streams</td></tr>
+<tr><td>Schemas</td><td>Confluent Schema Registry, Apicurio, AWS Glue Schema Registry</td><td>Enforce compatibility in CI</td></tr>
+<tr><td>Kafka-compatible alternatives</td><td>Redpanda (C++, no JVM), WarpStream / AutoMQ (object-storage-based)</td><td>Same client APIs; different cost and operations trade-offs</td></tr>
+<tr><td>Queue-style consumption on Kafka</td><td>Share groups ("Queues for Kafka", KIP-932)</td><td>Early access/preview in Kafka 4.x: many consumers per partition with per-message acks. Promising, not yet a RabbitMQ replacement.</td></tr>
+</table></div>
+
+<!-- ================================================================== -->
+<h2 id="review">6. Design review checklist</h2>
+<p>Questions an experienced reviewer asks about any new Kafka topic or service. If you can answer all of them, the design is in good shape.</p>
+<ol>
+  <li>What is the key, and why? Which events must stay in order? Can one key get hot?</li>
+  <li>How many partitions, and what throughput and consumer count is that based on?</li>
+  <li>Replication factor, <code>min.insync.replicas</code>, producer <code>acks</code> and idempotence?</li>
+  <li>Retention (time and size) or compaction? How far back might we need to replay?</li>
+  <li>What is the schema, where is it registered, and what is the compatibility rule?</li>
+  <li>Does the event have an id, a timestamp of when it happened, a version, a trace id?</li>
+  <li>How does the producer avoid the dual-write problem (outbox)?</li>
+  <li>What happens if a consumer receives the same message twice?</li>
+  <li>What happens to a message that can never be processed? Who watches the DLT?</li>
+  <li>How long does processing one message take, worst case, vs <code>max.poll.interval.ms</code>?</li>
+  <li>What does a new consumer group start from (<code>auto.offset.reset</code>)?</li>
+  <li>What lag is acceptable, and is there an alert on it?</li>
+  <li>Who owns the topic, and who may produce and consume (ACLs)?</li>
+  <li>Is Kafka even the right tool, or is this really a job queue or an RPC?</li>
+</ol>
+
+<!-- ================================================================== -->
+<h2 id="numbers">7. Numbers to keep in your head</h2>
+<div class="tw"><table>
+<tr><th>Setting / fact</th><th>Default or typical value</th></tr>
+<tr><td>Max message size (<code>message.max.bytes</code>)</td><td>~1 MB (1048588 bytes on the lab broker)</td></tr>
+<tr><td>Retention (<code>retention.ms</code>)</td><td>7 days; no size limit (<code>retention.bytes=-1</code>)</td></tr>
+<tr><td>Segment size (<code>log.segment.bytes</code>)</td><td>1 GiB; retention deletes whole closed segments</td></tr>
+<tr><td>Retention check interval</td><td>5 minutes</td></tr>
+<tr><td>Committed offsets kept for empty groups</td><td>7 days (<code>offsets.retention.minutes=10080</code>)</td></tr>
+<tr><td><code>max.poll.interval.ms</code></td><td>5 minutes</td></tr>
+<tr><td><code>max.poll.records</code></td><td>500 (Java client)</td></tr>
+<tr><td><code>session.timeout.ms</code> / heartbeat</td><td>45 s / 3 s</td></tr>
+<tr><td>Producer <code>delivery.timeout.ms</code></td><td>2 minutes</td></tr>
+<tr><td>Producer <code>linger.ms</code></td><td>5 ms in recent clients</td></tr>
+<tr><td>Production replication</td><td>RF 3, <code>min.insync.replicas</code> 2, 3 zones</td></tr>
+<tr><td>Ordered in-flight requests with idempotence</td><td>Up to 5</td></tr>
+<tr><td>Throughput per partition</td><td>Order of 10 MB/s write is a common planning figure; measure your own</td></tr>
+</table></div>
+
+<!-- ================================================================== -->
+<h2 id="path">8. A fast path to expertise</h2>
+<p>You don't need years of production work to build most of this judgement. You need to see each behaviour once, on purpose. In this repo:</p>
+<div class="tw"><table>
+<tr><th>Step</th><th>Do this</th><th>You learn</th></tr>
+<tr><td>1</td><td><code>rabbitmq_kafka_lab</code> lesson 04</td><td>Reading doesn't delete; groups have bookmarks; replay</td></tr>
+<tr><td>2</td><td>Lesson 05 and <code>topic1_playground</code></td><td>Partitions, keys, ordering, consumer groups, idle consumers, rebalances</td></tr>
+<tr><td>3</td><td>Lesson 06</td><td>Head-of-line blocking, poll deadline, duplicate processing</td></tr>
+<tr><td>4</td><td><code>topic1_playground/kafka_constraints.md</code></td><td>All the limits in one list, with real values from the broker</td></tr>
+<tr><td>5</td><td><code>tools/kafka/</code> (3 brokers) and <code>production-scenarios.md</code></td><td>Kill a broker: leader election, ISR shrink, <code>min.insync.replicas</code> rejecting writes</td></tr>
+<tr><td>6</td><td>Write a consumer that sends a fake "email" per message, then reset its offsets to earliest</td><td>Why idempotency matters: watch the duplicates, then fix them with a processed-ids table</td></tr>
+<tr><td>7</td><td>Build an outbox: Postgres table + a relay script that publishes rows (you already have Postgres in <code>postgres_queue_lab</code>)</td><td>The dual-write problem and its standard fix</td></tr>
+<tr><td>8</td><td>Add a retry topic and a DLT to a consumer; send it a malformed message</td><td>Poison pills and how to keep a partition flowing</td></tr>
+<tr><td>9</td><td>Set <code>max.poll.interval.ms</code> low, use <code>group.instance.id</code>, compare rebalances</td><td>Rebalance tuning and static membership</td></tr>
+<tr><td>10</td><td>Go through the <a href="#review">design review checklist</a> for an imaginary "payments" topic</td><td>Putting it all together the way a senior engineer would</td></tr>
+</table></div>
+<p>After this, read in order: the Kafka documentation's "Design" section; the Confluent developer courses on producers, consumers and Kafka Streams; then <em>Kafka: The Definitive Guide</em> (2nd edition) for depth.</p>
+
+</main></body></html>

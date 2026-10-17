@@ -42,6 +42,9 @@ Do them in order. Each one takes about 5 minutes and needs 2 to 4 terminals.
 | 05 | [Kafka consumer groups](05_kafka_consumer_groups/) | One consumer per partition per group. Same key, same partition, same order. |
 | 06 | [Kafka slow message](06_kafka_slow_message/) | One slow message blocks its partition, and a too-slow consumer gets kicked out and the message reprocessed. |
 
+Free play: [topic1 playground](topic1_playground/) has a batch producer and a consumer for any topic, plus
+notes on what a partition is, from a real run.
+
 ## What you should come away with
 
 | | RabbitMQ (queue) | Kafka (log) |

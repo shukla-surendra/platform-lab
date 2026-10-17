@@ -1,0 +1,403 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RabbitMQ Field Guide</title>
+<style>
+  :root {
+    --bg: #fbfbf9; --surface: #ffffff; --surface-2: #f2f2ee; --text: #1d1d1b; --muted: #62625c;
+    --border: #dcdcd5; --accent: #2f5fb3; --accent-soft: #e6edf9; --good: #2e7d4f; --warn: #a86512; --bad: #b3372f;
+    --warn-soft: #fbf1e3;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #161615; --surface: #1f1f1d; --surface-2: #262624; --text: #e9e9e4; --muted: #a3a39b;
+      --border: #3a3a36; --accent: #86a8ec; --accent-soft: #233150; --good: #6cc495; --warn: #e0a252; --bad: #ec8a82;
+      --warn-soft: #3a2c18;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #161615; --surface: #1f1f1d; --surface-2: #262624; --text: #e9e9e4; --muted: #a3a39b;
+    --border: #3a3a36; --accent: #86a8ec; --accent-soft: #233150; --good: #6cc495; --warn: #e0a252; --bad: #ec8a82;
+    --warn-soft: #3a2c18;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.65 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 860px; margin: 0 auto; padding: 36px 16px 80px; }
+  h1 { font-size: 1.8rem; line-height: 1.25; margin: 4px 0 8px; }
+  h2 { font-size: 1.3rem; margin: 48px 0 10px; padding-top: 8px; border-top: 1px solid var(--border); }
+  h3 { font-size: 1.05rem; margin: 26px 0 8px; }
+  a { color: var(--accent); }
+  .lead { color: var(--muted); font-size: 1.05rem; }
+  code { font: .88em ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--surface-2); padding: 1px 5px; border-radius: 4px; }
+  pre { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; overflow-x: auto; font-size: .82rem; line-height: 1.5; }
+  pre code { background: none; padding: 0; }
+  .tw { overflow-x: auto; border: 1px solid var(--border); border-radius: 8px; margin: 12px 0; }
+  table { border-collapse: collapse; width: 100%; font-size: .9rem; background: var(--surface); }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { background: var(--surface-2); }
+  ul, ol { padding-left: 22px; } li { margin: 5px 0; }
+  .idea { background: var(--accent-soft); border-left: 3px solid var(--accent); border-radius: 6px; padding: 10px 14px; margin: 16px 0; }
+  .warn { background: var(--warn-soft); border-left: 3px solid var(--warn); border-radius: 6px; padding: 10px 14px; margin: 16px 0; }
+  .toc { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px 18px; margin: 20px 0; }
+  .toc ol { margin: 6px 0; } .toc li { margin: 2px 0; }
+  .rule { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; margin: 10px 0; }
+  .rule b:first-child { color: var(--accent); }
+  .muted { color: var(--muted); font-size: .9rem; }
+</style>
+</head>
+<body><main>
+
+<h1>RabbitMQ field guide</h1>
+<p class="lead">Why RabbitMQ exists, where it is really used, and the lessons people usually learn only after years of running it. Written to give you the judgement of an experienced RabbitMQ engineer without first making every mistake yourself.</p>
+
+<p class="muted">Applies to RabbitMQ 4.x (the lab broker <code>lab-rabbitmq</code> runs 4.1.8; numbers marked "lab" were read from it with <code>rabbitmqctl environment</code>). Python examples use <code>pika</code>. Hands-on companions: <a href="rabbitmq_kafka_lab/">rabbitmq_kafka_lab</a> lessons 01–03, and <code>tools/rabbitmq/</code> (<code>production-scenarios.md</code> and examples). Sister pages: <a href="kafka_field_guide.html">Kafka field guide</a>, <a href="redis_field_guide.html">Redis field guide</a>.</p>
+
+<nav class="toc"><strong>Contents</strong>
+<ol>
+  <li><a href="#why">Why we need RabbitMQ</a></li>
+  <li><a href="#model">The mental model in one page</a></li>
+  <li><a href="#usecases">Practical use cases</a></li>
+  <li><a href="#not">When not to use RabbitMQ</a></li>
+  <li><a href="#notebook">An experienced engineer's notebook</a>
+    <ol>
+      <li><a href="#design">Designing exchanges, queues and messages</a></li>
+      <li><a href="#publisher">Publishers</a></li>
+      <li><a href="#consumer">Consumers</a></li>
+      <li><a href="#errors">Failures, retries and dead letters</a></li>
+      <li><a href="#queuetypes">Queue types: classic, quorum, stream</a></li>
+      <li><a href="#ops">Running the cluster</a></li>
+      <li><a href="#monitor">What to monitor</a></li>
+      <li><a href="#incidents">Incidents everyone has eventually</a></li>
+      <li><a href="#ecosystem">The ecosystem, and what to pick</a></li>
+    </ol>
+  </li>
+  <li><a href="#review">Design review checklist</a></li>
+  <li><a href="#numbers">Numbers to keep in your head</a></li>
+  <li><a href="#path">A fast path to expertise</a></li>
+</ol></nav>
+
+<!-- ================================================================== -->
+<h2 id="why">1. Why we need RabbitMQ</h2>
+
+<h3>The problem it solves</h3>
+<p>A web app needs to resize an uploaded image, send a welcome email and generate a PDF invoice. Doing it inside the HTTP request makes users wait, and if the email server is slow, the whole request times out. Doing it in a background thread loses the work when the pod restarts. Writing your own "jobs" table works for a while, then you need retries, delays, priorities, routing to different worker types, and many workers that never take the same job.</p>
+<pre><code>web request ──▶ resize image (3 s)       user waits 3 + 2 + 5 seconds
+            ──▶ send email (2 s)         email server down = request fails
+            ──▶ build PDF (5 s)          pod restarts mid-way = work lost
+                                         traffic spike = web servers overloaded</code></pre>
+
+<h3>What RabbitMQ changes</h3>
+<p>RabbitMQ is a <strong>message broker</strong>: it accepts a message, stores it in a queue, and hands it to exactly one worker that is ready, waiting for that worker to confirm (<em>ack</em>) before deleting it. If the worker dies, the message goes to another worker.</p>
+<pre><code>web ──publish "resize 42"──▶ [exchange] ──route──▶ [queue images] ──▶ worker A (busy)
+                                                                  ──▶ worker B (takes next)
+                                          ──route──▶ [queue emails] ──▶ email worker</code></pre>
+<div class="tw"><table>
+<tr><th>Property</th><th>What it gives you</th></tr>
+<tr><td><strong>Work distribution</strong></td><td>Many workers share a queue; each message goes to one of them. Add workers to go faster, with no partition limit.</td></tr>
+<tr><td><strong>Reliable hand-off</strong></td><td>Messages are deleted only after an ack. A crashed worker's message is redelivered.</td></tr>
+<tr><td><strong>Flexible routing</strong></td><td>Exchanges route by exact key, pattern (<code>order.*.eu</code>), headers, or copy to every bound queue.</td></tr>
+<tr><td><strong>Per-message features</strong></td><td>TTLs, dead-lettering, priorities, delivery limits, request/reply, single active consumer.</td></tr>
+<tr><td><strong>Back-pressure</strong></td><td>Prefetch limits how much each worker holds; the broker slows publishers when memory or disk run low.</td></tr>
+<tr><td><strong>Low latency</strong></td><td>Messages are pushed to consumers as they arrive; sub-millisecond hand-off is normal.</td></tr>
+<tr><td><strong>Many protocols</strong></td><td>AMQP 0-9-1 (most clients), AMQP 1.0 (native in 4.x), MQTT, STOMP, and the stream protocol.</td></tr>
+</table></div>
+<div class="idea"><strong>One sentence:</strong> RabbitMQ is a smart broker that routes messages into queues and hands each one to a single ready worker, deleting it only when the worker says it's done.</div>
+
+<h3>RabbitMQ vs Kafka in one table</h3>
+<div class="tw"><table>
+<tr><th></th><th>RabbitMQ (queue)</th><th>Kafka (log)</th></tr>
+<tr><td>After a message is handled</td><td>Deleted</td><td>Kept until retention</td></tr>
+<tr><td>Who tracks progress</td><td>The broker, per message</td><td>The consumer, one offset per partition</td></tr>
+<tr><td>Scaling workers</td><td>Add workers to one queue</td><td>Capped by partitions</td></tr>
+<tr><td>Slow message</td><td>Only that worker is busy</td><td>Blocks its partition</td></tr>
+<tr><td>Routing</td><td>Rich (exchanges, bindings)</td><td>By topic and key only</td></tr>
+<tr><td>Replay history</td><td>No (except streams)</td><td>Yes</td></tr>
+<tr><td>Sweet spot</td><td>"Do this job once"</td><td>"This happened; anyone may read it"</td></tr>
+</table></div>
+
+<!-- ================================================================== -->
+<h2 id="model">2. The mental model in one page</h2>
+<pre><code>publisher ──▶ exchange ──(bindings)──▶ queue ──▶ consumer
+              (router)   rules          (buffer)   (ack / nack)
+
+exchange types
+  direct   routing key == binding key        "email"         → queue emails
+  topic    pattern match, * = 1 word, # = 0+ "order.*.eu"    → queue eu-orders
+  fanout   copy to every bound queue          (key ignored)   → all subscribers
+  headers  match on message headers           x-match=all/any
+  ""       default exchange: routing key = queue name (what "publish to a queue" really does)</code></pre>
+<div class="tw"><table>
+<tr><th>Word</th><th>Meaning</th></tr>
+<tr><td>Connection / channel</td><td>A TCP connection to the broker; channels are lightweight virtual connections inside it. Open one connection per process, one channel per thread.</td></tr>
+<tr><td>Exchange</td><td>Receives published messages and routes them. Stores nothing.</td></tr>
+<tr><td>Queue</td><td>Stores messages until a consumer acks them. The only place messages live.</td></tr>
+<tr><td>Binding</td><td>A rule linking an exchange to a queue (with a key or pattern).</td></tr>
+<tr><td>Routing key</td><td>A string the publisher attaches; exchanges match bindings against it.</td></tr>
+<tr><td>Ack / nack / reject</td><td>Consumer says done (delete it), failed (requeue or dead-letter), or refused.</td></tr>
+<tr><td>Prefetch (QoS)</td><td>Max un-acked messages the broker sends one consumer at a time.</td></tr>
+<tr><td>Publisher confirm</td><td>The broker's ack <em>to the publisher</em> that it has safely stored a message.</td></tr>
+<tr><td>Dead-letter exchange (DLX)</td><td>Where a queue sends messages that were rejected, expired, overflowed or exceeded a delivery limit.</td></tr>
+<tr><td>Vhost</td><td>An isolated namespace of exchanges, queues and permissions on one broker (per app or tenant).</td></tr>
+</table></div>
+<p>Five facts explain most of RabbitMQ's behaviour:</p>
+<ol>
+  <li><strong>Publishers send to exchanges, never directly to queues.</strong> An unroutable message is silently dropped unless you ask otherwise.</li>
+  <li><strong>The broker tracks every message's state.</strong> That's what makes per-message ack, retry and TTL possible, and why it's slower than Kafka at extreme volume.</li>
+  <li><strong>A queue is happiest when it's nearly empty.</strong> RabbitMQ is a buffer for in-flight work, not a database. Long queues cost memory, disk and recovery time.</li>
+  <li><strong>Each queue is one process on one node.</strong> One queue has a throughput ceiling; scale by using more queues.</li>
+  <li><strong>Two acks, two directions.</strong> Publisher confirms protect publisher → broker; consumer acks protect broker → consumer. Reliability needs both.</li>
+</ol>
+
+<!-- ================================================================== -->
+<h2 id="usecases">3. Practical use cases</h2>
+
+<h3>3.1 Background job queues (task queues)</h3>
+<p>The most common use. Web app publishes "send email", "resize image", "generate report"; a pool of workers processes them. Celery (Python), Sidekiq-style libraries, MassTransit (.NET), Spring AMQP, and many others sit on RabbitMQ.</p>
+<p><strong>What matters:</strong> manual acks, prefetch, idempotent workers, retries with backoff, DLQ, and a <code>consumer_timeout</code> above your longest job.</p>
+
+<h3>3.2 Decoupling microservices with commands</h3>
+<p>Service A tells service B to do something ("ReserveStock", "ChargeCard") without waiting synchronously. B can be down for a few minutes and catch up. Unlike Kafka events, these are often <em>commands</em> with one intended receiver.</p>
+
+<h3>3.3 Pub/sub notifications</h3>
+<p>A fanout or topic exchange copies an event ("UserSignedUp") to every subscribing service's queue: welcome email, CRM sync, analytics. Each subscriber has its own durable queue, so it doesn't miss messages while restarting. (Seen in lab lesson 02.)</p>
+
+<h3>3.4 Routing by content</h3>
+<p>Topic exchanges route <code>order.created.eu</code> to EU workers, <code>order.*.us</code> to US workers, <code>#.priority</code> to a fast lane. Useful for region, tenant, severity or type-based routing without code in the publisher.</p>
+
+<h3>3.5 Load levelling and traffic smoothing</h3>
+<p>A burst of 50,000 requests arrives in a minute; the downstream system (a legacy API, a rate-limited partner, a GPU inference server) can handle 500 a second. The queue absorbs the spike and workers drain it at a safe rate.</p>
+
+<h3>3.6 Request/reply (async RPC)</h3>
+<p>A client publishes a request with <code>reply_to</code> and <code>correlation_id</code>; the server replies to that queue. RabbitMQ's direct reply-to (<code>amq.rabbitmq.reply-to</code>) avoids creating a queue per request. Useful for spreading compute-heavy calls over a worker pool.</p>
+
+<h3>3.7 Delayed and scheduled work</h3>
+<p>"Retry in 5 minutes", "cancel the unpaid order after 30 minutes": a message with a TTL in a waiting queue that dead-letters back to the work queue when it expires, or the delayed-message plugin.</p>
+
+<h3>3.8 IoT and device messaging</h3>
+<p>RabbitMQ's MQTT support (much improved in 3.12+ / 4.x) lets devices connect with MQTT while backend services consume the same messages over AMQP.</p>
+
+<h3>3.9 Streams for replay and large fan-out</h3>
+<p>Since 3.9, RabbitMQ <em>streams</em> are append-only logs (like a Kafka partition) inside RabbitMQ: non-destructive reads, replay from an offset, many consumers. Super streams add partitioning. Useful when you want a little Kafka-style behaviour without a second system.</p>
+
+<!-- ================================================================== -->
+<h2 id="not">4. When not to use RabbitMQ</h2>
+<div class="tw"><table>
+<tr><th>Situation</th><th>Why RabbitMQ is a poor fit</th><th>Use instead</th></tr>
+<tr><td>Event history that many teams replay, months of retention</td><td>Queues delete on ack; long queues hurt the broker (streams help but the ecosystem is smaller)</td><td>Kafka</td></tr>
+<tr><td>Millions of messages per second, analytics pipelines</td><td>Per-message bookkeeping limits throughput; Kafka's batching and sequential disk I/O win</td><td>Kafka, Kinesis, Pulsar</td></tr>
+<tr><td>Strict global ordering with many consumers</td><td>Order per queue only, and breaks with multiple consumers or requeues</td><td>Kafka with keys, or single active consumer</td></tr>
+<tr><td>Storing data long term, querying it</td><td>A broker is not a database</td><td>A database</td></tr>
+<tr><td>Long workflows with many steps, human waits, compensation</td><td>You'd hand-build state machines out of queues</td><td>Temporal, a workflow engine</td></tr>
+<tr><td>Tiny scale, already have Postgres or Redis</td><td>Another stateful system to run</td><td>A Postgres queue (<a href="postgres_as_a_queue.html">see page</a>), Redis</td></tr>
+<tr><td>Large payloads (videos, datasets)</td><td>Big messages hurt memory, replication and latency for everyone</td><td>Object storage + a link in the message</td></tr>
+</table></div>
+
+<!-- ================================================================== -->
+<h2 id="notebook">5. An experienced engineer's notebook</h2>
+<p>What follows is written in the voice of someone who has designed, run and been paged for RabbitMQ systems over many years. Each note is a lesson that usually costs an incident to learn.</p>
+
+<!-- ------------------------------------------------------------------ -->
+<h3 id="design">5.1 Designing exchanges, queues and messages</h3>
+
+<div class="rule"><b>Publish to exchanges you own, consume from queues you own.</b> The publisher declares its exchange (<code>orders</code>, topic type). Each consuming service declares its own queue and binding (<code>billing.orders</code> bound to <code>order.created.*</code>). The publisher never knows who listens; consumers can be added without touching it. Don't publish everything to the default exchange.</div>
+
+<div class="rule"><b>Name things predictably.</b> Exchanges by domain (<code>orders</code>), queues by <code>&lt;consumer-service&gt;.&lt;purpose&gt;</code> (<code>billing.order-created</code>), DLQs with a suffix (<code>billing.order-created.dlq</code>). Use one vhost per application or environment, not per developer whim.</div>
+
+<div class="rule"><b>Declare topology in code or config, idempotently.</b> Every service declares the exchanges, queues and bindings it needs at startup with the same arguments. Changing arguments of an existing queue (type, TTL, DLX) fails with <code>PRECONDITION_FAILED</code>; you must create a new queue and migrate. Policies (<code>rabbitmqctl set_policy</code>) let you change many settings (DLX, max length, TTL) without redeclaring, so prefer them for operational settings.</div>
+
+<div class="rule"><b>Use quorum queues for anything important.</b> Durable, replicated over 3 nodes with Raft, with a delivery limit for poison messages. Classic mirrored queues were removed in 4.0. Use classic queues only for temporary, exclusive or truly disposable data. See <a href="#queuetypes">5.5</a>.</div>
+
+<div class="rule"><b>Never let a queue grow without limit.</b> Set <code>x-max-length</code> or <code>x-max-length-bytes</code> with <code>overflow=reject-publish</code> (publishers get nacked, so they know) or <code>drop-head</code> (oldest dropped, possibly dead-lettered) depending on whether losing old or new messages is worse. An unbounded queue is a memory alarm waiting to happen.</div>
+
+<div class="rule"><b>Messages: small, self-describing, with ids.</b> Set <code>message_id</code> (deduplication), <code>content_type</code>, <code>timestamp</code>, <code>type</code>, a correlation/trace id in headers, and a schema version. Keep bodies to KBs. The server rejects messages over <code>max_message_size</code> (16 MiB on the lab broker), but anything over ~1 MB already hurts. For big payloads, send a link.</div>
+
+<div class="rule"><b>Mark messages persistent and queues durable, or neither matters.</b> A durable queue holding transient messages loses them on restart. With quorum queues all messages are persisted anyway, which is one less thing to get wrong.</div>
+
+<div class="rule"><b>Don't create a queue per user or per request.</b> Thousands of queues cost memory, metadata and management-UI pain. Use routing keys or headers in fewer queues; for RPC use direct reply-to. If you need per-tenant fairness, a modest number of queues (one per tier or shard) with round-robin consumers works better.</div>
+
+<div class="rule"><b>Exclusive and auto-delete queues are for temporary consumers.</b> They vanish when the connection closes, which is right for an RPC reply queue or a live dashboard, and wrong for anything that must survive a restart.</div>
+
+<!-- ------------------------------------------------------------------ -->
+<h3 id="publisher">5.2 Publishers</h3>
+
+<div class="rule"><b>Turn on publisher confirms.</b> Without them, <code>basic_publish</code> is fire-and-forget: a message can be lost if the broker fails, the connection drops, or memory alarms block you, and your code never knows. With confirms, the broker acks each message once it's stored (on a quorum queue: on a majority of replicas). Confirm in batches or asynchronously for throughput; one-by-one synchronous confirms are slow.</div>
+
+<div class="rule"><b>Detect unroutable messages.</b> If no binding matches, the exchange drops the message silently, and the publisher still gets a confirm. Set <code>mandatory=true</code> to get it returned, or give the exchange an <strong>alternate exchange</strong> that collects unroutable messages into a queue you monitor. Typos in routing keys are a classic silent data-loss bug.</div>
+
+<div class="rule"><b>One long-lived connection, many channels.</b> Connections are expensive (TCP + TLS + auth + memory on the broker); opening one per publish is how you take a cluster down with "connection churn". Keep a connection per process and a channel per thread. Channels are not thread-safe; never share one across threads.</div>
+
+<div class="rule"><b>Handle connection loss and the "blocked" state.</b> Networks drop. Use the client's automatic recovery (or reconnect with backoff) and re-declare topology. When the broker hits a memory or disk alarm, it <em>blocks</em> publishing connections; publishes hang. Listen for <code>connection.blocked</code> and stop accepting work upstream instead of piling up threads.</div>
+
+<div class="rule"><b>Don't publish and consume on the same connection.</b> Flow control throttles a connection that publishes too fast; if your consumers share it, they slow down too, which makes the queue grow, which makes flow control worse.</div>
+
+<div class="rule"><b>Database + message = outbox.</b> "Save to DB, then publish" eventually publishes a message for a rolled-back transaction or forgets to publish for a committed one. Write the message to an <code>outbox</code> table in the same transaction and have a relay publish it with confirms. The same pattern as Kafka; the problem is the dual write, not the broker.</div>
+
+<!-- ------------------------------------------------------------------ -->
+<h3 id="consumer">5.3 Consumers</h3>
+
+<div class="rule"><b>Manual acks, after the work is done.</b> <code>auto_ack=True</code> means the broker deletes the message the moment it's sent, so a crash loses it. Ack after processing (and after committing any database transaction). That gives at-least-once delivery. (Seen in lab lesson 01: kill a worker mid-job and the job is redelivered.)</div>
+
+<div class="rule"><b>Always set prefetch.</b> Without <code>basic_qos(prefetch_count=N)</code> the broker pushes the whole queue to the first consumer, which runs out of memory while other workers sit idle. Rules of thumb: long or uneven jobs → prefetch 1 (fair dispatch); fast small messages → 20–300 to keep the pipe full. Measure; it's the most important consumer setting.</div>
+
+<div class="rule"><b>Make handlers idempotent.</b> Redelivery happens after crashes, network blips (an ack lost in flight), consumer timeouts and failovers. Check <code>message_id</code> against a processed-ids table, use upserts, use idempotency keys on external calls. The <code>redelivered</code> flag hints at a possible duplicate but is not a guarantee either way.</div>
+
+<div class="rule"><b>Mind the consumer timeout.</b> If a message stays un-acked longer than <code>consumer_timeout</code> (30 minutes, lab default 1800000 ms), the broker closes the channel with <code>PRECONDITION_FAILED</code> and requeues the message. Long jobs either raise it (per queue via policy/argument in recent versions), or ack early and track progress elsewhere.</div>
+
+<div class="rule"><b>Heartbeats keep connections honest.</b> Heartbeats (60 s negotiated by default on the lab broker) detect dead TCP connections. A consumer that blocks its I/O thread with CPU-heavy work in a single-threaded client (classic <code>pika</code> <code>BlockingConnection</code>) misses heartbeats and gets disconnected mid-job. Do heavy work in another thread and ack back through the connection's thread-safe callback, or use an async client.</div>
+
+<div class="rule"><b>Ordering is per queue, and fragile.</b> One queue + one consumer + no requeues = order kept. Several consumers, prefetch &gt; 1, or a nack-requeue all reorder messages. If order matters, use <strong>single active consumer</strong> (one consumer reads, others stand by), or shard into several queues by key with the consistent-hash exchange, one consumer each.</div>
+
+<div class="rule"><b>Scale consumers, but watch the queue's ceiling.</b> More consumers on one queue add throughput until the queue process itself is the bottleneck (a single queue typically tops out in the tens of thousands of messages per second, depending on size, persistence and type). Beyond that, shard across several queues.</div>
+
+<div class="rule"><b>Shut down gracefully.</b> On SIGTERM: stop consuming (<code>basic_cancel</code>), finish in-flight messages, ack them, then close. Kubernetes gives 30 seconds by default; set <code>terminationGracePeriodSeconds</code> to cover your longest job, or accept redelivery.</div>
+
+<!-- ------------------------------------------------------------------ -->
+<h3 id="errors">5.4 Failures, retries and dead letters</h3>
+
+<div class="rule"><b>Never nack-with-requeue in a loop.</b> <code>basic_nack(requeue=True)</code> puts a failing message straight back at the head of the queue. It's redelivered immediately, fails again, forever: 100% CPU, no progress, logs exploding. On quorum queues the <strong>delivery limit</strong> (20 by default since 4.0) eventually dead-letters it; on classic queues nothing stops it.</div>
+
+<div class="rule"><b>Every work queue gets a dead-letter exchange.</b> Messages are dead-lettered when rejected without requeue, when they expire (TTL), when the queue overflows (<code>drop-head</code>), or when they pass the delivery limit. The DLX routes them to a DLQ with an <code>x-death</code> header saying why, how many times and from where. (Seen in lab lesson 03.)</div>
+
+<div class="rule"><b>Retry with backoff using TTL queues.</b> The standard pattern: on failure, publish to <code>work.retry.30s</code> (a queue with <code>x-message-ttl=30000</code> and DLX pointing back to the work exchange); after 30 s it flows back automatically. Chain 30 s → 5 min → 30 min, count attempts in a header, and send to the final DLQ after the last. Queue-level TTL only expires messages at the <em>head</em> of the queue, so use one queue per delay, not mixed per-message TTLs in one queue.</div>
+
+<div class="rule"><b>Transient vs permanent failures.</b> Database timeout or HTTP 503: retry with backoff. Malformed message, validation error, "customer doesn't exist": retrying won't help, dead-letter it right away with the error in a header.</div>
+
+<div class="rule"><b>Watch and drain the DLQ.</b> Alert on DLQ depth above zero. Keep a small tool (or use the shovel plugin / management UI "move messages") to re-publish fixed messages to the work queue. A DLQ nobody reads is silent data loss with extra steps.</div>
+
+<div class="rule"><b>The delayed-message plugin has limits.</b> It's convenient for "deliver in 10 minutes", but delayed messages are stored on one node only, outside normal queue replication, and it isn't designed for millions of pending delays. For critical scheduling, use TTL+DLX queues or a database scheduler.</div>
+
+<!-- ------------------------------------------------------------------ -->
+<h3 id="queuetypes">5.5 Queue types: classic, quorum, stream</h3>
+<div class="tw"><table>
+<tr><th></th><th>Classic</th><th>Quorum</th><th>Stream</th></tr>
+<tr><td>Replicated</td><td>No (mirroring removed in 4.0)</td><td>Yes, Raft over an odd number of nodes (3 or 5)</td><td>Yes</td></tr>
+<tr><td>Reads delete messages</td><td>Yes</td><td>Yes</td><td>No: consumers read from an offset</td></tr>
+<tr><td>Poison message protection</td><td>No</td><td>Delivery limit (default 20)</td><td>n/a (no requeue)</td></tr>
+<tr><td>Priorities</td><td>Yes (<code>x-max-priority</code>)</td><td>Two levels (normal/high) since 4.0</td><td>No</td></tr>
+<tr><td>Non-durable / exclusive</td><td>Yes</td><td>No (always durable)</td><td>No</td></tr>
+<tr><td>Use for</td><td>Temporary queues, reply queues, disposable data</td><td><strong>The default for real work</strong></td><td>Replay, large fan-out, very long queues</td></tr>
+</table></div>
+<div class="idea">Rule of thumb: quorum queue for work, stream for history, classic only when the data may be lost. Make quorum the default queue type for the vhost so nobody accidentally creates classic queues for important data.</div>
+
+<!-- ------------------------------------------------------------------ -->
+<h3 id="ops">5.6 Running the cluster</h3>
+
+<div class="rule"><b>Three nodes, odd numbers.</b> Quorum queues need a majority: 3 nodes tolerate 1 failure, 5 tolerate 2. Two nodes is worse than one (losing either loses the majority). Spread nodes over availability zones. Clients connect through a load balancer or a list of all nodes.</div>
+
+<div class="rule"><b>Know the alarms.</b> When memory use passes <code>vm_memory_high_watermark</code> (0.6 of RAM, lab) or free disk drops below <code>disk_free_limit</code> (50 MB, lab), the broker <strong>blocks all publishers</strong> cluster-wide until it recovers. 50 MB is far too low for production; set it to at least the RAM size (or a ratio like <code>disk_free_limit.relative = 1.5</code>). In containers, make sure RabbitMQ sees the container memory limit, not the host's.</div>
+
+<div class="rule"><b>Network partitions are real.</b> In a split, nodes may disagree. Quorum queues handle this with Raft (the minority side stops serving those queues). For the rest, <code>cluster_partition_handling = pause_minority</code> is the usual safe choice. Never stretch one cluster across regions; use federation or shovel between regional clusters.</div>
+
+<div class="rule"><b>Spread queue leaders.</b> Each quorum queue has a leader node doing most of the work. If all leaders end up on one node (after restarts), that node is overloaded. Use <code>queue_leader_locator=balanced</code> and <code>rabbitmq-queues rebalance</code> after maintenance.</div>
+
+<div class="rule"><b>Upgrades: rolling, with feature flags.</b> Upgrade one node at a time, waiting for quorum queues to be fully replicated (<code>rabbitmq-queues check_if_node_is_quorum_critical</code>) before stopping the next. Enable all stable feature flags after each upgrade; you can't skip too many versions at once. 4.0 removed classic mirroring, so migrate mirrored queues to quorum before upgrading from 3.x. The metadata store is moving from Mnesia to Khepri (Raft-based) in 4.x; read the release notes for your target version.</div>
+
+<div class="rule"><b>Kubernetes: use the Cluster Operator.</b> The RabbitMQ Cluster Kubernetes Operator and Messaging Topology Operator manage StatefulSets, peer discovery, TLS, users, vhosts, queues and policies as resources. Give each node a persistent volume and a PodDisruptionBudget so drains don't take out two nodes at once.</div>
+
+<div class="rule"><b>Security basics.</b> Delete or disable the <code>guest</code> user (it's only allowed from localhost anyway), one user per application with permissions limited to its vhost and resources, TLS for clients and between nodes, and keep the management UI off the public internet.</div>
+
+<!-- ------------------------------------------------------------------ -->
+<h3 id="monitor">5.7 What to monitor</h3>
+<div class="tw"><table>
+<tr><th>Metric</th><th>Why</th><th>Alert when</th></tr>
+<tr><td><strong>Queue depth</strong> (ready + unacked), per queue</td><td>The main health signal: work arriving faster than it's done</td><td>Growing steadily, or above a threshold for that queue</td></tr>
+<tr><td>Publish rate vs ack rate</td><td>Tells you whether consumers keep up</td><td>Ack rate below publish rate for a sustained period</td></tr>
+<tr><td>Consumers per queue</td><td>A queue with 0 consumers fills up silently</td><td>0 on a work queue</td></tr>
+<tr><td>Unacked messages</td><td>Stuck or slow consumers, too-high prefetch</td><td>High and not moving</td></tr>
+<tr><td>Memory and disk alarms</td><td>Publishers are blocked cluster-wide</td><td>Any alarm, page immediately</td></tr>
+<tr><td>Memory used vs watermark, free disk</td><td>Early warning before alarms</td><td>&gt; 80% of watermark</td></tr>
+<tr><td>Connection and channel churn (opened/closed per second)</td><td>Clients connecting per request</td><td>High sustained churn</td></tr>
+<tr><td>Redeliveries</td><td>Crashing consumers, poison messages, timeouts</td><td>Rising</td></tr>
+<tr><td>DLQ depth</td><td>Messages that failed for good</td><td>&gt; 0</td></tr>
+<tr><td>Quorum queue members / leader distribution</td><td>Lost replicas, overloaded leader node</td><td>Members below 3; one node leading most queues</td></tr>
+</table></div>
+<p>Tools: the built-in Prometheus plugin (<code>rabbitmq_prometheus</code>, port 15692) with the official Grafana dashboards; the management UI (port 15672) for browsing; <code>rabbitmq-diagnostics</code> for health checks.</p>
+
+<!-- ------------------------------------------------------------------ -->
+<h3 id="incidents">5.8 Incidents everyone has eventually</h3>
+<div class="tw"><table>
+<tr><th>Symptom</th><th>Usual cause</th><th>Fix / prevention</th></tr>
+<tr><td>All publishers hang, app threads pile up</td><td>Memory or disk alarm (a queue grew huge)</td><td>Find the growing queue; add consumers or purge; max-length limits; realistic disk limit; handle <code>connection.blocked</code></td></tr>
+<tr><td>One worker gets everything, others idle, then it OOMs</td><td>No prefetch set</td><td><code>basic_qos(prefetch_count=N)</code></td></tr>
+<tr><td>Worker at 100% CPU, queue not draining, same message in logs</td><td>Nack-requeue loop on a poison message</td><td>Quorum queues (delivery limit), DLX, don't requeue permanent failures</td></tr>
+<tr><td>Messages "disappear" right after publish</td><td>No binding matches the routing key; or exchange/queue not declared yet</td><td><code>mandatory=true</code> or alternate exchange; declare topology at startup</td></tr>
+<tr><td>Messages lost after a broker restart</td><td>Non-durable queue or transient messages; no publisher confirms</td><td>Quorum queues, persistent messages, confirms</td></tr>
+<tr><td>Channel closed with <code>PRECONDITION_FAILED</code> after ~30 min</td><td>Consumer timeout on a long job</td><td>Raise the timeout for that queue, or redesign the long job</td></tr>
+<tr><td>Long jobs restart from scratch every few minutes</td><td>Missed heartbeats because work blocks the I/O thread</td><td>Work in a separate thread, async client</td></tr>
+<tr><td>Broker CPU high, few messages moving</td><td>Connection churn (connect per request), or thousands of tiny queues</td><td>Pooled long-lived connections; fewer queues</td></tr>
+<tr><td>Duplicate side effects (double emails)</td><td>Redelivery after crash or lost ack</td><td>Idempotent handlers with message ids</td></tr>
+<tr><td>Startup fails with <code>PRECONDITION_FAILED - inequivalent arg</code></td><td>Redeclaring a queue with different arguments</td><td>Use policies for changeable settings; migrate to a new queue</td></tr>
+<tr><td>Cluster unavailable after losing one of two nodes</td><td>Even node count, no majority</td><td>3 or 5 nodes</td></tr>
+<tr><td>One node overloaded after maintenance</td><td>All quorum queue leaders moved to it</td><td>Rebalance leaders</td></tr>
+<tr><td>Retry queue releases messages at the wrong time</td><td>Mixed per-message TTLs in one queue (only the head expires)</td><td>One retry queue per delay</td></tr>
+</table></div>
+
+<!-- ------------------------------------------------------------------ -->
+<h3 id="ecosystem">5.9 The ecosystem, and what to pick</h3>
+<div class="tw"><table>
+<tr><th>Need</th><th>Options</th><th>Notes</th></tr>
+<tr><td>Managed RabbitMQ</td><td>CloudAMQP, Amazon MQ for RabbitMQ</td><td>Check which RabbitMQ version and plugins they support</td></tr>
+<tr><td>On Kubernetes</td><td>RabbitMQ Cluster Operator + Messaging Topology Operator</td><td>The official route</td></tr>
+<tr><td>Python task queues</td><td>Celery (set <code>acks_late=True</code>, <code>worker_prefetch_multiplier=1</code> for long tasks), Dramatiq, FastStream</td><td>Celery's defaults ack early; know them</td></tr>
+<tr><td>Java / .NET frameworks</td><td>Spring AMQP / Spring Cloud Stream, MassTransit, NServiceBus</td><td>Built-in retry, DLQ and outbox support</td></tr>
+<tr><td>Move messages between brokers</td><td>Shovel (point to point), Federation (exchange/queue links across clusters)</td><td>For multi-region and migrations</td></tr>
+<tr><td>Partitioned ordered processing</td><td>Consistent-hash exchange, super streams, single active consumer</td><td>RabbitMQ's answers to Kafka-style keys</td></tr>
+<tr><td>Similar brokers</td><td>ActiveMQ Artemis, Azure Service Bus, Amazon SQS (+SNS), Google Pub/Sub, NATS JetStream</td><td>Managed queues remove operations entirely</td></tr>
+</table></div>
+
+<!-- ================================================================== -->
+<h2 id="review">6. Design review checklist</h2>
+<ol>
+  <li>Is this a job queue / command (RabbitMQ fits) or an event history many teams replay (Kafka fits)?</li>
+  <li>Which exchange type, and what routing keys? Who owns the exchange, who owns each queue?</li>
+  <li>Quorum, classic or stream queue, and why?</li>
+  <li>Publisher confirms on? What happens to unroutable messages (mandatory / alternate exchange)?</li>
+  <li>Manual acks after processing? What prefetch, and why that number?</li>
+  <li>What happens if a message is delivered twice?</li>
+  <li>How are failures retried, with what backoff, how many times? Where do permanent failures go, and who watches that DLQ?</li>
+  <li>Worst-case processing time vs consumer timeout, heartbeat and pod shutdown grace?</li>
+  <li>Max queue length and overflow behaviour?</li>
+  <li>Does ordering matter? If yes, how is it guaranteed (single active consumer, sharding)?</li>
+  <li>Message size, schema, ids, timestamps, trace ids?</li>
+  <li>How does the producer avoid dual writes (outbox)?</li>
+  <li>Connections and channels: pooled and long-lived? Reconnection and topology recovery?</li>
+  <li>Alerts on depth, consumers = 0, DLQ &gt; 0, and broker alarms?</li>
+</ol>
+
+<!-- ================================================================== -->
+<h2 id="numbers">7. Numbers to keep in your head</h2>
+<div class="tw"><table>
+<tr><th>Setting / fact</th><th>Default or typical value</th></tr>
+<tr><td>AMQP port / management UI / Prometheus</td><td>5672 (5671 TLS) / 15672 / 15692</td></tr>
+<tr><td><code>vm_memory_high_watermark</code></td><td>0.6 of available RAM (lab)</td></tr>
+<tr><td><code>disk_free_limit</code></td><td>50 MB (lab), far too low for production</td></tr>
+<tr><td><code>consumer_timeout</code></td><td>30 minutes (1800000 ms, lab)</td></tr>
+<tr><td>Heartbeat</td><td>60 s (lab)</td></tr>
+<tr><td><code>max_message_size</code></td><td>16 MiB (16777216, lab); keep messages to KBs</td></tr>
+<tr><td>Channels per connection (<code>channel_max</code>)</td><td>2047 (lab)</td></tr>
+<tr><td>Quorum queue delivery limit</td><td>20 (since 4.0)</td></tr>
+<tr><td>Quorum queue replicas</td><td>3 (odd numbers; 5 for higher tolerance)</td></tr>
+<tr><td>Prefetch</td><td>1 for long jobs, 20–300 for fast messages</td></tr>
+<tr><td>Single queue throughput</td><td>Tens of thousands of messages/s at best; shard beyond that</td></tr>
+</table></div>
+
+<!-- ================================================================== -->
+<h2 id="path">8. A fast path to expertise</h2>
+<div class="tw"><table>
+<tr><th>Step</th><th>Do this</th><th>You learn</th></tr>
+<tr><td>1</td><td><code>rabbitmq_kafka_lab</code> lesson 01</td><td>Work queues, acks, prefetch, redelivery after a crash</td></tr>
+<tr><td>2</td><td>Lesson 02</td><td>Exchanges and fanout pub/sub; why a subscriber needs its own durable queue</td></tr>
+<tr><td>3</td><td>Lesson 03</td><td>Dead-lettering and retry limits</td></tr>
+<tr><td>4</td><td><code>tools/rabbitmq/</code> examples and <code>production-scenarios.md</code></td><td>Topic routing, prefetch behaviour, production failure modes</td></tr>
+<tr><td>5</td><td>Run a consumer with no prefetch and another with prefetch 1; publish 1000 slow jobs</td><td>Why prefetch is the most important setting</td></tr>
+<tr><td>6</td><td>Nack-requeue a poison message on a classic queue, then on a quorum queue</td><td>The requeue loop and the delivery limit</td></tr>
+<tr><td>7</td><td>Publish with a typo in the routing key, with and without <code>mandatory</code></td><td>Silent drops and how to catch them</td></tr>
+<tr><td>8</td><td>Build a 30 s → 5 min retry chain with TTL queues and a final DLQ</td><td>The standard retry pattern</td></tr>
+<tr><td>9</td><td>Set a low <code>disk_free_limit</code> trigger (or a tiny memory watermark) and publish</td><td>What a blocked cluster looks like to your app</td></tr>
+<tr><td>10</td><td>Go through the <a href="#review">design review checklist</a> for an "email sending" service</td><td>Putting it all together</td></tr>
+</table></div>
+<p>Then read: the RabbitMQ docs pages on "Reliability Guide", "Consumer Acknowledgements and Publisher Confirms", "Quorum Queues" and "Production Checklist"; they are unusually good.</p>
+
+</main></body></html>

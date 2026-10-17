@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kubernetes Kinds</title><style>
+:root{--bg:#fbfbf9;--surface:#fff;--surface-2:#f2f2ee;--text:#1d1d1b;--muted:#62625c;--border:#dcdcd5;--accent:#2f5fb3;--accent-soft:#e6edf9}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#161615;--surface:#1f1f1d;--surface-2:#262624;--text:#e9e9e4;--muted:#a3a39b;--border:#3a3a36;--accent:#86a8ec;--accent-soft:#233150}}
+:root[data-theme="dark"]{--bg:#161615;--surface:#1f1f1d;--surface-2:#262624;--text:#e9e9e4;--muted:#a3a39b;--border:#3a3a36;--accent:#86a8ec;--accent-soft:#233150}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:16px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+main{max-width:900px;margin:0 auto;padding:36px 16px 72px}
+h1{font-size:1.7rem;line-height:1.25;margin:4px 0 6px}h2{font-size:1.15rem;margin:32px 0 10px}
+.idea{background:var(--accent-soft);border-left:3px solid var(--accent);border-radius:6px;padding:10px 14px;margin:14px 0}
+code{font:.88em ui-monospace,SFMono-Regular,Menlo,monospace;background:var(--surface-2);padding:1px 5px;border-radius:4px}
+pre{background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:12px 14px;overflow-x:auto;font-size:.82rem;line-height:1.5}pre code{background:none;padding:0}
+.tw{overflow-x:auto;border:1px solid var(--border);border-radius:8px}
+table{border-collapse:collapse;width:100%;font-size:.9rem;background:var(--surface)}th,td{text-align:left;padding:7px 10px;border-bottom:1px solid var(--border);vertical-align:top}th{background:var(--surface-2)}
+td:nth-child(2),td:nth-child(3){white-space:nowrap;color:var(--muted)}
+</style></head>
+<body><main>
+<h1>Kubernetes <code>kind</code> values</h1>
+<p>Every Kubernetes YAML says what object it creates with <code>kind</code>, and which API group and version it belongs to with <code>apiVersion</code>. The two always go together:</p>
+<pre><code>apiVersion: apps/v1
+kind: DaemonSet</code></pre>
+<div class="idea"><strong>ClusterIP is not a kind.</strong> It is a value of <code>spec.type</code> inside a <code>Service</code>. See <a href="#not-kinds">the last section</a> for the values that look like kinds but aren't.</div>
+<p>Columns: <strong>apiVersion</strong> to write in the YAML, <strong>short</strong> name for <code>kubectl</code> (for example <code>kubectl get ds</code>), and <strong>NS</strong>: whether the object lives in a namespace (yes) or is cluster-wide (no). The list comes from <code>kubectl api-resources</code> on the local minikube cluster (Kubernetes v1.34).</p>
+
+<h2>Workloads: run containers</h2>
+<div class="tw"><table><tr><th>kind</th><th>apiVersion</th><th>short · NS</th><th>What it is</th></tr>
+<tr><td><code>Pod</code></td><td>v1</td><td>po · yes</td><td>One or more containers that run together on one node. The smallest thing Kubernetes runs.</td></tr>
+<tr><td><code>Deployment</code></td><td>apps/v1</td><td>deploy · yes</td><td>Keeps N copies of a stateless pod running and does rolling updates. The usual choice for apps.</td></tr>
+<tr><td><code>ReplicaSet</code></td><td>apps/v1</td><td>rs · yes</td><td>Keeps N identical pods running. A Deployment creates these for you.</td></tr>
+<tr><td><code>StatefulSet</code></td><td>apps/v1</td><td>sts · yes</td><td>Pods with stable names (db-0, db-1) and their own disks. For databases, Kafka, etc.</td></tr>
+<tr><td><code>DaemonSet</code></td><td>apps/v1</td><td>ds · yes</td><td>One pod on every node. Used for CNI (kindnet), kube-proxy, log and monitoring agents.</td></tr>
+<tr><td><code>Job</code></td><td>batch/v1</td><td>— · yes</td><td>Runs pods until a task finishes successfully, then stops.</td></tr>
+<tr><td><code>CronJob</code></td><td>batch/v1</td><td>cj · yes</td><td>Creates a Job on a schedule, like cron.</td></tr>
+<tr><td><code>ReplicationController</code></td><td>v1</td><td>rc · yes</td><td>The old version of ReplicaSet. Don't use it in new YAML.</td></tr>
+<tr><td><code>PodTemplate</code></td><td>v1</td><td>— · yes</td><td>A saved pod definition. Rarely written by hand.</td></tr>
+<tr><td><code>ControllerRevision</code></td><td>apps/v1</td><td>— · yes</td><td>History of a StatefulSet or DaemonSet, used for rollbacks. Created automatically.</td></tr>
+</table></div>
+
+<h2>Networking: reach pods</h2>
+<div class="tw"><table><tr><th>kind</th><th>apiVersion</th><th>short · NS</th><th>What it is</th></tr>
+<tr><td><code>Service</code></td><td>v1</td><td>svc · yes</td><td>A stable name and IP in front of a group of pods. Its type is ClusterIP, NodePort, LoadBalancer or ExternalName.</td></tr>
+<tr><td><code>Ingress</code></td><td>networking.k8s.io/v1</td><td>ing · yes</td><td>HTTP routing rules (host and path → Service). Needs an ingress controller such as ingress-nginx.</td></tr>
+<tr><td><code>IngressClass</code></td><td>networking.k8s.io/v1</td><td>— · no</td><td>Says which ingress controller handles an Ingress.</td></tr>
+<tr><td><code>NetworkPolicy</code></td><td>networking.k8s.io/v1</td><td>netpol · yes</td><td>Firewall rules for pod traffic in and out. Enforced by the CNI.</td></tr>
+<tr><td><code>Endpoints</code></td><td>v1</td><td>ep · yes</td><td>The pod IPs behind a Service (older format). Created automatically.</td></tr>
+<tr><td><code>EndpointSlice</code></td><td>discovery.k8s.io/v1</td><td>— · yes</td><td>The newer, scalable form of Endpoints. Created automatically.</td></tr>
+<tr><td><code>ServiceCIDR</code></td><td>networking.k8s.io/v1</td><td>— · no</td><td>The IP range Service IPs are taken from.</td></tr>
+<tr><td><code>IPAddress</code></td><td>networking.k8s.io/v1</td><td>ip · no</td><td>Records one Service IP as in use. Created automatically.</td></tr>
+</table></div>
+
+<h2>Configuration</h2>
+<div class="tw"><table><tr><th>kind</th><th>apiVersion</th><th>short · NS</th><th>What it is</th></tr>
+<tr><td><code>ConfigMap</code></td><td>v1</td><td>cm · yes</td><td>Plain settings (key/value or files) for pods, as env vars or mounted files.</td></tr>
+<tr><td><code>Secret</code></td><td>v1</td><td>— · yes</td><td>Like a ConfigMap, for passwords, tokens and certificates (base64, not encrypted by default).</td></tr>
+<tr><td><code>Namespace</code></td><td>v1</td><td>ns · no</td><td>A folder that groups and isolates objects.</td></tr>
+</table></div>
+
+<h2>Storage</h2>
+<div class="tw"><table><tr><th>kind</th><th>apiVersion</th><th>short · NS</th><th>What it is</th></tr>
+<tr><td><code>PersistentVolumeClaim</code></td><td>v1</td><td>pvc · yes</td><td>A pod's request for disk ("I need 10Gi").</td></tr>
+<tr><td><code>PersistentVolume</code></td><td>v1</td><td>pv · no</td><td>An actual piece of disk. Usually created automatically for a PVC.</td></tr>
+<tr><td><code>StorageClass</code></td><td>storage.k8s.io/v1</td><td>sc · no</td><td>The kind of disk to create (fast SSD, standard, etc.) and who provides it.</td></tr>
+<tr><td><code>VolumeAttributesClass</code></td><td>storage.k8s.io/v1</td><td>vac · no</td><td>Changeable disk settings such as IOPS.</td></tr>
+<tr><td><code>VolumeAttachment</code></td><td>storage.k8s.io/v1</td><td>— · no</td><td>Records a disk attached to a node. Created automatically.</td></tr>
+<tr><td><code>CSIDriver</code></td><td>storage.k8s.io/v1</td><td>— · no</td><td>Registers a storage driver.</td></tr>
+<tr><td><code>CSINode</code></td><td>storage.k8s.io/v1</td><td>— · no</td><td>Storage drivers on one node. Created automatically.</td></tr>
+<tr><td><code>CSIStorageCapacity</code></td><td>storage.k8s.io/v1</td><td>— · yes</td><td>How much storage is free, for scheduling.</td></tr>
+</table></div>
+
+<h2>Access control (RBAC)</h2>
+<div class="tw"><table><tr><th>kind</th><th>apiVersion</th><th>short · NS</th><th>What it is</th></tr>
+<tr><td><code>ServiceAccount</code></td><td>v1</td><td>sa · yes</td><td>An identity for pods to use when talking to the API.</td></tr>
+<tr><td><code>Role</code></td><td>rbac.authorization.k8s.io/v1</td><td>— · yes</td><td>A list of allowed actions inside one namespace.</td></tr>
+<tr><td><code>RoleBinding</code></td><td>rbac.authorization.k8s.io/v1</td><td>— · yes</td><td>Gives a Role (or ClusterRole) to a user, group or ServiceAccount in one namespace.</td></tr>
+<tr><td><code>ClusterRole</code></td><td>rbac.authorization.k8s.io/v1</td><td>— · no</td><td>A Role that is cluster-wide.</td></tr>
+<tr><td><code>ClusterRoleBinding</code></td><td>rbac.authorization.k8s.io/v1</td><td>— · no</td><td>Gives a ClusterRole across the whole cluster.</td></tr>
+</table></div>
+
+<h2>Scaling, scheduling and limits</h2>
+<div class="tw"><table><tr><th>kind</th><th>apiVersion</th><th>short · NS</th><th>What it is</th></tr>
+<tr><td><code>HorizontalPodAutoscaler</code></td><td>autoscaling/v2</td><td>hpa · yes</td><td>Adds or removes pods based on CPU, memory or custom metrics.</td></tr>
+<tr><td><code>PodDisruptionBudget</code></td><td>policy/v1</td><td>pdb · yes</td><td>How many pods may be down at once during node drains and upgrades.</td></tr>
+<tr><td><code>ResourceQuota</code></td><td>v1</td><td>quota · yes</td><td>Total CPU, memory and object limits for a namespace.</td></tr>
+<tr><td><code>LimitRange</code></td><td>v1</td><td>limits · yes</td><td>Default and maximum CPU/memory per pod or container in a namespace.</td></tr>
+<tr><td><code>PriorityClass</code></td><td>scheduling.k8s.io/v1</td><td>pc · no</td><td>Pod priority: higher-priority pods can push out lower ones.</td></tr>
+<tr><td><code>RuntimeClass</code></td><td>node.k8s.io/v1</td><td>— · no</td><td>Picks a container runtime (for example gVisor or Kata) for a pod.</td></tr>
+<tr><td><code>Node</code></td><td>v1</td><td>no · no</td><td>A machine in the cluster. Registered by the kubelet, not written by hand.</td></tr>
+</table></div>
+
+<h2>Devices (Dynamic Resource Allocation)</h2>
+<div class="tw"><table><tr><th>kind</th><th>apiVersion</th><th>short · NS</th><th>What it is</th></tr>
+<tr><td><code>ResourceClaim</code></td><td>resource.k8s.io/v1</td><td>— · yes</td><td>A pod's request for a device such as a GPU.</td></tr>
+<tr><td><code>ResourceClaimTemplate</code></td><td>resource.k8s.io/v1</td><td>— · yes</td><td>Creates one ResourceClaim per pod.</td></tr>
+<tr><td><code>DeviceClass</code></td><td>resource.k8s.io/v1</td><td>— · no</td><td>A type of device that can be requested.</td></tr>
+<tr><td><code>ResourceSlice</code></td><td>resource.k8s.io/v1</td><td>— · no</td><td>Devices a node offers. Published by drivers.</td></tr>
+</table></div>
+
+<h2>Extending and guarding the API</h2>
+<div class="tw"><table><tr><th>kind</th><th>apiVersion</th><th>short · NS</th><th>What it is</th></tr>
+<tr><td><code>CustomResourceDefinition</code></td><td>apiextensions.k8s.io/v1</td><td>crd · no</td><td>Adds a brand-new kind to the cluster (see below).</td></tr>
+<tr><td><code>ValidatingAdmissionPolicy</code></td><td>admissionregistration.k8s.io/v1</td><td>— · no</td><td>Rejects objects that break a rule (written in CEL), with no webhook needed.</td></tr>
+<tr><td><code>ValidatingAdmissionPolicyBinding</code></td><td>admissionregistration.k8s.io/v1</td><td>— · no</td><td>Says where a ValidatingAdmissionPolicy applies.</td></tr>
+<tr><td><code>ValidatingWebhookConfiguration</code></td><td>admissionregistration.k8s.io/v1</td><td>— · no</td><td>Sends new objects to your webhook to accept or reject.</td></tr>
+<tr><td><code>MutatingWebhookConfiguration</code></td><td>admissionregistration.k8s.io/v1</td><td>— · no</td><td>Sends new objects to your webhook to change them (for example to add a sidecar).</td></tr>
+<tr><td><code>APIService</code></td><td>apiregistration.k8s.io/v1</td><td>— · no</td><td>Plugs an extra API server in (for example metrics-server).</td></tr>
+</table></div>
+
+<h2>Created by Kubernetes, rarely written by hand</h2>
+<div class="tw"><table><tr><th>kind</th><th>apiVersion</th><th>short · NS</th><th>What it is</th></tr>
+<tr><td><code>Event</code></td><td>v1, events.k8s.io/v1</td><td>ev · yes</td><td>"What happened" messages, shown by <code>kubectl describe</code> and <code>kubectl get events</code>.</td></tr>
+<tr><td><code>Lease</code></td><td>coordination.k8s.io/v1</td><td>— · yes</td><td>Node heartbeats and leader election.</td></tr>
+<tr><td><code>Binding</code></td><td>v1</td><td>— · yes</td><td>The scheduler uses it to place a pod on a node.</td></tr>
+<tr><td><code>CertificateSigningRequest</code></td><td>certificates.k8s.io/v1</td><td>csr · no</td><td>A request for the cluster to sign a certificate.</td></tr>
+<tr><td><code>FlowSchema</code>, <code>PriorityLevelConfiguration</code></td><td>flowcontrol.apiserver.k8s.io/v1</td><td>— · no</td><td>API server rate-limiting (API Priority and Fairness).</td></tr>
+<tr><td><code>TokenReview</code>, <code>SubjectAccessReview</code>, <code>SelfSubjectAccessReview</code>, <code>LocalSubjectAccessReview</code>, <code>SelfSubjectRulesReview</code>, <code>SelfSubjectReview</code></td><td>authentication / authorization.k8s.io/v1</td><td>— · mostly no</td><td>One-off questions to the API ("who am I?", "can I do this?"). <code>kubectl auth can-i</code> uses them.</td></tr>
+<tr><td><code>ComponentStatus</code></td><td>v1</td><td>cs · no</td><td>Old health check for control plane parts. Deprecated.</td></tr>
+</table></div>
+
+<h2>Kinds added by tools (CRDs)</h2>
+<p>Any CustomResourceDefinition adds new kinds, so the full list depends on what is installed. Some common ones:</p>
+<div class="tw"><table><tr><th>Tool</th><th>Kinds it adds</th></tr>
+<tr><td>Calico</td><td><code>GlobalNetworkPolicy</code>, <code>IPPool</code>, Calico's own <code>NetworkPolicy</code></td></tr>
+<tr><td>Cilium</td><td><code>CiliumNetworkPolicy</code>, <code>CiliumClusterwideNetworkPolicy</code></td></tr>
+<tr><td>cert-manager</td><td><code>Certificate</code>, <code>Issuer</code>, <code>ClusterIssuer</code></td></tr>
+<tr><td>Prometheus Operator</td><td><code>ServiceMonitor</code>, <code>PodMonitor</code>, <code>PrometheusRule</code></td></tr>
+<tr><td>Argo CD</td><td><code>Application</code>, <code>AppProject</code></td></tr>
+<tr><td>Gateway API</td><td><code>Gateway</code>, <code>GatewayClass</code>, <code>HTTPRoute</code></td></tr>
+<tr><td>KEDA</td><td><code>ScaledObject</code>, <code>ScaledJob</code></td></tr>
+<tr><td>Kubeflow</td><td><code>Notebook</code>, <code>Experiment</code>, <code>PyTorchJob</code>, <code>InferenceService</code> (KServe)</td></tr>
+</table></div>
+
+<h2 id="not-kinds">Not kinds, but often confused with them</h2>
+<p>These go in a <code>type</code> or other field <em>inside</em> an object, never in <code>kind</code>.</p>
+<div class="tw"><table><tr><th>Field</th><th>Values</th></tr>
+<tr><td><code>Service</code> → <code>spec.type</code></td><td><code>ClusterIP</code> (default, inside the cluster only), <code>NodePort</code> (a port on every node), <code>LoadBalancer</code> (a cloud load balancer), <code>ExternalName</code> (a DNS alias). <code>clusterIP: None</code> makes a headless Service.</td></tr>
+<tr><td><code>Secret</code> → <code>type</code></td><td><code>Opaque</code> (default), <code>kubernetes.io/tls</code>, <code>kubernetes.io/dockerconfigjson</code>, <code>kubernetes.io/basic-auth</code>, <code>kubernetes.io/ssh-auth</code>, <code>kubernetes.io/service-account-token</code></td></tr>
+<tr><td><code>NetworkPolicy</code> → <code>spec.policyTypes</code></td><td><code>Ingress</code>, <code>Egress</code></td></tr>
+<tr><td><code>Deployment</code> → <code>spec.strategy.type</code></td><td><code>RollingUpdate</code> (default), <code>Recreate</code></td></tr>
+<tr><td>Pod → <code>spec.restartPolicy</code></td><td><code>Always</code>, <code>OnFailure</code>, <code>Never</code></td></tr>
+<tr><td>Container → <code>imagePullPolicy</code></td><td><code>Always</code>, <code>IfNotPresent</code>, <code>Never</code></td></tr>
+<tr><td>PVC → <code>accessModes</code></td><td><code>ReadWriteOnce</code>, <code>ReadOnlyMany</code>, <code>ReadWriteMany</code>, <code>ReadWriteOncePod</code></td></tr>
+</table></div>
+
+<h2>Find the kinds on any cluster</h2>
+<pre><code>kubectl api-resources                    # every kind, its apiVersion and short name
+kubectl api-resources --namespaced=false # only cluster-wide kinds
+kubectl api-resources --api-group=apps   # one API group
+kubectl explain daemonset.spec           # the fields a kind accepts
+kubectl get crd                          # kinds added by installed tools</code></pre>
+</main></body></html>

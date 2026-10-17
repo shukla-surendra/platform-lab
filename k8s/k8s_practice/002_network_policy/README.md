@@ -24,6 +24,9 @@ cd 01_deny_all_ingress
 
 Each folder also has an `index.html`: open [`index.html`](index.html) here for a clickable overview.
 
+Background: [`cni_and_network_policy.html`](cni_and_network_policy.html) explains which network plugins (CNI)
+enforce NetworkPolicy, how to check which one you have, and how to switch.
+
 ## What a NetworkPolicy is
 
 By default, **every pod can connect to every other pod**, in any namespace. A NetworkPolicy is a firewall
