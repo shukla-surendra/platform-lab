@@ -1,0 +1,784 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Job Queue Case Study</title>
+<style>
+  :root {
+    --bg: #fbfbf9; --surface: #ffffff; --surface-2: #f2f2ee; --text: #1d1d1b; --muted: #62625c;
+    --border: #dcdcd5; --accent: #2f5fb3; --accent-soft: #e6edf9; --good: #2e7d4f; --warn: #a86512; --bad: #b3372f;
+    --code-bg: #f2f2ee;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #161615; --surface: #1f1f1d; --surface-2: #262624; --text: #e9e9e4; --muted: #a3a39b;
+      --border: #3a3a36; --accent: #86a8ec; --accent-soft: #233150; --good: #6cc495; --warn: #e0a252; --bad: #ec8a82;
+      --code-bg: #262624;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #161615; --surface: #1f1f1d; --surface-2: #262624; --text: #e9e9e4; --muted: #a3a39b;
+    --border: #3a3a36; --accent: #86a8ec; --accent-soft: #233150; --good: #6cc495; --warn: #e0a252; --bad: #ec8a82;
+    --code-bg: #262624;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  main { max-width: 880px; margin: 0 auto; padding: 40px 16px 80px; }
+  h1 { font-size: 1.9rem; line-height: 1.25; margin: 0 0 8px; }
+  h2 { font-size: 1.35rem; margin: 56px 0 12px; padding-top: 8px; border-top: 1px solid var(--border); }
+  h3 { font-size: 1.05rem; margin: 28px 0 8px; }
+  .lede { color: var(--muted); font-size: 1.05rem; margin: 0 0 24px; }
+  a { color: var(--accent); }
+  code { font: 0.88em ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--code-bg); padding: 1px 5px; border-radius: 4px; }
+  pre { background: var(--code-bg); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; overflow-x: auto; font-size: 0.85rem; line-height: 1.5; }
+  pre code { background: none; padding: 0; font-size: inherit; }
+  nav.toc { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px 20px; }
+  nav.toc ol { margin: 6px 0 0; padding-left: 20px; columns: 2; column-gap: 32px; }
+  nav.toc li { margin: 2px 0; break-inside: avoid; }
+  @media (max-width: 640px) { nav.toc ol { columns: 1; } }
+  .table-wrap { overflow-x: auto; margin: 12px 0 20px; border: 1px solid var(--border); border-radius: 8px; }
+  table { border-collapse: collapse; width: 100%; font-size: 0.9rem; background: var(--surface); }
+  th, td { text-align: left; vertical-align: top; padding: 9px 12px; border-bottom: 1px solid var(--border); }
+  th { background: var(--surface-2); font-weight: 600; white-space: nowrap; }
+  tr:last-child td { border-bottom: none; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .callout { background: var(--accent-soft); border-left: 3px solid var(--accent); border-radius: 6px; padding: 12px 16px; margin: 16px 0; }
+  .callout.warn { background: transparent; border: 1px solid var(--warn); border-left-width: 3px; }
+  .callout p { margin: 4px 0; }
+  .good { color: var(--good); } .bad { color: var(--bad); } .warn-t { color: var(--warn); }
+  figure { margin: 20px 0; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px; }
+  figure svg { width: 100%; height: auto; display: block; }
+  figcaption { color: var(--muted); font-size: 0.85rem; margin-top: 8px; }
+  .meta { color: var(--muted); font-size: 0.85rem; }
+  .answers { display: grid; gap: 12px; margin: 20px 0; }
+  .answer { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px 16px; }
+  .answer b.q { display: block; margin-bottom: 4px; }
+  .answer p { margin: 4px 0; }
+  .d-box { fill: var(--surface-2); stroke: var(--border); stroke-width: 1.5; }
+  .d-box.hl { fill: var(--accent-soft); stroke: var(--accent); }
+  .d-row { fill: var(--surface); stroke: var(--border); }
+  .d-title { fill: var(--text); font: 600 13px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+  .d-sub { fill: var(--muted); font: 11.5px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+  .d-mono { fill: var(--text); font: 12px ui-monospace, SFMono-Regular, Menlo, monospace; }
+  .d-edge { stroke: var(--accent); stroke-width: 1.5; fill: none; }
+  .d-edge.hot { stroke: var(--bad); stroke-width: 2.5; }
+  .d-edge.read { stroke: var(--muted); stroke-dasharray: 4 4; }
+  .d-head { fill: var(--accent); } .d-head-hot { fill: var(--bad); } .d-head-m { fill: var(--muted); }
+  .d-lbl { fill: var(--text); font: 11.5px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+           paint-order: stroke; stroke: var(--surface); stroke-width: 5px; stroke-linejoin: round; }
+  .d-lbl.hot { fill: var(--bad); font-weight: 600; }
+
+  /* calculator */
+  .calc { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px; margin: 16px 0; }
+  .calc .inputs { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px 14px; }
+  .calc label { display: grid; gap: 3px; font-size: 0.82rem; color: var(--muted); }
+  .calc label.check { display: flex; align-items: center; gap: 8px; color: var(--text); font-size: 0.88rem; grid-column: 1 / -1; }
+  .calc input[type=number], .calc select { font: inherit; font-size: 0.95rem; color: var(--text); background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 6px 8px; width: 100%; }
+  .calc .presets { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+  .calc button { font: inherit; font-size: 0.82rem; color: var(--text); background: var(--surface-2); border: 1px solid var(--border); border-radius: 6px; padding: 4px 10px; cursor: pointer; }
+  .calc button:hover { border-color: var(--accent); }
+  .calc .out { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-top: 16px; }
+  .calc .tile { background: var(--surface-2); border-radius: 8px; padding: 8px 12px; }
+  .calc .tile .v { font-size: 1.25rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .calc .tile .l { font-size: 0.78rem; color: var(--muted); }
+  .calc .tile.bad .v { color: var(--bad); }
+  .calc .tile.warn .v { color: var(--warn); }
+  .calc .verdict { margin-top: 14px; padding: 10px 14px; border-radius: 8px; background: var(--accent-soft); border-left: 3px solid var(--accent); }
+  .calc .verdict ul { margin: 6px 0 0; padding-left: 20px; }
+</style>
+</head>
+<body>
+<main>
+
+<h1>Postgres job queue: load, sizing and per-tenant limits</h1>
+<p class="lede">A case study of the job management app in <a href="postgres_queue_lab/">postgres_queue_lab/</a>
+(web UI, workers with heartbeats and acks, all on one Postgres). How much work does it give the database, what
+size of instance does it need for a given number of jobs and workers, and can it limit each tenant's queue?
+Every cost on this page was measured on the running app, not estimated from docs.</p>
+
+<nav class="toc" aria-label="Contents">
+  <strong>Contents</strong>
+  <ol>
+    <li><a href="#answers">Short answers</a></li>
+    <li><a href="#app">The application</a></li>
+    <li><a href="#costs">What each operation costs (measured)</a></li>
+    <li><a href="#pressure">Where the pressure really comes from</a></li>
+    <li><a href="#sizing">Sizing: jobs, workers, connections, WAL</a></li>
+    <li><a href="#instances">Which instance to pick</a></li>
+    <li><a href="#tenants">Per-tenant rate limits and quotas</a></li>
+    <li><a href="#tuning">Changes to make before scaling</a></li>
+    <li><a href="#monitoring">What to monitor</a></li>
+    <li><a href="#shared">Sharing one Postgres with the app</a></li>
+    <li><a href="#limits">When to move to a message broker</a></li>
+    <li><a href="#cost">Cost implications</a></li>
+    <li><a href="#broker-storage">Where brokers keep their data</a></li>
+  </ol>
+</nav>
+
+<h2 id="answers">1. Short answers</h2>
+<div class="answers">
+  <div class="answer">
+    <b class="q">How much pressure does it put on Postgres?</b>
+    <p>Less than you might think per job, and more than you'd think per worker. A job's whole life (submit, claim, ack,
+      3 history rows) costs about <b>2.5 KB of WAL and 3 commits</b>. A laptop container pushed <b>~1,550 jobs/s</b>.
+      The steady cost is <b>heartbeats</b>: every busy worker writes twice a second, even when no new jobs arrive.
+      As built (1 job per process, 3 connections each), <b>connections run out long before CPU or disk</b>: 100 jobs/s
+      of 5-second jobs needs ~715 workers and ~2,150 connections.</p>
+  </div>
+  <div class="answer">
+    <b class="q">What instance does it need?</b>
+    <p>With the <a href="#tuning">tuned worker design</a> (many jobs per process, batched heartbeats every 10s):
+      up to ~10 jobs/s fits a <b>2 vCPU / 8 GB</b> instance; ~100 jobs/s a <b>4 vCPU / 16 GB</b> one with ~3,000 IOPS;
+      ~1,000 jobs/s needs <b>8–16 vCPU / 32–64 GB</b> with provisioned IOPS and a database of its own, and is where a
+      dedicated broker starts to make sense. Disk and WAL volume, connections and vacuum decide the size, not CPU.
+      Use the <a href="#calculator">calculator</a> for your own numbers.</p>
+  </div>
+  <div class="answer">
+    <b class="q">Can it rate-limit per tenant?</b>
+    <p>Yes, in Postgres alone, inside the claim transaction: a <b>concurrency cap</b> (max running per tenant), a
+      <b>token bucket</b> (max job starts per second, with burst), a <b>backlog quota</b> (max queued, rejected at
+      submit with HTTP 429), and <b>fair ordering</b> so a noisy tenant can't starve the others. A tested prototype is in
+      <code>tenant_limits.sql</code>: with 20 workers racing, every limit held exactly. See <a href="#tenants">section 7</a>.</p>
+  </div>
+  <div class="answer">
+    <b class="q">Should it share the application's Postgres? When is a broker needed?</b>
+    <p>Share it at first: you get jobs that commit atomically with app data, at almost no extra cost. Move it off once it's more than
+      ~20–40% of the instance's WAL or app latency rises with queue bursts (<a href="#shared">section 10</a>). Add a broker at
+      roughly 1,000–2,000 jobs/s sustained, or earlier for bursts, ~10 ms pickup, very short jobs or fan-out (<a href="#limits">section 11</a>).
+      Below ~100 jobs/s a broker mostly adds people cost; around 1,000 jobs/s the infrastructure costs cross (<a href="#cost">section 12</a>).
+      Brokers keep messages in their own log or Raft storage, not a database, so job status and history still live in Postgres
+      (<a href="#broker-storage">section 13</a>).</p>
+  </div>
+  <div class="answer">
+    <b class="q">Does any of this need a Postgres extension?</b>
+    <p>No. Everything uses core Postgres. Two are worth having anyway: <code>pg_stat_statements</code> to see query cost
+      in production (all managed services offer it), and optionally <code>pg_cron</code> to run retention deletes.</p>
+  </div>
+</div>
+
+<h2 id="app">2. The application</h2>
+<p>A FastAPI web app (UI + API) and N workers, all talking to one Postgres. Three tables in the <code>jobqueue</code> schema:
+<code>jobs</code> (one row per job, with its lease), <code>job_events</code> (history) and <code>workers</code> (one row per
+worker process). The diagram shows what each part writes, per second or per job.</p>
+
+<figure>
+<svg viewBox="0 0 820 370" role="img" aria-label="Web app and workers writing to Postgres tables; heartbeats are the constant write load">
+  <defs>
+    <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0L10,5L0,10z" class="d-head"/></marker>
+    <marker id="ahh" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0L10,5L0,10z" class="d-head-hot"/></marker>
+    <marker id="ahm" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0L10,5L0,10z" class="d-head-m"/></marker>
+  </defs>
+  <!-- web -->
+  <rect x="20" y="40" width="210" height="90" rx="10" class="d-box"/>
+  <text x="125" y="70" text-anchor="middle" class="d-title">Browser + web (FastAPI)</text>
+  <text x="125" y="90" text-anchor="middle" class="d-sub">submit, cancel, retry</text>
+  <text x="125" y="108" text-anchor="middle" class="d-sub">UI refresh every 1s per tab</text>
+  <!-- workers -->
+  <rect x="20" y="160" width="210" height="190" rx="10" class="d-box"/>
+  <text x="125" y="250" text-anchor="middle" class="d-title">Worker × N</text>
+  <text x="125" y="270" text-anchor="middle" class="d-sub">main loop: claim → work → ack</text>
+  <text x="125" y="288" text-anchor="middle" class="d-sub">heartbeat thread: every 1s</text>
+  <text x="125" y="306" text-anchor="middle" class="d-sub">listener: LISTEN jobqueue_new</text>
+  <text x="125" y="330" text-anchor="middle" class="d-sub">3 connections per worker</text>
+  <!-- postgres -->
+  <rect x="540" y="20" width="260" height="340" rx="12" class="d-box hl"/>
+  <text x="670" y="44" text-anchor="middle" class="d-title">Postgres</text>
+  <rect x="556" y="58" width="228" height="150" rx="6" class="d-row"/>
+  <text x="570" y="80" class="d-mono">jobqueue.jobs</text>
+  <text x="570" y="99" class="d-sub">~390 B/row incl. 4 indexes</text>
+  <text x="570" y="115" class="d-sub">each update writes a new row version</text>
+  <rect x="556" y="220" width="228" height="44" rx="6" class="d-row"/>
+  <text x="570" y="240" class="d-mono">jobqueue.job_events</text>
+  <text x="570" y="256" class="d-sub">~276 B/row, 3 rows per job</text>
+  <rect x="556" y="276" width="228" height="44" rx="6" class="d-row"/>
+  <text x="570" y="296" class="d-mono">jobqueue.workers</text>
+  <text x="570" y="312" class="d-sub">1 row per worker</text>
+  <text x="670" y="345" text-anchor="middle" class="d-sub">WAL → disk, standby, backups</text>
+  <!-- edges: all horizontal, label above each -->
+  <path d="M230,78 L552,78" class="d-edge" marker-end="url(#ah)"/>
+  <text x="246" y="72" class="d-lbl">submit: 1 INSERT + 1 event</text>
+  <path d="M230,112 L552,112" class="d-edge read" marker-end="url(#ahm)"/>
+  <text x="246" y="106" class="d-lbl">UI: 4 reads/s per tab (2 full-table counts)</text>
+  <path d="M230,176 L552,176" class="d-edge hot" marker-end="url(#ahh)"/>
+  <text x="246" y="170" class="d-lbl hot">job heartbeat: UPDATE + commit/s per busy worker</text>
+  <path d="M230,200 L552,200" class="d-edge" marker-end="url(#ah)"/>
+  <text x="246" y="194" class="d-lbl">per job: claim + ack = 2 UPDATE</text>
+  <path d="M230,242 L552,242" class="d-edge" marker-end="url(#ah)"/>
+  <text x="246" y="236" class="d-lbl">per job: 2 events (claimed, acked)</text>
+  <path d="M230,298 L552,298" class="d-edge hot" marker-end="url(#ahh)"/>
+  <text x="246" y="292" class="d-lbl hot">worker heartbeat: UPDATE + commit/s, busy or idle</text>
+</svg>
+<figcaption>Red: the write load that never stops while workers are busy. The job lifecycle costs are paid once per job;
+heartbeats are paid every second for as long as each job runs.</figcaption>
+</figure>
+
+<h2 id="costs">3. What each operation costs (measured)</h2>
+<p>Measured on the lab stack (Postgres 17 in Docker on an Apple-silicon laptop, default settings,
+<code>shared_buffers</code> 128 MB). WAL bytes come from <code>pg_current_wal_lsn()</code> before and after, broken down
+by record type with the <code>pg_walinspect</code> contrib extension (installed only for the test); row counts come
+from <code>pg_stat_user_tables</code>. Absolute timings depend on hardware; byte and row counts don't.</p>
+
+<div class="table-wrap"><table>
+  <tr><th>Operation</th><th class="num">WAL</th><th class="num">Commits</th><th>Rows written</th></tr>
+  <tr><td>One job's lifecycle: submit + claim + ack (+ 3 events)</td><td class="num">~2.5 KB</td><td class="num">3</td><td>jobs: 1 insert, 2 updates (not HOT); events: 3 inserts</td></tr>
+  <tr><td>Busy worker, per second (1 job heartbeat + 1 worker heartbeat)</td><td class="num">564 B</td><td class="num">2</td><td>jobs: 1 update (not HOT); workers: 1 update (HOT)</td></tr>
+  <tr><td>Same, after dropping the <code>jobs_lease</code> index + fillfactor 80</td><td class="num good">362 B</td><td class="num">2</td><td>both updates HOT: no index writes at all</td></tr>
+  <tr><td>Idle worker, per second (heartbeat + one empty claim)</td><td class="num">~150 B</td><td class="num">~2</td><td>workers: 1 update (HOT); empty claim writes nothing</td></tr>
+  <tr><td>Storage kept per finished job (row + 3 events, with indexes)</td><td class="num">~1.2 KB</td><td class="num">—</td><td>plus the payload and result size</td></tr>
+</table></div>
+
+<div class="table-wrap"><table>
+  <tr><th>Throughput and read costs</th><th>Result</th></tr>
+  <tr><td>2 workers, zero-work jobs</td><td>570 jobs/s (limited by round trips, not the database)</td></tr>
+  <tr><td>18 workers, 10,000 zero-work jobs</td><td><b>~1,550 jobs/s</b>, 4 MB/s of WAL, each worker took 531–544 jobs (even spread)</td></tr>
+  <tr><td>Empty claim query with 1M finished jobs in the table</td><td>0.1 ms (the partial index only holds queued jobs)</td></tr>
+  <tr><td>UI's <code>count(*) GROUP BY status</code> with 1M finished jobs</td><td class="bad">52 ms</td></tr>
+  <tr><td>UI's <code>SELECT DISTINCT queue</code> with 1M finished jobs</td><td class="bad">54 ms</td></tr>
+  <tr><td>UI's newest-100 list, and the status filter</td><td>0.1 ms (index scans)</td></tr>
+</table></div>
+
+<h3>Why a busy worker writes 564 bytes a second</h3>
+<p>The WAL breakdown for 15 seconds of two busy workers showed where the bytes go: per heartbeat, one
+<code>Heap/UPDATE</code> for the job row, one <code>Heap/HOT_UPDATE</code> for the worker row, two commits,
+a row-lock record, and <b>three B-tree index inserts</b> (90 in 15s, the largest item). The job heartbeat changes
+<code>locked_until</code>, which is indexed by <code>jobs_lease</code>. When an UPDATE changes an indexed column,
+Postgres can't do a HOT (heap-only tuple) update, so it writes a new entry into <em>every</em> index on the table.</p>
+<p>Dropping <code>jobs_lease</code> fixed it: 34 of 36 job updates became HOT, index inserts went to zero, and WAL fell 36%.
+Reclaiming expired leases still finds its rows quickly through the <code>(status, id)</code> index, because only
+running jobs are scanned. Fewer index writes also means less index bloat for vacuum to clean up.</p>
+
+<div class="callout warn"><p><b>Measurement trap.</b> The first change to each page after a checkpoint writes the whole
+8 KB page to WAL (a "full page write"). My first heartbeat measurement ran right after a <code>CHECKPOINT</code> and
+reported ~2 KB per heartbeat, four times the true steady-state figure. Measure over a window that doesn't start at a
+checkpoint, or inspect record types with <code>pg_walinspect</code>.</p></div>
+
+<h2 id="pressure">4. Where the pressure really comes from</h2>
+<p>Ranked by what breaks first as load grows, for the app as built:</p>
+<div class="table-wrap"><table>
+  <tr><th>#</th><th>Pressure</th><th>Why</th><th>Fix</th></tr>
+  <tr><td>1</td><td><b>Connections</b></td><td>3 per worker (main, heartbeat, listener), one job per worker. 700 workers = 2,100 connections.
+    Each Postgres connection is a process using several MB of RAM; past a few hundred, context switching and lock management slow everything.</td>
+    <td>Many jobs per worker process sharing a small pool. PgBouncer in front for the rest.</td></tr>
+  <tr><td>2</td><td><b>Heartbeat writes</b></td><td>2 commits/s per busy worker, forever. At 500 running jobs that's 1,000 commits/s
+    before any job finishes, and each creates a dead row version.</td>
+    <td>Heartbeat every 10s with a 30s lease; one batched UPDATE per process; HOT-friendly indexes.</td></tr>
+  <tr><td>3</td><td><b>WAL volume</b></td><td>Every write goes to WAL, then to the disk, the standby and the backups.
+    100 jobs/s as built ≈ 49 GB of WAL/day. On cloud disks, WAL fsync latency caps commit rate.</td>
+    <td>Fewer writes (above); disks with enough IOPS; <code>synchronous_commit = off</code> for heartbeats only (losing one is harmless).</td></tr>
+  <tr><td>4</td><td><b>Dead rows and vacuum</b></td><td>Each job row is rewritten 2+ times plus once per heartbeat. If autovacuum falls behind,
+    the claim index fills with dead entries and claims slow down (the <a href="postgres_as_a_queue.html#polling-cost">polling test</a> saw 450 pages read instead of 1).</td>
+    <td>Per-table autovacuum settings; delete or archive finished jobs.</td></tr>
+  <tr><td>5</td><td><b>The UI</b></td><td>Each open tab runs two full-table counts per second. With 1M finished jobs that's ~100 ms of CPU per tab per second, and it grows with history.</td>
+    <td>Retention; count only queued/running live; refresh every 5s; estimate the totals.</td></tr>
+  <tr><td>6</td><td><b>NOTIFY on every insert</b></td><td>Postgres serialises the commits of transactions that called <code>NOTIFY</code> with a global lock.
+    Harmless at hundreds of jobs/s, a bottleneck at thousands.</td>
+    <td>At high rates, drop the trigger and poll (an empty poll is 0.1 ms and writes nothing).</td></tr>
+</table></div>
+
+<h2 id="sizing">5. Sizing: jobs, workers, connections, WAL</h2>
+<p>The two numbers that drive everything are the <b>arrival rate</b> λ (jobs per second) and the <b>average duration</b> D.
+By Little's law, the number of jobs running at once is <b>C = λ × D</b>. Workers are sized for C with ~30% headroom.
+The costs from <a href="#costs">section 3</a> then give the load:</p>
+<pre><code>running jobs      C        = λ × D
+worker slots      S        = C / 0.7                       (30% headroom for bursts and retries)
+processes         P        = S / jobs_per_process          (as built: 1)
+connections                = P × conns_per_process + web pool (10)
+commits/s                  ≈ 3λ + job_heartbeat_statements/s + P / heartbeat_interval
+WAL bytes/s                ≈ 2,500 λ + (C / heartbeat_interval) × (416, or 214 if HOT) + (P / heartbeat_interval) × 148
+storage                    ≈ λ × 86,400 × retention_days × (1.2 KB + payload)</code></pre>
+
+<h3>Three scenarios, 5-second jobs, 7 days of history</h3>
+<div class="table-wrap"><table>
+  <tr><th>Jobs/s (per day)</th><th>Design</th><th class="num">Running</th><th class="num">Worker processes</th><th class="num">Connections</th><th class="num">Commits/s</th><th class="num">WAL/day</th><th class="num">Storage</th></tr>
+  <tr><td rowspan="2">10 (0.9 M)</td><td>as built</td><td class="num">50</td><td class="num">72</td><td class="num warn-t">226</td><td class="num">152</td><td class="num">4.9 GB</td><td class="num" rowspan="2">10 GB</td></tr>
+  <tr><td>tuned</td><td class="num">50</td><td class="num">2</td><td class="num good">14</td><td class="num">30</td><td class="num">2.3 GB</td></tr>
+  <tr><td rowspan="2">100 (8.6 M)</td><td>as built</td><td class="num">500</td><td class="num">715</td><td class="num bad">2,155</td><td class="num">1,515</td><td class="num">49 GB</td><td class="num" rowspan="2">104 GB</td></tr>
+  <tr><td>tuned</td><td class="num">500</td><td class="num">15</td><td class="num good">40</td><td class="num">303</td><td class="num">23 GB</td></tr>
+  <tr><td rowspan="2">1,000 (86 M)</td><td>as built</td><td class="num">5,000</td><td class="num">7,143</td><td class="num bad">21,439</td><td class="num bad">15,143</td><td class="num bad">487 GB</td><td class="num bad" rowspan="2">1 TB</td></tr>
+  <tr><td>tuned</td><td class="num">5,000</td><td class="num">143</td><td class="num warn-t">296</td><td class="num">3,029</td><td class="num warn-t">225 GB</td></tr>
+</table></div>
+<p class="meta">As built: 1 job per process, 3 connections each, heartbeat every 1s, current indexes. Tuned: 50 jobs per
+process, 2 connections each, one batched heartbeat every 10s (30s lease), HOT-friendly indexes. Retention is the
+biggest storage lever: at 1,000 jobs/s keep a day or two in Postgres and archive the rest to object storage.</p>
+
+<p>Two things stand out. The job lifecycle cost (2.5 KB, 3 commits) is the same in both designs, and at 1,000 jobs/s it alone is
+~2.5 MB/s of WAL, more than half of what the laptop wrote at its ceiling. And in the as-built design, <b>heartbeats and
+connections, not jobs, are most of the load</b>: tuning cuts commits 5× and connections 50× while doing the same work.</p>
+
+<h3 id="calculator">Calculator</h3>
+<div class="calc" id="calc">
+  <div class="presets">
+    <button type="button" data-p='{"rate":10,"dur":5,"per":1,"hb":1,"hot":false,"conns":3}'>10/s as built</button>
+    <button type="button" data-p='{"rate":100,"dur":5,"per":1,"hb":1,"hot":false,"conns":3}'>100/s as built</button>
+    <button type="button" data-p='{"rate":100,"dur":5,"per":50,"hb":10,"hot":true,"conns":2}'>100/s tuned</button>
+    <button type="button" data-p='{"rate":1000,"dur":5,"per":50,"hb":10,"hot":true,"conns":2}'>1000/s tuned</button>
+    <button type="button" data-p='{"rate":2,"dur":600,"per":20,"hb":10,"hot":true,"conns":2}'>long jobs: 2/s × 10 min</button>
+  </div>
+  <div class="inputs">
+    <label>Jobs per second <input type="number" id="c-rate" value="100" min="0" step="any"></label>
+    <label>Average job duration (s) <input type="number" id="c-dur" value="5" min="0" step="any"></label>
+    <label>Jobs per worker process <input type="number" id="c-per" value="1" min="1"></label>
+    <label>Heartbeat interval (s) <input type="number" id="c-hb" value="1" min="1"></label>
+    <label>Connections per process <input type="number" id="c-conns" value="3" min="1"></label>
+    <label>History kept (days) <input type="number" id="c-ret" value="7" min="0" step="any"></label>
+    <label>Payload + result (KB) <input type="number" id="c-payload" value="0.5" min="0" step="any"></label>
+    <label>Retry rate (%) <input type="number" id="c-retry" value="0" min="0" max="100"></label>
+    <label class="check"><input type="checkbox" id="c-hot"> HOT-friendly heartbeat (no <code>jobs_lease</code> index)</label>
+  </div>
+  <div class="out" id="c-out"></div>
+  <div class="verdict" id="c-verdict"></div>
+</div>
+<p class="meta">Uses the measured costs from section 3 and the formulas above. Each retry is counted as one more claim and nack
+(~1.7 KB of WAL and 2 commits; estimated from the lifecycle measurement, not measured separately). The instance suggestion
+follows the thresholds in section 6.</p>
+
+<h2 id="instances">6. Which instance to pick</h2>
+<p>A queue's working set is small (the queued and running rows plus the top of a few indexes), so it rarely needs much memory
+or CPU. It needs <b>fast, steady commits</b> (disk latency and IOPS), <b>headroom for WAL</b> (disk, replication, backups),
+and <b>enough connections</b>. Use these as starting points, then load-test with your real job mix:</p>
+<div class="table-wrap"><table>
+  <tr><th>Load (tuned design)</th><th>Instance</th><th>Examples</th><th>Disk</th><th>Notes</th></tr>
+  <tr><td>Dev, or up to ~10 jobs/s<br><span class="meta">&lt; 300 commits/s, &lt; 0.2 MB/s WAL</span></td>
+    <td>2 vCPU / 8 GB</td><td>AWS RDS <code>db.m7g.large</code>; Azure Flexible Server <code>D2ds_v5</code></td>
+    <td>64–128 GB SSD</td><td>Can share the app's database. A burstable (t4g / B-series) instance is fine for dev; the load is small but constant.</td></tr>
+  <tr><td>~100 jobs/s (8.6 M/day)<br><span class="meta">~300–1,500 commits/s, ~0.3–0.6 MB/s WAL</span></td>
+    <td>4 vCPU / 16 GB</td><td><code>db.m7g.xlarge</code>; <code>D4ds_v5</code></td>
+    <td>256 GB+, ≥ 3,000 IOPS</td><td>Give it its own database, or a quiet app DB. Turn on HA (a standby doubles the cost, and the WAL is shipped to it).</td></tr>
+  <tr><td>~1,000 jobs/s (86 M/day)<br><span class="meta">~3,000+ commits/s, ~2.5 MB/s WAL</span></td>
+    <td>8–16 vCPU / 32–64 GB</td><td><code>db.m7g.2xlarge</code>–<code>4xlarge</code>; <code>D8ds_v5</code>–<code>D16ds_v5</code></td>
+    <td>1–2 TB, provisioned IOPS (10k+)</td><td>A dedicated instance with PgBouncer, batched claims and acks, polling instead of NOTIFY,
+      partitioned events, and 1–2 days of retention. Compare against a broker (<a href="messaging_tools_compared.html">messaging tools compared</a>).</td></tr>
+  <tr><td>Beyond ~2,000 jobs/s sustained</td><td colspan="4">Possible with care, but you're now tuning Postgres to be a broker.
+    RabbitMQ, SQS or Redis Streams do this for less effort; keep Postgres for job state and history if you need SQL over it.</td></tr>
+</table></div>
+<div class="callout"><p><b>Ballpark connection limits:</b> managed Postgres usually sets <code>max_connections</code> from memory,
+in the low hundreds for 8–16 GB instances. Whatever the limit, aim to keep <b>active</b> connections near 2–4× the vCPU count;
+more connections past that make things slower, not faster.</p></div>
+
+<h2 id="tenants">7. Per-tenant rate limits and quotas</h2>
+<p>Yes, and it fits naturally: a claim is already a transaction, so the limits can be checked and charged in that same
+transaction, with no extra infrastructure. "Limit a tenant" can mean four different things, and you usually want all four:</p>
+<div class="table-wrap"><table>
+  <tr><th>Limit</th><th>Question it answers</th><th>Where it's enforced</th><th>When exceeded</th></tr>
+  <tr><td><b>Concurrency cap</b></td><td>How many of this tenant's jobs may run at once?</td><td>Claim</td><td>Jobs wait in the queue</td></tr>
+  <tr><td><b>Start rate</b> (token bucket)</td><td>How many jobs per second may start, with what burst?</td><td>Claim</td><td>Jobs wait in the queue</td></tr>
+  <tr><td><b>Backlog quota</b></td><td>How many jobs may be waiting?</td><td>Submit</td><td>Rejected: HTTP 429</td></tr>
+  <tr><td><b>Fair share</b></td><td>Whose job runs next when several tenants are waiting?</td><td>Claim ordering</td><td>—</td></tr>
+</table></div>
+<p>Without these, the claim is "oldest job first" across everyone: a tenant who submits 10,000 jobs makes every other
+tenant wait behind them.</p>
+
+<h3>Schema</h3>
+<pre><code>ALTER TABLE jobqueue.jobs ADD COLUMN tenant_id text NOT NULL DEFAULT 'default';
+CREATE INDEX jobs_tenant_ready   ON jobqueue.jobs (tenant_id, priority DESC, run_after, id) WHERE status = 'queued';
+CREATE INDEX jobs_tenant_running ON jobqueue.jobs (tenant_id) WHERE status = 'running';
+
+CREATE TABLE jobqueue.tenants (
+  tenant_id      text PRIMARY KEY,
+  max_running    int     NOT NULL DEFAULT 5,       -- concurrency cap
+  rate_per_sec   numeric NOT NULL DEFAULT 10,      -- token bucket: job starts per second
+  burst          numeric NOT NULL DEFAULT 10,      -- bucket size
+  max_queued     int     NOT NULL DEFAULT 10000,   -- backlog quota, checked at submit
+  tokens         numeric NOT NULL DEFAULT 10,      -- bucket state
+  refilled_at    timestamptz NOT NULL DEFAULT now(),
+  last_served_at timestamptz NOT NULL DEFAULT '-infinity'   -- for round-robin fairness
+);</code></pre>
+
+<h3>The claim, in four steps</h3>
+<pre><code>CREATE FUNCTION jobqueue.claim(p_worker text, p_lease int DEFAULT 30) RETURNS SETOF jobqueue.jobs
+LANGUAGE plpgsql AS $$
+DECLARE t jobqueue.tenants; j jobqueue.jobs; avail numeric;
+BEGIN
+  -- 1. Expired leases first. They already count as running for their tenant, so no limit applies.
+  RETURN QUERY UPDATE jobqueue.jobs SET attempts = attempts + 1, locked_by = p_worker,
+                      locked_until = now() + make_interval(secs => p_lease)
+    WHERE id = (SELECT id FROM jobqueue.jobs WHERE status = 'running' AND locked_until &lt; now()
+                FOR UPDATE SKIP LOCKED LIMIT 1) RETURNING *;
+  IF FOUND THEN RETURN; END IF;
+
+  -- 2. Fairness + rate: the least recently served tenant that has a due job and a token.
+  --    Locking its row serialises claims for that tenant; other workers SKIP it and serve someone else.
+  SELECT * INTO t FROM jobqueue.tenants tn
+  WHERE least(burst, tokens + extract(epoch FROM clock_timestamp() - refilled_at) * rate_per_sec) >= 1
+    AND EXISTS (SELECT 1 FROM jobqueue.jobs q
+                WHERE q.tenant_id = tn.tenant_id AND q.status = 'queued' AND q.run_after &lt;= now())
+  ORDER BY last_served_at
+  FOR UPDATE SKIP LOCKED LIMIT 1;
+  IF NOT FOUND THEN RETURN; END IF;
+
+  -- 3. Concurrency cap. A new statement, so it sees every claim committed before we got the lock,
+  --    and no one else can claim for this tenant until we commit. Finishing jobs only lower the count.
+  IF (SELECT count(*) FROM jobqueue.jobs WHERE tenant_id = t.tenant_id AND status = 'running') >= t.max_running THEN
+    UPDATE jobqueue.tenants SET last_served_at = clock_timestamp() WHERE tenant_id = t.tenant_id;  -- rotate past it
+    RETURN;
+  END IF;
+
+  -- 4. Claim the tenant's next job, then spend a token.
+  UPDATE jobqueue.jobs SET status = 'running', attempts = attempts + 1, locked_by = p_worker,
+         locked_until = now() + make_interval(secs => p_lease)
+  WHERE id = (SELECT id FROM jobqueue.jobs WHERE tenant_id = t.tenant_id AND status = 'queued' AND run_after &lt;= now()
+              ORDER BY priority DESC, run_after, id FOR UPDATE SKIP LOCKED LIMIT 1)
+  RETURNING * INTO j;
+  IF NOT FOUND THEN RETURN; END IF;
+  avail := least(t.burst, t.tokens + extract(epoch FROM clock_timestamp() - t.refilled_at) * t.rate_per_sec);
+  UPDATE jobqueue.tenants SET tokens = avail - 1, refilled_at = clock_timestamp(), last_served_at = clock_timestamp()
+  WHERE tenant_id = t.tenant_id;
+  RETURN NEXT j;
+END $$;</code></pre>
+
+<p>The details that make it correct under concurrency:</p>
+<ul>
+  <li><b>No running counter to drift.</b> The cap is checked by counting running jobs through the small partial index
+    (at most <code>max_running</code> entries). A counter column would need every code path (ack, nack, cancel, crash,
+    reclaim) to decrement it exactly once; a count can't go wrong.</li>
+  <li><b>The tenant row lock is what makes the count safe.</b> Every claim for a tenant holds its row, so two workers can't
+    both see "2 running, cap 3" and both start one. In READ COMMITTED each PL/pgSQL statement takes a fresh snapshot,
+    so the count in step 3 sees all earlier claims.</li>
+  <li><b><code>SKIP LOCKED</code> on the tenant row</b> means workers don't queue up behind a busy tenant; they serve the next one.</li>
+  <li><b>A token is spent only when a job is actually claimed</b>, and the refill is computed from elapsed time, so there's no
+    background process topping up buckets.</li>
+</ul>
+
+<h3>Backlog quota at submit</h3>
+<pre><code>-- Lock the tenant row so two concurrent submits can't both squeeze under the limit.
+SELECT max_queued INTO lim FROM jobqueue.tenants WHERE tenant_id = p_tenant FOR UPDATE;
+SELECT count(*) INTO queued FROM jobqueue.jobs WHERE tenant_id = p_tenant AND status = 'queued';
+IF queued + p_count > lim THEN
+  RAISE EXCEPTION 'tenant % over its queue quota (% queued, limit %)', p_tenant, queued, lim USING ERRCODE = 'P0429';
+END IF;</code></pre>
+<p>The API maps SQLSTATE <code>P0429</code> to <b>HTTP 429 Too Many Requests</b> with a <code>Retry-After</code> header. Limiting how
+fast a tenant may <em>call</em> the submit API (requests per second) is a separate, HTTP-level limit; the same token-bucket row
+works for it, or use Redis if the API is very busy (see the <a href="redis_field_guide.html">Redis field guide</a>).</p>
+
+<h3>Tested</h3>
+<p><code>postgres_queue_lab/tenant_limits_test.py</code> runs the prototype with 20 workers competing. Tenant A is noisy (1,000 jobs);
+B–E have 50 each. Each job takes 20 ms. Every claim and finish is logged, and peaks are computed from the logs afterwards:</p>
+<div class="table-wrap"><table>
+  <tr><th>Tenant</th><th>Limits</th><th class="num">Peak running</th><th class="num">Busiest 1-second window</th><th class="num">All done after</th></tr>
+  <tr><td>A (noisy)</td><td>3 running, 40/s, burst 10</td><td class="num good">3</td><td class="num good">49–50 starts (40 + 10 burst)</td><td class="num">24.8 s</td></tr>
+  <tr><td>B, C, D, E</td><td>2 running, 20/s, burst 5</td><td class="num good">2</td><td class="num good">24–25 starts (20 + 5 burst)</td><td class="num good">2.3 s</td></tr>
+  <tr><td>B, submitting 60 more</td><td>max 100 queued</td><td colspan="3">Rejected: <code>P0429 tenant B over its queue quota (50 queued, limit 100)</code></td></tr>
+</table></div>
+<p>The small tenants finished in 2.3 seconds while A's backlog drained at its own rate. Without fairness they would
+have queued behind A's 1,000 jobs. Note the trade-off: when only A has work, idle workers <em>stay idle</em> rather than
+exceed A's limit. That's the limit doing its job; raise A's limits if you want spare capacity used.</p>
+
+<h3>Variations and scaling notes</h3>
+<div class="table-wrap"><table>
+  <tr><th>Need</th><th>How</th></tr>
+  <tr><td>Plans (free / pro / enterprise)</td><td>Put the limits on a <code>plans</code> table and join it; per-tenant overrides stay on <code>tenants</code>.</td></tr>
+  <tr><td>Weighted fairness (pro gets 3× the share)</td><td>Add <code>weight</code>; on each claim set <code>last_served_at = now() + (1/weight) × interval '1 second'</code>, so heavier tenants come round sooner.</td></tr>
+  <tr><td>Thousands of tenants</td><td>Step 2 checks every tenant on each claim. Keep a <code>has_ready</code> flag (or an <code>active_tenants</code> table)
+    maintained at submit and claim, and index <code>(last_served_at) WHERE has_ready</code>.</td></tr>
+  <tr><td>One very busy tenant</td><td>Its claims are serialised by its row lock, about one claim per round trip (~500+/s locally). Shard it into
+    sub-tenants (<code>acme#0</code>…<code>acme#3</code>) if one tenant needs more.</td></tr>
+  <tr><td>Shared downstream limit (e.g. an LLM provider's rate limit)</td><td>A global bucket row (<code>tenant_id = '*'</code>) checked in the same transaction, on top of the tenant's own.</td></tr>
+  <tr><td>Different limits per queue</td><td>Key the limits on <code>(tenant_id, queue)</code> instead of <code>tenant_id</code>.</td></tr>
+</table></div>
+<p>To add this to the app: the <code>tenant_id</code> column and tables above in <code>schema.sql</code>; the worker calls
+<code>jobqueue.claim()</code> instead of its inline <code>CLAIM</code>; <code>POST /api/jobs</code> takes a tenant and turns P0429 into
+a 429; and the UI gets a tenants panel showing running vs cap, queued vs quota, and tokens left.
+The deeper multi-tenancy picture (isolation models, RLS, spend budgets) is in
+<a href="long_running_agent_jobs.html#tenancy">Long-running agent jobs, section 11</a>.</p>
+
+<h2 id="tuning">8. Changes to make before scaling</h2>
+<p>In order of value for effort. The first three are what turns the "as built" rows of the sizing table into "tuned".</p>
+
+<h3>1. Many jobs per worker process, one batched heartbeat</h3>
+<p>Run jobs as threads or asyncio tasks inside one process with a pool of 2 connections. Heartbeat all of the process's jobs in
+one statement, still fenced per job on <code>(id, attempts)</code>:</p>
+<pre><code>UPDATE jobqueue.jobs j
+SET locked_until = now() + interval '30 seconds', heartbeat_at = now(), heartbeats = heartbeats + 1, progress = h.progress
+FROM unnest(%(ids)s::bigint[], %(attempts)s::int[], %(progress)s::int[]) AS h(id, attempt, progress)
+WHERE j.id = h.id AND j.attempts = h.attempt AND j.locked_by = %(me)s AND j.status = 'running'
+RETURNING j.id, j.cancel_requested;     -- ids missing from the result have lost their lease</code></pre>
+
+<h3>2. Heartbeat every 10 seconds, lease 30 seconds</h3>
+<p>The 1s / 5s setting in the lab exists to make lease expiry visible in a demo. A lease of about 3 heartbeats tolerates one
+missed beat. Crash detection takes 30 seconds instead of 5, which is fine for background work, and heartbeat writes drop 10×.</p>
+
+<h3>3. Make heartbeats HOT</h3>
+<pre><code>DROP INDEX jobqueue.jobs_lease;                          -- reclaim uses jobs_status_id (status, id) instead
+ALTER TABLE jobqueue.jobs SET (fillfactor = 80);         -- room on each page for the new row version
+VACUUM FULL jobqueue.jobs;                               -- rewrite existing pages (locks the table; do it in a quiet moment)</code></pre>
+<p>Measured: −36% WAL per busy worker-second and no index writes on heartbeats. Keep heartbeat-only columns out of all indexes.</p>
+
+<h3>4. Batch claims and acks</h3>
+<p>Claim <code>LIMIT 10</code> per round trip when jobs are short, and ack a batch in one transaction. This roughly divides the per-job
+commit count by the batch size. Leave <code>job_events</code> inserts in the same transaction as the state change they describe.</p>
+
+<h3>5. Vacuum the hot table aggressively</h3>
+<pre><code>ALTER TABLE jobqueue.jobs SET (autovacuum_vacuum_scale_factor = 0.01, autovacuum_vacuum_threshold = 1000,
+                               autovacuum_vacuum_cost_limit = 2000);
+ALTER TABLE jobqueue.workers SET (fillfactor = 50);      -- tiny table, rewritten every second</code></pre>
+
+<h3>6. Retention</h3>
+<p>Delete finished jobs in batches (for example every minute, <code>LIMIT 5000</code>, so no single transaction is huge), or move them to
+an archive table. Partition <code>job_events</code> by day and drop old partitions instead of deleting rows. Schedule it with
+<code>pg_cron</code> or a small periodic job in the app.</p>
+
+<h3>7. A cheaper UI</h3>
+<p>Count only <code>queued</code> and <code>running</code> live (they're small and indexed), show finished totals from a per-minute rollup or the
+<code>reltuples</code> estimate, list queues from a <code>queues</code> table, and refresh every 5 seconds. Then the UI's cost no longer grows
+with history.</p>
+
+<h3>8. Connections and NOTIFY</h3>
+<p>Put PgBouncer (transaction pooling) in front for the worker and API pools. <code>LISTEN</code> needs a real session, so keep one direct
+listener connection per process, or at high rates drop NOTIFY and poll every 1–2 seconds. Heartbeat transactions can use
+<code>SET LOCAL synchronous_commit = off</code>: a lost heartbeat after a crash is harmless, and those commits stop waiting on the WAL flush.</p>
+
+<h2 id="monitoring">9. What to monitor</h2>
+<div class="table-wrap"><table>
+  <tr><th>Signal</th><th>Query</th><th>Worry when</th></tr>
+  <tr><td>Queue depth and oldest waiting job</td><td><code>SELECT queue, count(*), max(now() - run_after) FROM jobqueue.jobs WHERE status = 'queued' AND run_after &lt;= now() GROUP BY 1</code></td><td>Age keeps growing: add workers or check limits</td></tr>
+  <tr><td>Per-tenant backlog</td><td>Same, grouped by <code>tenant_id</code></td><td>One tenant dominates</td></tr>
+  <tr><td>Reclaims (lease expiries)</td><td><code>SELECT count(*) FROM jobqueue.job_events WHERE event = 'reclaimed' AND at > now() - interval '1 hour'</code></td><td>More than a trickle: workers crashing or stalling</td></tr>
+  <tr><td>Stale workers</td><td><code>SELECT name FROM jobqueue.workers WHERE state &lt;&gt; 'stopped' AND last_seen &lt; now() - interval '30 seconds'</code></td><td>Any</td></tr>
+  <tr><td>HOT ratio and dead rows</td><td><code>SELECT n_tup_upd, n_tup_hot_upd, n_dead_tup, last_autovacuum FROM pg_stat_user_tables WHERE relname = 'jobs'</code></td><td>Dead rows climbing; HOT ratio low after tuning</td></tr>
+  <tr><td>WAL rate</td><td><code>SELECT wal_bytes FROM pg_stat_wal</code>, sampled twice</td><td>Near the disk's or replica's throughput</td></tr>
+  <tr><td>Connections</td><td><code>SELECT state, count(*) FROM pg_stat_activity GROUP BY 1</code></td><td>Active connections far above vCPUs × 4</td></tr>
+  <tr><td>Slowest queries</td><td><code>pg_stat_statements</code> ordered by <code>total_exec_time</code></td><td>The claim or the UI counts near the top</td></tr>
+</table></div>
+
+<h2 id="shared">10. Sharing one Postgres with the application</h2>
+<p>A common starting point: the application already has one Postgres instance, so should the job queue live there too?
+<b>Usually yes at first.</b> The biggest benefit is something no broker gives you: <b>creating a job in the same
+transaction as the business data</b>. If the order row commits, its "send confirmation" job commits too. If it rolls
+back, so does the job. No outbox, no lost or orphaned jobs.</p>
+<p>The cost is that the queue's writes compete with the application's. Here's what is shared, and what goes wrong:</p>
+<div class="table-wrap"><table>
+  <tr><th>Shared resource</th><th>How the queue hurts the app</th><th>How the app hurts the queue</th></tr>
+  <tr><td>WAL, disk IOPS, checkpoints</td><td>Every claim, ack and heartbeat goes through the same WAL and fsync as app commits. A burst of
+    100,000 jobs is a burst of writes the app's commits wait behind.</td><td>A big app migration or bulk load slows claims and acks.</td></tr>
+  <tr><td>Connections (<code>max_connections</code>)</td><td>Workers can take connections the app needs, and the app gets "too many clients" errors.</td>
+    <td>An app connection leak starves the workers.</td></tr>
+  <tr><td>Vacuum (<code>autovacuum_max_workers</code>, default 3, for the whole instance)</td><td>The jobs table needs vacuuming constantly and keeps
+    the vacuum workers busy, so the app's big tables wait longer.</td>
+    <td><b>The classic failure:</b> one long app transaction (a report, a stuck session left "idle in transaction") stops vacuum from removing
+    dead job rows anywhere in that database. The claim index fills with dead entries and every claim slows down until it ends.</td></tr>
+  <tr><td>Replicas and backups</td><td>Queue churn is copied to every read replica and into the backups and point-in-time-recovery logs.
+    Replica lag goes up for app reads.</td><td>—</td></tr>
+  <tr><td>CPU and memory</td><td>Small for a tuned queue. The UI's full-table counts are the exception (<a href="#costs">52 ms each at 1M jobs</a>).</td><td>—</td></tr>
+</table></div>
+
+<h3>How much is safe to share?</h3>
+<p>Measure the queue's share of the instance instead of guessing. <code>pg_stat_statements</code> (Postgres 13+) records WAL bytes per query:</p>
+<pre><code>SELECT round(100.0 * sum(wal_bytes) FILTER (WHERE query ILIKE '%jobqueue.%') / sum(wal_bytes), 1) AS queue_wal_pct,
+       round(100.0 * sum(calls)     FILTER (WHERE query ILIKE '%jobqueue.%') / sum(calls), 1)     AS queue_calls_pct
+FROM pg_stat_statements;</code></pre>
+<div class="table-wrap"><table>
+  <tr><th>Queue's share of WAL</th><th>App latency (p95) when the queue is busy</th><th>Verdict</th></tr>
+  <tr><td>Under ~10–20%</td><td>No change</td><td class="good">Share. Nothing to do.</td></tr>
+  <tr><td>~20–40%</td><td>Small, visible rise during bursts</td><td class="warn-t">Apply the <a href="#tuning">tuning</a> and the guard rails below; plan the move.</td></tr>
+  <tr><td>Over ~40%, or the app's p95 tracks queue bursts</td><td>Clearly affected</td><td class="bad">Move the queue off the app's instance.</td></tr>
+</table></div>
+<p>For scale, from the <a href="#sizing">sizing table</a>: the tuned design at 10 jobs/s writes ~25 KB/s of WAL and 30 commits/s, which is
+noise on almost any app database. At 100 jobs/s it's ~250 KB/s and ~300 commits/s, which is often a big share of a small app's write load.</p>
+
+<h3>Guard rails when sharing</h3>
+<pre><code>-- Workers log in as their own role, so they can never take every connection.
+CREATE ROLE queue_worker LOGIN PASSWORD '...' CONNECTION LIMIT 40;
+GRANT USAGE ON SCHEMA jobqueue TO queue_worker;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA jobqueue TO queue_worker;
+
+-- Stop app sessions from holding back vacuum (the classic failure above).
+ALTER ROLE app SET idle_in_transaction_session_timeout = '60s';
+ALTER ROLE app SET statement_timeout = '30s';             -- reporting roles get their own, longer limit
+
+-- Heartbeats don't need to wait for the disk flush: losing one in a crash is harmless.
+-- In the worker's heartbeat transaction:
+SET LOCAL synchronous_commit = off;</code></pre>
+<p>Plus the <a href="#tuning">tuning</a> steps (batched heartbeats every 10s, HOT-friendly indexes, aggressive autovacuum on <code>jobs</code>,
+retention) and an alert on the queue's WAL share.</p>
+
+<h3>The ladder: how to separate gradually</h3>
+<div class="table-wrap"><table>
+  <tr><th>Step</th><th>What it isolates</th><th>What you give up</th></tr>
+  <tr><td>1. Same database, own schema (this lab)</td><td>Names and permissions only</td><td>Nothing. Enqueue is transactional with app data.</td></tr>
+  <tr><td>2. Separate database on the same instance</td><td>Vacuum: a long app transaction no longer holds back vacuum on the jobs table
+    (except through replication slots or standby feedback, which apply to the whole instance). Connection limits per database.</td>
+    <td>Transactional enqueue (no cross-database transactions). Still shares WAL, disk, CPU, memory and backups.</td></tr>
+  <tr><td>3. Dedicated Postgres instance for the queue</td><td>Everything: WAL, IOPS, connections, vacuum, replicas</td>
+    <td>Transactional enqueue; you now need an <b>outbox</b> (app writes an outbox row in its own transaction, a relay copies it to the queue). One more database to run and pay for.</td></tr>
+  <tr><td>4. Broker for delivery, Postgres for job state</td><td>Delivery load (claims, polling, heartbeats, worker connections) leaves Postgres entirely</td>
+    <td>Exact SQL-based limits and atomic claim + state change; you coordinate two systems (see <a href="#broker-storage">section 13</a>).</td></tr>
+</table></div>
+<p>Step 2 is underrated: it costs nothing, fixes the vacuum problem, and is a one-line connection-string change, as long as no code enqueues
+jobs inside an app transaction. Step 3 is where the money starts (<a href="#cost">section 12</a>).</p>
+
+<h2 id="limits">11. When to move to a message broker</h2>
+<p>There's no single number. These are the signals, roughly in the order teams hit them. One strong signal or two moderate ones
+is a good reason to move <em>delivery</em> to a broker.</p>
+<div class="table-wrap"><table>
+  <tr><th>Signal</th><th>Threshold (rule of thumb)</th><th>Why Postgres struggles</th></tr>
+  <tr><td><b>Sustained throughput</b></td><td>Over ~500 jobs/s as built; over ~1,000–2,000 jobs/s even tuned. The laptop ceiling was ~1,550/s with zero-work jobs.</td>
+    <td>Each job is ~3 commits and ~2.5 KB of WAL, all fsynced. A broker appends to a log and acks in batches.</td></tr>
+  <tr><td><b>Hurting the app database</b></td><td>Queue over ~40% of the shared instance's WAL, or app p95 latency rises with queue bursts, and a dedicated instance isn't wanted</td>
+    <td>Shared WAL, IOPS, vacuum and connections (<a href="#shared">section 10</a>).</td></tr>
+  <tr><td><b>Bursts</b></td><td>Millions of jobs submitted within minutes, a few times a day</td>
+    <td>A burst is a write storm on the database: index growth, then a big vacuum. A broker absorbs bursts as cheap appends.</td></tr>
+  <tr><td><b>Pickup latency</b></td><td>Jobs must start within ~10 ms at hundreds per second or more</td>
+    <td>Polling adds up to one interval of delay. NOTIFY is instant but serialises commits under load.</td></tr>
+  <tr><td><b>Very short jobs</b></td><td>Jobs that take milliseconds, at high volume</td>
+    <td>The bookkeeping (claim, ack, history) costs more than the work. A broker's per-message overhead is far smaller.</td></tr>
+  <tr><td><b>Worker count</b></td><td>More than ~500 worker processes even after pooling</td>
+    <td>Postgres connections are processes. Brokers handle tens of thousands of consumer connections easily.</td></tr>
+  <tr><td><b>Vacuum can't keep up</b></td><td><code>n_dead_tup</code> on <code>jobs</code> keeps growing after tuning; claim latency creeps up through the day</td>
+    <td>Every job leaves 3+ dead row versions. A log-based broker deletes whole segments instead.</td></tr>
+  <tr><td><b>Many consumers per event</b></td><td>Several services must react to the same event, or you need replay</td>
+    <td>That's a log (Kafka) or pub/sub, not a work queue. See <a href="messaging_tools_compared.html">messaging tools compared</a>.</td></tr>
+</table></div>
+
+<h3>Reasons to stay on Postgres, even at higher volume</h3>
+<ul>
+  <li><b>Long-running jobs</b> (minutes to hours). Brokers prefer short ones: RabbitMQ closes channels that hold a message unacked past
+    <code>consumer_timeout</code> (30 minutes by default), and SQS visibility timeouts can't exceed 12 hours. A Postgres lease plus heartbeat has no ceiling.</li>
+  <li><b>Jobs must commit with business data.</b> Anything else needs an outbox.</li>
+  <li><b>Exact per-tenant limits and fairness</b> (<a href="#tenants">section 7</a>). Brokers give you per-queue limits, not "max 3 running for tenant A" across a shared queue.</li>
+  <li><b>You query jobs</b>: "all failed jobs for tenant X yesterday", "cancel everything for this customer". A broker can't answer those.</li>
+  <li><b>A small team.</b> One fewer stateful system to run, secure, upgrade and be on call for.</li>
+</ul>
+
+<h2 id="cost">12. Cost implications</h2>
+<p>Monthly <b>infrastructure</b> cost for each option, AWS us-east-1 on-demand list prices (checked October 2026; verify with the AWS pricing
+calculator, since prices change and differ by region). These are the inputs:</p>
+<div class="table-wrap"><table>
+  <tr><th>Item</th><th class="num">Price</th><th>Notes</th></tr>
+  <tr><td>RDS PostgreSQL <code>db.m7g.large</code> (2 vCPU / 8 GB)</td><td class="num">$0.168/h ≈ $123/mo</td><td>Price doubles with each size up (<code>xlarge</code> ≈ $245, <code>2xlarge</code> ≈ $491, <code>4xlarge</code> ≈ $981). Multi-AZ doubles it again.</td></tr>
+  <tr><td>RDS gp3 storage</td><td class="num">$0.115 / GB-month</td><td>×2 with Multi-AZ. Backups beyond the database size ≈ $0.095 / GB-month; WAL retained for point-in-time recovery counts.</td></tr>
+  <tr><td>SQS standard queue</td><td class="num">$0.40 / million requests</td><td>First 1M/month free. Each 64 KB of payload is one request. A job is ~3 requests (send, receive, delete); batching up to 10 per call cuts that roughly 10×.</td></tr>
+  <tr><td>Amazon MQ for RabbitMQ, <code>mq.m7g.large</code></td><td class="num">$0.2734/h per node</td><td>A 3-node cluster ≈ $599/mo before EBS storage ($0.10 / GB-month).</td></tr>
+</table></div>
+
+<h3>Four options at three rates (HA everywhere, 7 days of history)</h3>
+<div class="table-wrap"><table>
+  <tr><th>Option</th><th class="num">10 jobs/s</th><th class="num">100 jobs/s</th><th class="num">1,000 jobs/s</th></tr>
+  <tr><td><b>A. Queue in the app's Postgres</b><br><span class="meta">extra cost on top of the existing instance</span></td>
+    <td class="num good">~$0–5</td><td class="num">~$270<br><span class="meta">one size up + 100 GB</span></td><td class="num bad">not advised<br><span class="meta">2.5 MB/s of WAL into the app DB</span></td></tr>
+  <tr><td><b>B. Dedicated Postgres for the queue</b><br><span class="meta">Multi-AZ</span></td>
+    <td class="num">~$260<br><span class="meta">large + 64 GB</span></td><td class="num">~$550<br><span class="meta">xlarge + 256 GB</span></td><td class="num">~$2,500+<br><span class="meta">4xlarge + 2 TB + IOPS</span></td></tr>
+  <tr><td><b>C. SQS for delivery, job state in the app's Postgres</b></td>
+    <td class="num good">~$3–30</td><td class="num">~$40–310 SQS<br><span class="meta">+ maybe one DB size up</span></td><td class="num">~$390–3,100 SQS<br><span class="meta">+ a state DB (~$1,000+)</span></td></tr>
+  <tr><td><b>D. RabbitMQ (Amazon MQ, 3 nodes), job state in Postgres</b></td>
+    <td class="num">~$600+</td><td class="num">~$600+<br><span class="meta">+ maybe one DB size up</span></td><td class="num">larger nodes<br><span class="meta">+ a state DB; size by load test</span></td></tr>
+</table></div>
+<p class="meta">SQS ranges: batched (10 per call) to unbatched. Long jobs add <code>ChangeMessageVisibility</code> calls (the SQS heartbeat), and idle
+pollers add empty receives (~130,000/month per poller with 20-second long polling). Self-hosting RabbitMQ on an existing Kubernetes cluster
+replaces the $600 with node capacity, but not with zero: you take on its upgrades, storage and on-call.</p>
+
+<h3>What the table says</h3>
+<ul>
+  <li><b>Below ~100 jobs/s, the cheapest option is the one you already have.</b> Sharing the app's Postgres costs almost nothing, and a broker's
+    real cost is mostly people: another system to deploy, secure, monitor, upgrade and debug, plus an outbox to keep enqueue reliable.
+    For a small team, that easily costs more than any of the infrastructure lines.</li>
+  <li><b>SQS is the cheapest broker by far</b> at low and medium volume, because it's per request with no minimum. A RabbitMQ cluster has a
+    ~$600/month floor even when idle.</li>
+  <li><b>A broker doesn't remove the database cost</b> if you keep job state (status, history, results) in Postgres, and job management needs it
+    (<a href="#broker-storage">section 13</a>). What it removes is the delivery load. After <a href="#tuning">tuning</a>, the delivery load is the
+    smaller part: at 100 jobs/s, about 96% of the WAL is job state (2.5 KB per job) and only ~4% is heartbeats.</li>
+  <li><b>Around 1,000 jobs/s the costs cross.</b> A dedicated Postgres sized for the full queue load (~$2,500/month) costs about the same as SQS
+    plus a smaller state database, and the broker handles bursts and latency better. That, not cost, is usually the deciding factor.</li>
+</ul>
+
+<h2 id="broker-storage">13. Where brokers keep their data, and why you still need a database</h2>
+<p>Brokers don't use Postgres or MySQL underneath. Each has its own storage engine, built for messages that are written once, read once and deleted:</p>
+<div class="table-wrap"><table>
+  <tr><th>System</th><th>Where messages live</th><th>Durability</th><th>After a message is acked</th></tr>
+  <tr><td><b>RabbitMQ</b></td><td>Its own files on each node's disk. Quorum queues: a Raft log replicated to (usually) 3 nodes. Classic queues: a local message store.
+    Streams: append-only segment files. Metadata (queues, exchanges, users): Khepri, a Raft-based store, which is the default for new clusters
+    since 4.2 (older clusters use Mnesia).</td><td>Quorum queues survive a node loss with no data lost</td><td>Deleted</td></tr>
+  <tr><td><b>Kafka</b></td><td>Append-only log segment files per partition on each broker's disk, replicated to other brokers. Metadata in KRaft controllers
+    (ZooKeeper was removed in Kafka 4.0).</td><td>Replication factor 3 is typical</td><td>Kept until the retention time or size runs out; consumers just move their offset</td></tr>
+  <tr><td><b>Redis</b> (used by Sidekiq, BullMQ, RQ, Celery)</td><td>In memory, optionally saved to disk as RDB snapshots and/or an append-only file (AOF)</td>
+    <td>Replication is asynchronous: a failover can lose jobs the client was told were saved</td><td>Deleted (or moved to a completed list)</td></tr>
+  <tr><td><b>SQS</b>, Azure Service Bus, Google Pub/Sub</td><td>The provider's replicated storage, invisible to you</td>
+    <td>Stored across availability zones; SQS keeps a message up to 14 days</td><td>Deleted</td></tr>
+  <tr><td><b>NATS JetStream</b></td><td>Stream files (or memory) per server, replicated with Raft</td><td>Configurable per stream</td><td>Depends on stream retention</td></tr>
+  <tr><td><b>Temporal</b> (workflow engine)</td><td>A real database: PostgreSQL, MySQL or Cassandra, plus optionally Elasticsearch/OpenSearch for search</td>
+    <td>That database's</td><td>Kept as workflow history until retention ends</td></tr>
+  <tr><td><b>Hatchet</b> (workflow / task queue)</td><td>PostgreSQL</td><td>Postgres's</td><td>Kept</td></tr>
+</table></div>
+
+<p>The pattern: <b>brokers store messages in flight; they are not job databases.</b> Once a message is acked it's gone (Kafka keeps it, but you
+can't query it by tenant or status). A job management system needs to answer "what's the status of job 123", "show this tenant's failed jobs",
+"how many jobs did this customer run this month", and offer cancel and retry. Those need a database. So real systems with a broker almost always
+look like this:</p>
+<pre><code>submit:  INSERT job (status = queued) in Postgres  ──►  publish {job_id} to the broker     (via an outbox)
+worker:  receive {job_id}  ──►  UPDATE status = running  ──►  do the work  ──►  UPDATE status = succeeded  ──►  ack the broker
+crash:   no ack before the timeout  ──►  the broker redelivers to another worker  (replaces lease + heartbeat + reclaim)
+UI:      reads job state from Postgres, never from the broker</code></pre>
+<p>What moves to the broker: claiming, polling, lease expiry and redelivery, most worker connections, burst absorption. What stays in Postgres:
+job state and history, which are most of the WAL once heartbeats are tuned. That's why Celery has a "result backend" (Redis or a database) next to
+its broker, and why Temporal and Hatchet are built on a database outright. Moving to a broker changes <em>how jobs are delivered</em>; it doesn't
+remove the need to <em>store</em> them.</p>
+
+<h3>Summary</h3>
+<p>Start with the queue in the app's Postgres, in its own schema, with the guard rails from <a href="#shared">section 10</a>. Move it to a separate
+database, then a dedicated instance, as its share of the load grows. Add a broker for delivery when you hit the signals in
+<a href="#limits">section 11</a>, usually somewhere between a few hundred and ~2,000 jobs/s, or earlier for bursts, latency or fan-out, and keep
+job state in Postgres either way.</p>
+<p class="meta">Related: <a href="postgres_as_a_queue.html">Postgres as a queue</a> ·
+<a href="messaging_tools_compared.html">Messaging tools compared</a> ·
+<a href="rabbitmq_field_guide.html">RabbitMQ field guide</a> ·
+<a href="long_running_agent_jobs.html">Long-running agent jobs in a multi-tenant system</a> ·
+lab code in <a href="postgres_queue_lab/">postgres_queue_lab/</a></p>
+</main>
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const ids = ["rate", "dur", "per", "hb", "conns", "ret", "payload", "retry"];
+  const fmt = (n, d = 0) => n >= 1e6 ? (n / 1e6).toFixed(1) + " M" : n >= 1e4 ? Math.round(n / 1e3) + " k" : n.toLocaleString(undefined, { maximumFractionDigits: d });
+  const bytes = b => b >= 1e12 ? (b / 1e12).toFixed(1) + " TB" : b >= 1e9 ? (b / 1e9).toFixed(1) + " GB" : b >= 1e6 ? (b / 1e6).toFixed(1) + " MB" : (b / 1e3).toFixed(0) + " KB";
+
+  function calc() {
+    const v = Object.fromEntries(ids.map(k => [k, Math.max(0, Number($("c-" + k).value) || 0)]));
+    const per = Math.max(1, v.per), hb = Math.max(1, v.hb), hot = $("c-hot").checked;
+    const rate = v.rate * (1 + v.retry / 100);                 // retries are extra claims + acks
+    const running = rate * v.dur;
+    const slots = Math.ceil(running / 0.7), procs = Math.max(1, Math.ceil(slots / per));
+    const conns = procs * Math.max(1, v.conns) + 10;
+    const jobHbStmts = per > 1 ? procs / hb : running / hb;    // batched: one statement per process per beat
+    const commits = 3 * v.rate + 2 * (rate - v.rate) + jobHbStmts + procs / hb;
+    const walPerSec = 2500 * v.rate + 1700 * (rate - v.rate) + (running / hb) * (hot ? 214 : 416) + (procs / hb) * 148;
+    const storage = v.rate * 86400 * v.ret * (1200 + v.payload * 1024);
+    const tiles = [
+      ["Jobs running at once", fmt(running)],
+      ["Worker processes", fmt(procs), procs > 2000 ? "bad" : ""],
+      ["DB connections", fmt(conns), conns > 1000 ? "bad" : conns > 300 ? "warn" : ""],
+      ["Commits / second", fmt(commits), commits > 10000 ? "bad" : commits > 3000 ? "warn" : ""],
+      ["WAL / second", bytes(walPerSec) + "/s", walPerSec > 8e6 ? "bad" : walPerSec > 2e6 ? "warn" : ""],
+      ["WAL / day", bytes(walPerSec * 86400)],
+      ["Job history storage", bytes(storage), storage > 1e12 ? "warn" : ""],
+      ["Jobs / day", fmt(v.rate * 86400)],
+    ];
+    $("c-out").innerHTML = tiles.map(([l, val, cls]) => `<div class="tile ${cls || ""}"><div class="v">${val}</div><div class="l">${l}</div></div>`).join("");
+
+    let tier;
+    if (commits < 300 && walPerSec < 2e5) tier = "2 vCPU / 8 GB, 64–128 GB SSD (can share the app database)";
+    else if (commits < 1500 && walPerSec < 8e5) tier = "4 vCPU / 16 GB, 256 GB+ SSD with ≥ 3,000 IOPS, own database";
+    else if (commits < 6000 && walPerSec < 4e6) tier = "8–16 vCPU / 32–64 GB, provisioned IOPS (10k+), dedicated instance";
+    else tier = "beyond a comfortable single Postgres for this design: batch harder, or move the hot path to a broker";
+    const notes = [];
+    if (conns > 300) notes.push(`${fmt(conns)} connections: run more jobs per process and put PgBouncer in front.`);
+    if (per === 1 && running > 50) notes.push("One job per process: heartbeats can't be batched. Try 20–50 jobs per process.");
+    if (hb < 5 && running > 100) notes.push(`Heartbeat every ${hb}s writes ${fmt(running / hb)} job rows/s. 10s with a 30s lease cuts that ${10 / hb}×.`);
+    if (!hot) notes.push("Tick HOT-friendly heartbeats: −36% heartbeat WAL and no index writes (measured).");
+    if (v.rate > 500) notes.push("Above ~500 jobs/s: batch claims and acks, poll instead of NOTIFY, partition job_events.");
+    if (storage > 2e11) notes.push(`History is ${bytes(storage)}: keep fewer days in Postgres and archive the rest.`);
+    $("c-verdict").innerHTML = `<b>Starting point:</b> ${tier}.` + (notes.length ? `<ul>${notes.map(n => `<li>${n}</li>`).join("")}</ul>` : "");
+  }
+  document.querySelectorAll("#calc input").forEach(el => el.addEventListener("input", calc));
+  document.querySelectorAll("#calc [data-p]").forEach(b => b.addEventListener("click", () => {
+    const p = JSON.parse(b.dataset.p);
+    for (const [k, val] of Object.entries(p)) { if (k === "hot") $("c-hot").checked = val; else $("c-" + k).value = val; }
+    calc();
+  }));
+  calc();
+})();
+</script>
+</body>
+</html>

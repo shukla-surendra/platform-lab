@@ -1,0 +1,74 @@
+# Postgres, a DB web UI, and the job management app (web UI + two workers) for the scripts in this folder.
+#   docker compose up -d --build     start everything (job UI: http://localhost:8000)
+#   docker compose ps                wait until postgres shows "healthy"
+#   docker compose logs -f worker-1 worker-2
+#   docker compose down -v           stop and delete all data
+
+x-app: &app                               # shared by web and workers: same image, same database
+  build: .
+  image: postgres-queue-lab
+  environment:
+    DATABASE_URL: postgresql://app:app@postgres:5432/app
+  depends_on:
+    migrate:
+      condition: service_completed_successfully
+  restart: unless-stopped                 # a crashed worker comes back; its old job is reclaimed once the lease expires
+
+services:
+  postgres:
+    image: postgres:17
+    container_name: lab-postgres
+    command: ["postgres", "-c", "max_connections=200"]   # race_test.py opens 50+ connections at once
+    ports:
+      - "55433:5432"                      # what the Python scripts connect to (not 5432, to avoid a local Postgres)
+    environment:
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: app
+      POSTGRES_DB: app
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "app", "-d", "app"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  adminer:
+    image: adminer:5                      # web UI: http://localhost:8081 (not 8080, which the Kafka UI uses)
+    container_name: lab-postgres-ui
+    ports:
+      - "8081:8080"
+    environment:
+      ADMINER_DEFAULT_SERVER: postgres    # login form is pre-filled with this server
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  migrate:                                # runs schema.sql once per `up`, then exits; it is safe to rerun
+    image: postgres:17
+    container_name: lab-jobs-migrate
+    volumes:
+      - ./schema.sql:/schema.sql:ro
+    environment:
+      PGPASSWORD: app
+    command: ["psql", "-h", "postgres", "-U", "app", "-d", "app", "-v", "ON_ERROR_STOP=1", "-q", "-f", "/schema.sql"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  web:
+    <<: *app
+    container_name: lab-jobs-web
+    command: ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]
+    ports:
+      - "8000:8000"
+
+  worker-1:
+    <<: *app
+    container_name: lab-jobs-worker-1
+    command: ["python", "worker.py", "--name", "worker-1"]
+    stop_grace_period: 30s                # SIGTERM lets the current job finish before the worker exits
+
+  worker-2:
+    <<: *app
+    container_name: lab-jobs-worker-2
+    command: ["python", "worker.py", "--name", "worker-2"]
+    stop_grace_period: 30s

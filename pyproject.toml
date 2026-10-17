@@ -11,4 +11,5 @@ package = false
 [tool.uv.workspace]
 members = [
     "fastapi_practice/http_connection",
+    "queue-Exploration/postgres_queue_lab",
 ]
