@@ -1,0 +1,28 @@
+# One server pod with two ports: 80 (public website) and 8080 (admin page), plus a client. Namespace np-03.
+apiVersion: v1
+kind: Namespace
+metadata: {name: np-03}
+---
+apiVersion: v1
+kind: Pod
+metadata: {name: server, namespace: np-03, labels: {app: server}}
+spec:
+  containers:
+    - {name: website, image: "nginx:1.27-alpine", ports: [{containerPort: 80}]}
+    - name: admin                      # busybox's tiny web server, on port 8080
+      image: "busybox:1.36"
+      command: ["httpd", "-f", "-p", "8080", "-h", "/tmp"]
+      ports: [{containerPort: 8080}]
+---
+apiVersion: v1
+kind: Service
+metadata: {name: server, namespace: np-03}
+spec:
+  selector: {app: server}
+  ports: [{name: website, port: 80}, {name: admin, port: 8080}]
+---
+apiVersion: v1
+kind: Pod
+metadata: {name: client, namespace: np-03, labels: {app: client}}
+spec:
+  containers: [{name: shell, image: "busybox:1.36", command: ["sleep", "infinity"]}]

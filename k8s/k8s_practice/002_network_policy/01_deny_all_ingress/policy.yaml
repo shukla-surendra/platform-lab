@@ -1,0 +1,11 @@
+# Block ALL incoming traffic to every pod in namespace np-01.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: deny-all-ingress
+  namespace: np-01
+spec:
+  podSelector: {}        # {} = every pod in this namespace
+  policyTypes:
+    - Ingress            # we're controlling incoming traffic ...
+  # ... and there's no "ingress:" list, so nothing is allowed in

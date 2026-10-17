@@ -1,0 +1,17 @@
+# AND: ONE list item holding both selectors.
+# Allows pods that are in namespace np-05-other AND have label role=client.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: web-allow
+  namespace: np-05-app
+spec:
+  podSelector:
+    matchLabels: {app: web}
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector:                       # one "-" ...
+            matchLabels: {kubernetes.io/metadata.name: np-05-other}
+          podSelector:                             # ... no "-" here: same item, so AND
+            matchLabels: {role: client}

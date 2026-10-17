@@ -1,0 +1,40 @@
+# A web server in np-05-app, plus three clients:
+#   np-05-other/client   label role=client   (in the other namespace, right label)
+#   np-05-other/random   no role label       (in the other namespace, wrong label)
+#   np-05-app/local      label role=client   (right label, but in the app's own namespace)
+apiVersion: v1
+kind: Namespace
+metadata: {name: np-05-app}
+---
+apiVersion: v1
+kind: Namespace
+metadata: {name: np-05-other}
+---
+apiVersion: v1
+kind: Pod
+metadata: {name: web, namespace: np-05-app, labels: {app: web}}
+spec:
+  containers: [{name: nginx, image: "nginx:1.27-alpine", ports: [{containerPort: 80}]}]
+---
+apiVersion: v1
+kind: Service
+metadata: {name: web, namespace: np-05-app}
+spec: {selector: {app: web}, ports: [{port: 80}]}
+---
+apiVersion: v1
+kind: Pod
+metadata: {name: client, namespace: np-05-other, labels: {role: client}}
+spec:
+  containers: [{name: shell, image: "busybox:1.36", command: ["sleep", "infinity"]}]
+---
+apiVersion: v1
+kind: Pod
+metadata: {name: random, namespace: np-05-other, labels: {app: random}}
+spec:
+  containers: [{name: shell, image: "busybox:1.36", command: ["sleep", "infinity"]}]
+---
+apiVersion: v1
+kind: Pod
+metadata: {name: local, namespace: np-05-app, labels: {role: client}}
+spec:
+  containers: [{name: shell, image: "busybox:1.36", command: ["sleep", "infinity"]}]

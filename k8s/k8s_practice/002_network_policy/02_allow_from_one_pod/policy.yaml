@@ -1,0 +1,14 @@
+# Pods labelled app=api accept traffic ONLY from pods labelled app=frontend.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: api-allow-frontend
+  namespace: np-02
+spec:
+  podSelector:
+    matchLabels: {app: api}          # WHO is protected: the api pod
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels: {app: frontend}   # WHO may come in: frontend pods (same namespace)

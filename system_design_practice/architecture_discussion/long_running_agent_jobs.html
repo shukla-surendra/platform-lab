@@ -1,0 +1,1001 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Long-Running Agent Jobs</title>
+<style>
+  :root {
+    --bg: #fbfbf9; --surface: #ffffff; --surface-2: #f2f2ee; --text: #1d1d1b; --muted: #62625c;
+    --border: #dcdcd5; --accent: #2f5fb3; --accent-soft: #e6edf9; --good: #2e7d4f; --warn: #a86512; --bad: #b3372f;
+    --code-bg: #f2f2ee;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #161615; --surface: #1f1f1d; --surface-2: #262624; --text: #e9e9e4; --muted: #a3a39b;
+      --border: #3a3a36; --accent: #86a8ec; --accent-soft: #233150; --good: #6cc495; --warn: #e0a252; --bad: #ec8a82;
+      --code-bg: #262624;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #161615; --surface: #1f1f1d; --surface-2: #262624; --text: #e9e9e4; --muted: #a3a39b;
+    --border: #3a3a36; --accent: #86a8ec; --accent-soft: #233150; --good: #6cc495; --warn: #e0a252; --bad: #ec8a82;
+    --code-bg: #262624;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  main { max-width: 920px; margin: 0 auto; padding: 40px 16px 80px; }
+  h1 { font-size: 1.9rem; line-height: 1.25; margin: 0 0 8px; }
+  h2 { font-size: 1.35rem; margin: 56px 0 12px; padding-top: 8px; border-top: 1px solid var(--border); }
+  h3 { font-size: 1.05rem; margin: 28px 0 8px; }
+  p, li { color: var(--text); }
+  .lede { color: var(--muted); font-size: 1.05rem; margin: 0 0 24px; }
+  a { color: var(--accent); }
+  code { font: 0.88em ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--code-bg); padding: 1px 5px; border-radius: 4px; }
+  pre { background: var(--code-bg); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; overflow-x: auto; font-size: 0.85rem; line-height: 1.5; }
+  pre code { background: none; padding: 0; font-size: inherit; }
+  nav.toc { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px 20px; }
+  nav.toc ol { margin: 6px 0 0; padding-left: 20px; columns: 2; column-gap: 32px; }
+  nav.toc li { margin: 2px 0; break-inside: avoid; }
+  @media (max-width: 640px) { nav.toc ol { columns: 1; } }
+  .table-wrap { overflow-x: auto; margin: 12px 0 20px; border: 1px solid var(--border); border-radius: 8px; }
+  table { border-collapse: collapse; width: 100%; font-size: 0.9rem; background: var(--surface); }
+  th, td { text-align: left; vertical-align: top; padding: 9px 12px; border-bottom: 1px solid var(--border); }
+  th { background: var(--surface-2); font-weight: 600; white-space: nowrap; }
+  tr:last-child td { border-bottom: none; }
+  .callout { background: var(--accent-soft); border-left: 3px solid var(--accent); border-radius: 6px; padding: 12px 16px; margin: 16px 0; }
+  .callout.warn { background: transparent; border: 1px solid var(--warn); border-left-width: 3px; }
+  .callout p { margin: 4px 0; }
+  .pill { display: inline-block; font-size: 0.75rem; font-weight: 600; padding: 1px 8px; border-radius: 999px; border: 1px solid currentColor; white-space: nowrap; }
+  .good { color: var(--good); } .warn-t { color: var(--warn); } .bad { color: var(--bad); }
+  figure { margin: 20px 0; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px; }
+  figure svg { width: 100%; height: auto; display: block; }
+  figcaption { color: var(--muted); font-size: 0.85rem; margin-top: 8px; }
+  .stages { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; margin: 16px 0; }
+  .stage { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; }
+  .stage h4 { margin: 0 0 6px; font-size: 0.98rem; }
+  .stage p, .stage ul { margin: 6px 0; font-size: 0.9rem; }
+  .stage ul { padding-left: 18px; }
+  .meta { color: var(--muted); font-size: 0.85rem; }
+  /* SVG diagram styling */
+  .d-box { fill: var(--surface-2); stroke: var(--border); stroke-width: 1.5; }
+  .d-box.hl { fill: var(--accent-soft); stroke: var(--accent); }
+  .d-title { fill: var(--text); font: 600 14px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+  .d-sub { fill: var(--muted); font: 11.5px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+  .d-edge { stroke: var(--muted); stroke-width: 1.5; fill: none; }
+  .d-edge.dash { stroke-dasharray: 5 4; }
+  .d-label { fill: var(--muted); font: 11px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+  .d-head { fill: var(--muted); }
+  .d-ok { fill: var(--surface-2); stroke: var(--good); stroke-width: 1.5; }
+  .d-bad { fill: var(--surface-2); stroke: var(--bad); stroke-width: 1.5; }
+</style>
+</head>
+<body>
+<main>
+
+<h1>Long-running agent jobs in a multi-tenant system</h1>
+<p class="lede">How to take a FastAPI endpoint that runs an agent inside one HTTP request and turn it into
+submit-and-poll background jobs that can run for minutes or hours, survive crashes and deploys,
+treat tenants fairly, and run on any cloud. Each section lays out the options and their trade-offs
+before recommending one.</p>
+
+<nav class="toc" aria-label="Contents">
+  <strong>Contents</strong>
+  <ol>
+    <li><a href="#problem">Why the current setup breaks</a></li>
+    <li><a href="#requirements">Requirements</a></li>
+    <li><a href="#pattern">The core pattern: async request-reply</a></li>
+    <li><a href="#architecture">Reference architecture</a></li>
+    <li><a href="#api">API contract</a></li>
+    <li><a href="#state">Run lifecycle and data model</a></li>
+    <li><a href="#execution">Option A: how jobs get executed</a></li>
+    <li><a href="#brokers">Kafka vs RabbitMQ vs Redis vs SQS / Azure Queue</a></li>
+    <li><a href="#durability">Making a long agent run survivable</a></li>
+    <li><a href="#status">Option B: how clients learn the status</a></li>
+    <li><a href="#tenancy">Multi-tenancy</a></li>
+    <li><a href="#agnostic">Staying cloud-agnostic</a></li>
+    <li><a href="#ops">Scaling and observability</a></li>
+    <li><a href="#failures">Failure walkthrough</a></li>
+    <li><a href="#recommendation">Recommendation by stage</a></li>
+    <li><a href="#code">Code sketch: the stage-1 build</a></li>
+  </ol>
+</nav>
+
+<!-- ============================================================ -->
+<h2 id="problem">1. Why the current setup breaks</h2>
+<p>Today the agent runs inside the request handler: the client opens a connection, FastAPI runs the
+agent, and the response is sent when it finishes. That's fine for a 10-second ReAct loop. A
+<em>deep</em> agent (planning, subagents, a critic pass) can take 5 to 60+ minutes, and then things fail:</p>
+<ul>
+  <li><strong>Timeouts along the path.</strong> Load balancers, ingress controllers, API gateways and browsers
+    each have idle or total timeouts (often 30 to 120 seconds by default). Any one of them can cut the connection.</li>
+  <li><strong>The work dies with the connection or the pod.</strong> If the client disconnects, or the pod is
+    restarted for a deploy, the run is lost along with all the tokens already spent.</li>
+  <li><strong>No retry story.</strong> The client can't tell "still working" from "dead", so it retries and
+    starts a second, duplicate run.</li>
+  <li><strong>The API can't scale.</strong> Each in-flight run holds a web worker's connection and memory. A
+    burst of long jobs from one tenant can fill every worker and block short requests for all tenants.</li>
+</ul>
+<div class="callout">
+  <p><strong>FastAPI <code>BackgroundTasks</code> doesn't fix this.</strong> It runs the work after the response,
+  but in the same process. It has no persistence, no retries, and no status, and the work is lost on restart.
+  Use it for "send an email after responding", not for an hour-long agent.</p>
+</div>
+
+<!-- ============================================================ -->
+<h2 id="requirements">2. Requirements</h2>
+<h3>Functional</h3>
+<ul>
+  <li>A tenant's user or system submits an agent run and immediately gets back a <code>run_id</code>.</li>
+  <li>The caller can check status and progress at any time, from any client, without holding a connection open.</li>
+  <li>The caller can fetch the result when it's done, and cancel a run in progress.</li>
+  <li>Optional: be notified on completion (webhook) and stream live progress (SSE).</li>
+  <li>Optional: human-in-the-loop, where the agent pauses for approval and then resumes.</li>
+</ul>
+<h3>Non-functional</h3>
+<div class="table-wrap"><table>
+  <tr><th>Concern</th><th>Target</th><th>What it implies</th></tr>
+  <tr><td>Run duration</td><td>Seconds to hours</td><td>Nothing can depend on a single connection or a short broker lease.</td></tr>
+  <tr><td>Durability</td><td>An accepted run is never silently lost</td><td>Persist before you acknowledge, and checkpoint during the run.</td></tr>
+  <tr><td>Exactly-once effect</td><td>No duplicate runs, no double side effects</td><td>Idempotency keys on submit, and idempotent tool calls.</td></tr>
+  <tr><td>Tenant isolation</td><td>No data leakage, no noisy neighbors</td><td>Tenant ID comes from auth, row-level security, per-tenant quotas and fair scheduling.</td></tr>
+  <tr><td>Portability</td><td>Runs on AWS, GCP, Azure or on-prem</td><td>Build on open protocols (Postgres, Redis, S3 API, Kubernetes, OpenTelemetry).</td></tr>
+  <tr><td>Cost control</td><td>Bounded spend per run and per tenant</td><td>Token and time budgets, enforced by the worker.</td></tr>
+  <tr><td>Status latency</td><td>A few seconds is fine</td><td>Polling is enough as the baseline; push is an add-on.</td></tr>
+</table></div>
+
+<!-- ============================================================ -->
+<h2 id="pattern">3. The core pattern: async request-reply</h2>
+<p>This is a standard pattern (sometimes called "async request-reply" or "202 + status endpoint"). The
+work is split into three separate, short HTTP exchanges:</p>
+<ol>
+  <li><strong>Submit.</strong> <code>POST /v1/runs</code> validates the input, writes a <code>runs</code> row with
+    status <code>queued</code>, enqueues the <code>run_id</code>, and returns <strong>202 Accepted</strong> with a
+    <code>Location: /v1/runs/{id}</code> header. This takes milliseconds.</li>
+  <li><strong>Execute.</strong> A separate worker process picks up the job, runs the agent, writes progress and
+    checkpoints as it goes, and finally stores the result and sets the status to <code>succeeded</code> or <code>failed</code>.</li>
+  <li><strong>Check.</strong> The client calls <code>GET /v1/runs/{id}</code> whenever it likes. The response includes
+    a <code>Retry-After</code> header suggesting when to ask again. When the run is finished, the response contains
+    the result or a link to it.</li>
+</ol>
+
+<figure>
+<svg viewBox="0 0 860 330" role="img" aria-label="Sequence: client submits, API stores and enqueues, worker runs agent, client polls status">
+  <defs>
+    <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="d-head" d="M0,0 L10,5 L0,10 z"/></marker>
+  </defs>
+  <!-- lifelines -->
+  <g>
+    <rect class="d-box" x="20" y="10" width="130" height="34" rx="6"/><text class="d-title" x="85" y="32" text-anchor="middle">Client</text>
+    <rect class="d-box hl" x="250" y="10" width="130" height="34" rx="6"/><text class="d-title" x="315" y="32" text-anchor="middle">FastAPI API</text>
+    <rect class="d-box" x="480" y="10" width="150" height="34" rx="6"/><text class="d-title" x="555" y="32" text-anchor="middle">Postgres + queue</text>
+    <rect class="d-box hl" x="710" y="10" width="130" height="34" rx="6"/><text class="d-title" x="775" y="32" text-anchor="middle">Worker</text>
+    <line class="d-edge dash" x1="85" y1="44" x2="85" y2="320"/>
+    <line class="d-edge dash" x1="315" y1="44" x2="315" y2="320"/>
+    <line class="d-edge dash" x1="555" y1="44" x2="555" y2="320"/>
+    <line class="d-edge dash" x1="775" y1="44" x2="775" y2="320"/>
+  </g>
+  <line class="d-edge" x1="85" y1="70" x2="313" y2="70" marker-end="url(#ah)"/><text class="d-label" x="95" y="64">POST /v1/runs + Idempotency-Key</text>
+  <line class="d-edge" x1="315" y1="92" x2="553" y2="92" marker-end="url(#ah)"/><text class="d-label" x="325" y="86">INSERT run (queued) + enqueue, one tx</text>
+  <line class="d-edge" x1="315" y1="114" x2="87" y2="114" marker-end="url(#ah)"/><text class="d-label" x="95" y="108">202 Accepted · Location: /v1/runs/r_123</text>
+  <line class="d-edge" x1="555" y1="140" x2="773" y2="140" marker-end="url(#ah)"/><text class="d-label" x="565" y="134">worker claims job (lease)</text>
+  <line class="d-edge" x1="775" y1="166" x2="557" y2="166" marker-end="url(#ah)"/><text class="d-label" x="580" y="160">heartbeat · progress · checkpoints</text>
+  <line class="d-edge" x1="85" y1="192" x2="313" y2="192" marker-end="url(#ah)"/><text class="d-label" x="95" y="186">GET /v1/runs/r_123</text>
+  <line class="d-edge" x1="315" y1="214" x2="87" y2="214" marker-end="url(#ah)"/><text class="d-label" x="95" y="208">200 {status: running, step 4/9} · Retry-After: 5</text>
+  <line class="d-edge" x1="775" y1="244" x2="557" y2="244" marker-end="url(#ah)"/><text class="d-label" x="580" y="238">result → object store, status = succeeded</text>
+  <line class="d-edge" x1="85" y1="272" x2="313" y2="272" marker-end="url(#ah)"/><text class="d-label" x="95" y="266">GET /v1/runs/r_123</text>
+  <line class="d-edge" x1="315" y1="296" x2="87" y2="296" marker-end="url(#ah)"/><text class="d-label" x="95" y="290">200 {status: succeeded, result_url}</text>
+</svg>
+<figcaption>No connection is held for longer than one short request. The client can close the tab, come back
+an hour later, or check from a different device.</figcaption>
+</figure>
+
+<!-- ============================================================ -->
+<h2 id="architecture">4. Reference architecture</h2>
+<figure>
+<svg viewBox="0 0 900 560" role="img" aria-label="Architecture: client, gateway, FastAPI API, Redis, Postgres, broker, KEDA, workers, object storage, LLM providers, webhook notifier">
+  <defs>
+    <marker id="ah2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="d-head" d="M0,0 L10,5 L0,10 z"/></marker>
+  </defs>
+  <!-- row 1 -->
+  <rect class="d-box" x="20" y="40" width="180" height="64" rx="8"/>
+  <text class="d-title" x="110" y="66" text-anchor="middle">Tenant clients</text>
+  <text class="d-sub" x="110" y="86" text-anchor="middle">web UI · tenant backends</text>
+
+  <rect class="d-box" x="240" y="40" width="180" height="64" rx="8"/>
+  <text class="d-title" x="330" y="66" text-anchor="middle">Gateway / ingress</text>
+  <text class="d-sub" x="330" y="86" text-anchor="middle">TLS · OIDC/JWT · rate limit</text>
+
+  <rect class="d-box hl" x="460" y="40" width="180" height="64" rx="8"/>
+  <text class="d-title" x="550" y="66" text-anchor="middle">FastAPI (stateless)</text>
+  <text class="d-sub" x="550" y="86" text-anchor="middle">submit · status · cancel</text>
+
+  <rect class="d-box" x="690" y="40" width="190" height="64" rx="8"/>
+  <text class="d-title" x="785" y="66" text-anchor="middle">Redis</text>
+  <text class="d-sub" x="785" y="86" text-anchor="middle">quotas · progress pub/sub</text>
+
+  <!-- row 2 -->
+  <rect class="d-box" x="240" y="200" width="180" height="64" rx="8"/>
+  <text class="d-title" x="330" y="226" text-anchor="middle">KEDA autoscaler</text>
+  <text class="d-sub" x="330" y="246" text-anchor="middle">scales on queue depth</text>
+
+  <rect class="d-box" x="460" y="200" width="180" height="64" rx="8"/>
+  <text class="d-title" x="550" y="226" text-anchor="middle">Queue / engine</text>
+  <text class="d-sub" x="550" y="246" text-anchor="middle">PG queue · Redis · Temporal</text>
+
+  <rect class="d-box" x="690" y="200" width="190" height="64" rx="8"/>
+  <text class="d-title" x="785" y="226" text-anchor="middle">Postgres (source of truth)</text>
+  <text class="d-sub" x="785" y="246" text-anchor="middle">runs · events · checkpoints · RLS</text>
+
+  <!-- row 3 -->
+  <rect class="d-box" x="20" y="360" width="180" height="64" rx="8"/>
+  <text class="d-title" x="110" y="386" text-anchor="middle">Tenant webhook URL</text>
+  <text class="d-sub" x="110" y="406" text-anchor="middle">signed callback</text>
+
+  <rect class="d-box" x="240" y="360" width="180" height="64" rx="8"/>
+  <text class="d-title" x="330" y="386" text-anchor="middle">Webhook notifier</text>
+  <text class="d-sub" x="330" y="406" text-anchor="middle">retries · HMAC signing</text>
+
+  <rect class="d-box hl" x="460" y="360" width="180" height="64" rx="8"/>
+  <text class="d-title" x="550" y="386" text-anchor="middle">Agent workers</text>
+  <text class="d-sub" x="550" y="406" text-anchor="middle">deepagents / LangGraph</text>
+
+  <rect class="d-box" x="690" y="360" width="190" height="64" rx="8"/>
+  <text class="d-title" x="785" y="386" text-anchor="middle">Object storage (S3 API)</text>
+  <text class="d-sub" x="785" y="406" text-anchor="middle">reports · large artifacts</text>
+
+  <!-- row 4 -->
+  <rect class="d-box" x="460" y="470" width="180" height="64" rx="8"/>
+  <text class="d-title" x="550" y="496" text-anchor="middle">LLM gateway</text>
+  <text class="d-sub" x="550" y="516" text-anchor="middle">providers · tools · MCP</text>
+
+  <rect class="d-box" x="690" y="470" width="190" height="64" rx="8"/>
+  <text class="d-title" x="785" y="496" text-anchor="middle">OpenTelemetry + Langfuse</text>
+  <text class="d-sub" x="785" y="516" text-anchor="middle">traces tagged by tenant</text>
+
+  <!-- edges -->
+  <line class="d-edge" x1="200" y1="72" x2="238" y2="72" marker-end="url(#ah2)"/>
+  <line class="d-edge" x1="420" y1="72" x2="458" y2="72" marker-end="url(#ah2)"/>
+  <line class="d-edge" x1="640" y1="72" x2="688" y2="72" marker-end="url(#ah2)"/>
+  <line class="d-edge" x1="620" y1="104" x2="720" y2="198" marker-end="url(#ah2)"/>
+  <text class="d-label" x="682" y="140">insert run</text>
+  <line class="d-edge" x1="550" y1="104" x2="550" y2="198" marker-end="url(#ah2)"/>
+  <text class="d-label" x="558" y="155">enqueue run_id</text>
+  <line class="d-edge" x1="550" y1="264" x2="550" y2="358" marker-end="url(#ah2)"/>
+  <text class="d-label" x="558" y="315">claim + lease</text>
+  <line class="d-edge" x1="620" y1="360" x2="720" y2="266" marker-end="url(#ah2)"/>
+  <text class="d-label" x="700" y="300">status · checkpoints</text>
+  <line class="d-edge" x1="640" y1="392" x2="688" y2="392" marker-end="url(#ah2)"/>
+  <line class="d-edge" x1="550" y1="424" x2="550" y2="468" marker-end="url(#ah2)"/>
+  <line class="d-edge" x1="640" y1="502" x2="688" y2="502" marker-end="url(#ah2)"/>
+  <line class="d-edge" x1="458" y1="392" x2="422" y2="392" marker-end="url(#ah2)"/>
+  <text class="d-label" x="424" y="384">done</text>
+  <line class="d-edge" x1="240" y1="392" x2="202" y2="392" marker-end="url(#ah2)"/>
+  <line class="d-edge dash" x1="420" y1="232" x2="458" y2="232" marker-end="url(#ah2)"/>
+  <line class="d-edge dash" x1="380" y1="264" x2="470" y2="358" marker-end="url(#ah2)"/>
+  <text class="d-label" x="360" y="320">scale 0..N</text>
+  <text class="d-label" x="20" y="124">POST /runs, then poll GET /runs/{id}</text>
+  <text class="d-label" x="20" y="140">or watch SSE /runs/{id}/events</text>
+</svg>
+<figcaption>Every box is either an open-source component or speaks an open protocol, so each one maps to a
+managed service on any cloud (see <a href="#agnostic">section 12</a>). The API and workers are separate
+deployments built from the same codebase.</figcaption>
+</figure>
+
+<div class="table-wrap"><table>
+  <tr><th>Component</th><th>Responsibility</th><th>Why it's separate</th></tr>
+  <tr><td>Gateway / ingress</td><td>TLS, authentication, coarse per-tenant rate limits</td><td>Rejects abusive traffic before it costs anything.</td></tr>
+  <tr><td>FastAPI API</td><td>Validates input, enforces quotas, writes the run, enqueues it, serves status</td><td>Stays fast and stateless, so it scales on request rate rather than on how long agents run.</td></tr>
+  <tr><td>Postgres</td><td>Source of truth for runs, events, idempotency keys and agent checkpoints</td><td>Transactions plus row-level security give you correctness and tenant isolation in one place.</td></tr>
+  <tr><td>Queue / engine</td><td>Hands work to workers, redelivers it if a worker dies</td><td>Decouples accepting a run from running it. See <a href="#execution">section 7</a> for the options.</td></tr>
+  <tr><td>Agent workers</td><td>Run the deep agent, checkpoint each step, heartbeat, honor cancel</td><td>Scale separately from the API, can be drained on deploy, and can be isolated per tier.</td></tr>
+  <tr><td>Redis</td><td>Token buckets, concurrency counters, live progress fan-out</td><td>Fast counters. Losing them is acceptable because Postgres holds the truth.</td></tr>
+  <tr><td>Object storage</td><td>Final reports, files the agent produced, large tool outputs</td><td>Keeps big blobs out of Postgres. Results are served with short-lived presigned URLs.</td></tr>
+  <tr><td>LLM gateway</td><td>One egress point for model calls (e.g. LiteLLM)</td><td>Per-tenant keys, spend tracking and provider failover in one place.</td></tr>
+  <tr><td>Webhook notifier</td><td>Pushes completion events to tenant endpoints</td><td>Retries with backoff without blocking workers.</td></tr>
+</table></div>
+
+<!-- ============================================================ -->
+<h2 id="api">5. API contract</h2>
+<div class="table-wrap"><table>
+  <tr><th>Method and path</th><th>Purpose</th><th>Notes</th></tr>
+  <tr><td><code>POST /v1/runs</code></td><td>Submit a run</td><td>Returns <code>202</code> + <code>Location</code>. Requires an <code>Idempotency-Key</code> header: the same key from the same tenant returns the original run instead of creating a new one.</td></tr>
+  <tr><td><code>GET /v1/runs/{id}</code></td><td>Status, progress and result</td><td>Sends <code>Retry-After</code> while running. Supports <code>ETag</code> / <code>If-None-Match</code> so unchanged polls get a cheap <code>304</code>.</td></tr>
+  <tr><td><code>GET /v1/runs/{id}/events?after={seq}</code></td><td>Incremental progress log</td><td>Returns events after a sequence number, which is both pollable and resumable. The same data can be served as SSE.</td></tr>
+  <tr><td><code>POST /v1/runs/{id}/cancel</code></td><td>Request cancellation</td><td>Sets <code>cancel_requested</code>. The worker stops at the next step boundary. Returns <code>202</code>.</td></tr>
+  <tr><td><code>POST /v1/runs/{id}/resume</code></td><td>Answer a human-in-the-loop pause</td><td>Only valid in <code>waiting_input</code>. Re-enqueues the run from its checkpoint.</td></tr>
+  <tr><td><code>GET /v1/runs?status=&amp;cursor=</code></td><td>List the tenant's runs</td><td>Cursor pagination, always scoped to the caller's tenant.</td></tr>
+</table></div>
+<pre><code>// GET /v1/runs/r_01J9ZK... (while running)
+{
+  "id": "r_01J9ZK...",
+  "status": "running",
+  "progress": { "step": 4, "total_estimate": 9, "message": "researcher 2/3 reading sources" },
+  "created_at": "2026-10-17T09:12:03Z",
+  "started_at": "2026-10-17T09:12:05Z",
+  "usage": { "input_tokens": 182340, "output_tokens": 9120, "cost_usd": 0.41 },
+  "links": { "self": "/v1/runs/r_01J9ZK...", "events": "/v1/runs/r_01J9ZK.../events", "cancel": "/v1/runs/r_01J9ZK.../cancel" }
+}</code></pre>
+<p class="meta">The tenant is never part of the URL or the body. It's taken from the authenticated token, so a caller
+can't ask for another tenant's run by changing an ID. A run that belongs to another tenant returns <code>404</code>,
+not <code>403</code>, so its existence isn't revealed.</p>
+
+<!-- ============================================================ -->
+<h2 id="state">6. Run lifecycle and data model</h2>
+<figure>
+<svg viewBox="0 0 780 340" role="img" aria-label="State machine: queued, running, waiting_input, succeeded, failed, cancelled">
+  <defs>
+    <marker id="ah3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="d-head" d="M0,0 L10,5 L0,10 z"/></marker>
+  </defs>
+  <rect class="d-box" x="20" y="120" width="130" height="48" rx="24"/><text class="d-title" x="85" y="149" text-anchor="middle">queued</text>
+  <rect class="d-box hl" x="270" y="120" width="130" height="48" rx="24"/><text class="d-title" x="335" y="149" text-anchor="middle">running</text>
+  <rect class="d-box" x="270" y="236" width="130" height="48" rx="24"/><text class="d-title" x="335" y="265" text-anchor="middle">waiting_input</text>
+  <rect class="d-ok" x="580" y="20" width="160" height="48" rx="24"/><text class="d-title" x="660" y="49" text-anchor="middle">succeeded</text>
+  <rect class="d-bad" x="580" y="120" width="160" height="48" rx="24"/><text class="d-title" x="660" y="149" text-anchor="middle">failed</text>
+  <rect class="d-box" x="580" y="220" width="160" height="48" rx="24"/><text class="d-title" x="660" y="249" text-anchor="middle">cancelled</text>
+
+  <line class="d-edge" x1="150" y1="144" x2="268" y2="144" marker-end="url(#ah3)"/>
+  <text class="d-label" x="168" y="137">worker claims</text>
+  <path class="d-edge" d="M335,120 C335,60 85,60 85,118" marker-end="url(#ah3)"/>
+  <text class="d-label" x="120" y="58">lease expired → retry (attempt+1)</text>
+  <line class="d-edge" x1="400" y1="134" x2="580" y2="50" marker-end="url(#ah3)"/>
+  <line class="d-edge" x1="400" y1="144" x2="578" y2="144" marker-end="url(#ah3)"/>
+  <text class="d-label" x="430" y="137">error / max attempts / budget</text>
+  <line class="d-edge" x1="400" y1="156" x2="580" y2="236" marker-end="url(#ah3)"/>
+  <text class="d-label" x="500" y="228" text-anchor="end">cancel at step boundary</text>
+  <line class="d-edge" x1="320" y1="168" x2="320" y2="234" marker-end="url(#ah3)"/>
+  <text class="d-label" x="200" y="205">interrupt()</text>
+  <path class="d-edge" d="M270,260 C150,260 85,230 85,170" marker-end="url(#ah3)"/>
+  <text class="d-label" x="96" y="250">resume</text>
+  <path class="d-edge dash" d="M150,160 C180,345 540,345 580,256" marker-end="url(#ah3)"/>
+  <text class="d-label" x="400" y="332">cancel before start</text>
+</svg>
+<figcaption>Terminal states are <code>succeeded</code>, <code>failed</code> and <code>cancelled</code>. Every transition
+is a conditional <code>UPDATE ... WHERE status = &lt;expected&gt;</code>, so two workers can't both move the same run.</figcaption>
+</figure>
+
+<pre><code>CREATE TABLE runs (
+  id               text PRIMARY KEY,               -- ULID: sortable, not guessable
+  tenant_id        text NOT NULL,
+  idempotency_key  text,
+  status           text NOT NULL DEFAULT 'queued',  -- queued|running|waiting_input|succeeded|failed|cancelled
+  priority         smallint NOT NULL DEFAULT 5,
+  input            jsonb NOT NULL,
+  progress         jsonb,
+  result_ref       text,                            -- object storage key
+  error            jsonb,
+  attempt          int NOT NULL DEFAULT 0,
+  max_attempts     int NOT NULL DEFAULT 3,
+  worker_id        text,
+  lease_until      timestamptz,                     -- worker must heartbeat before this
+  cancel_requested boolean NOT NULL DEFAULT false,
+  budget           jsonb,                           -- {max_tokens, max_seconds, max_cost_usd}
+  usage            jsonb,
+  created_at       timestamptz NOT NULL DEFAULT now(),
+  started_at       timestamptz,
+  finished_at      timestamptz,
+  UNIQUE (tenant_id, idempotency_key)
+);
+CREATE INDEX runs_claimable ON runs (priority, created_at) WHERE status = 'queued';
+CREATE INDEX runs_tenant ON runs (tenant_id, created_at DESC);
+
+CREATE TABLE run_events (                          -- append-only progress log
+  run_id  text REFERENCES runs(id),
+  seq     bigint,
+  at      timestamptz DEFAULT now(),
+  kind    text,                                    -- step_started|tool_call|todo_updated|log|...
+  data    jsonb,
+  PRIMARY KEY (run_id, seq)
+);
+
+-- Tenant isolation enforced by the database, not just the app
+ALTER TABLE runs ENABLE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON runs
+  USING (tenant_id = current_setting('app.tenant_id'));</code></pre>
+
+<!-- ============================================================ -->
+<h2 id="execution">7. Option A: how jobs get executed</h2>
+<p>This is the biggest decision. The options form a ladder: each step up gives more guarantees and
+needs more infrastructure.</p>
+
+<div class="table-wrap"><table>
+  <tr><th>Option</th><th>Examples</th><th>Good at</th><th>Watch out for</th><th>Fit</th></tr>
+  <tr>
+    <td><strong>In-process</strong></td>
+    <td><code>BackgroundTasks</code>, <code>asyncio.create_task</code></td>
+    <td>Zero infrastructure</td>
+    <td>Lost on restart, no status, no retries, competes with request handling</td>
+    <td><span class="pill bad">Not for this</span></td>
+  </tr>
+  <tr>
+    <td><strong>Postgres as the queue</strong></td>
+    <td>Plain table + <code>FOR UPDATE SKIP LOCKED</code>, Procrastinate, pgmq</td>
+    <td>One system to run. Enqueueing happens in the same transaction as the run insert, so a run can't be queued without existing or vice versa. Easy to query and debug.</td>
+    <td>You write leases, retries and fairness yourself. Comfortable up to a few hundred dequeues per second, which is far more than long agent jobs need.</td>
+    <td><span class="pill good">Best start</span></td>
+  </tr>
+  <tr>
+    <td><strong>Task queue + broker</strong></td>
+    <td>Celery, Dramatiq, arq, Taskiq on Redis or RabbitMQ</td>
+    <td>Mature Python ecosystem, retries, scheduling, monitoring tools such as Flower</td>
+    <td>Designed for short tasks. Celery on Redis redelivers any task that runs longer than <code>visibility_timeout</code> (1 hour by default), which can cause a second concurrent run. RabbitMQ closes channels whose unacked message exceeds <code>consumer_timeout</code> (30 minutes by default). You also need an outbox so the database and the broker don't disagree.</td>
+    <td><span class="pill warn-t">OK with tuning</span></td>
+  </tr>
+  <tr>
+    <td><strong>Log / stream</strong></td>
+    <td>Kafka, Redpanda, NATS JetStream, Redis Streams</td>
+    <td>High throughput, replay, fan-out to many consumers</td>
+    <td>Kafka's partition ordering means one slow hour-long job blocks the jobs behind it in that partition. No per-message visibility state. Built for events, not jobs.</td>
+    <td><span class="pill warn-t">Event bus, not job queue</span></td>
+  </tr>
+  <tr>
+    <td><strong>Durable execution engine</strong></td>
+    <td>Temporal, Hatchet, Restate, DBOS</td>
+    <td>Resumes after crashes, retries each step, timers and long waits, human approval signals, cancellation, history UI. Durability is built in rather than something you write.</td>
+    <td>New programming model (Temporal workflows must be deterministic). Another stateful cluster to run, unless you use the vendor's cloud. Hatchet and DBOS are lighter because they run on Postgres.</td>
+    <td><span class="pill good">Best at scale</span></td>
+  </tr>
+  <tr>
+    <td><strong>Job per run</strong></td>
+    <td>Kubernetes Jobs, Argo Workflows</td>
+    <td>Strong isolation (separate pod, CPU and memory limits, network policy per run), good for agents that run untrusted code</td>
+    <td>Pod start-up takes seconds. Heavy on the Kubernetes API at high run counts. Still needs a database for status.</td>
+    <td><span class="pill warn-t">For sandboxed agents</span></td>
+  </tr>
+  <tr>
+    <td><strong>Agent platform server</strong></td>
+    <td>Self-hosted LangGraph server (LangSmith Deployment)</td>
+    <td>Already provides threads, background runs, polling, streaming, Postgres checkpointing and interrupts for LangGraph and deepagents graphs</td>
+    <td>Ties you to one framework and its licensing terms (check them before committing). Less control over tenancy and fairness.</td>
+    <td><span class="pill warn-t">Fastest if all-in on LangGraph</span></td>
+  </tr>
+</table></div>
+
+<div class="callout warn">
+  <p><strong>The long-job trap in classic queues.</strong> Brokers assume a task takes seconds. If a run takes longer
+  than the broker's redelivery window, the broker assumes the worker died and gives the job to another worker, so
+  two copies of the agent run and you pay twice. Fixes: raise the timeout above your maximum run length, or
+  acknowledge on receipt and track liveness yourself with a lease and heartbeat in Postgres. The second is what the
+  stage-1 design does.</p>
+</div>
+
+<p>For how the design changes on each specific broker (Kafka, RabbitMQ, Redis, SQS, Azure Storage Queue), see <a href="#brokers">section 8</a>.</p>
+
+<h3>Choosing between them</h3>
+<ul>
+  <li><strong>Fewer than about 50 runs per minute, small team:</strong> Postgres queue. One less moving part, and
+    the queue is transactional with your data.</li>
+  <li><strong>Already running Celery, mostly short jobs:</strong> keep it, with <code>acks_late</code>, a raised
+    <code>visibility_timeout</code>, and Postgres-side leases for the long jobs.</li>
+  <li><strong>Many steps, long waits, human approvals, strict retry semantics:</strong> Temporal (or Hatchet if you
+    want something Postgres-based and lighter).</li>
+  <li><strong>The agent executes code or browses the web:</strong> add per-run sandboxes (Kubernetes Jobs, gVisor,
+    Firecracker-based sandboxes) under whichever orchestrator you pick.</li>
+</ul>
+
+<!-- ============================================================ -->
+<h2 id="brokers">8. The same architecture on Kafka, RabbitMQ, Redis, SQS or Azure Storage Queue</h2>
+<p>This section swaps the "Queue / engine" box in the <a href="#architecture">reference architecture</a> for a
+dedicated broker and shows what changes. Some things stay fixed whatever the broker:</p>
+<ul>
+  <li><strong>Postgres stays the source of truth.</strong> The run's status, lease, attempt count and result live in
+    the <code>runs</code> table. The broker only carries a pointer: <code>{run_id, tenant_id, trace_context}</code>.</li>
+  <li><strong>The client API doesn't change.</strong> Submit, poll, cancel and SSE work the same.</li>
+  <li><strong>Every broker here delivers at least once.</strong> Workers must expect duplicates. The conditional claim
+    (<code>UPDATE runs ... WHERE status = 'queued'</code>) and the lease turn a duplicate message into a no-op.</li>
+</ul>
+
+<h3>What a separate broker adds: the dual-write problem</h3>
+<p>With the Postgres queue, inserting the run and enqueueing it are one transaction. With a separate broker they're
+two writes to two systems. If the API crashes between them, you get a run that's never executed, or a message for
+a run that was never saved. The standard fix is the <strong>transactional outbox</strong>:</p>
+<pre><code>BEGIN;
+  INSERT INTO runs (...) VALUES (...);
+  INSERT INTO outbox (id, topic, payload) VALUES (gen_random_uuid(), 'runs.pro', '{"run_id": "r_123", ...}');
+COMMIT;
+-- A relay process (or Debezium reading the Postgres WAL) publishes outbox rows to the broker,
+-- then marks them sent. The relay may publish twice; the conditional claim makes that harmless.</code></pre>
+<p>A simpler, weaker alternative is to publish after commit and run a periodic "sweeper" that re-publishes runs that
+have been <code>queued</code> for too long. You need a sweeper anyway to recover expired leases.</p>
+
+<h3>Side-by-side</h3>
+<div class="table-wrap"><table>
+  <tr><th>Dimension</th><th>Kafka</th><th>RabbitMQ</th><th>Redis</th><th>AWS SQS</th><th>Azure Storage Queue</th></tr>
+  <tr><td>Model</td>
+      <td>Partitioned, replicated log. Consumers track an offset per partition.</td>
+      <td>Message broker. Messages are routed through exchanges to queues and removed once acked.</td>
+      <td>Redis Streams (consumer groups + pending list) or Lists (<code>BLMOVE</code> reliable-queue pattern). Celery, RQ and arq build on these.</td>
+      <td>Managed queue. A received message becomes invisible for a while and is deleted once processed.</td>
+      <td>Simple managed queue, same visibility model as SQS, inside an Azure Storage account.</td></tr>
+  <tr><td>Unit of acknowledgement</td>
+      <td>Offset per partition (all earlier messages in that partition are treated as done)</td>
+      <td>Each message (ack / nack)</td>
+      <td>Each message (<code>XACK</code>, or <code>LREM</code> from the processing list)</td>
+      <td>Each message (delete with receipt handle)</td>
+      <td>Each message (delete with pop receipt)</td></tr>
+  <tr><td>What happens during a 1-hour run</td>
+      <td class="bad">The consumer must call <code>poll()</code> within <code>max.poll.interval.ms</code> (5 minutes by default) or it's removed from the group, its partitions rebalance, and the job is redelivered.</td>
+      <td class="warn-t">The message stays unacked. The channel is closed after <code>consumer_timeout</code> (30 minutes by default), which redelivers the message.</td>
+      <td><span class="warn-t">Streams: the message stays pending with no automatic redelivery. Another consumer must reclaim it with <code>XAUTOCLAIM</code> after a minimum idle time. Celery on Redis redelivers after <code>visibility_timeout</code> (1 hour by default).</span></td>
+      <td class="good">Visibility timeout is 30 seconds by default, up to 12 hours. Extend it while working with <code>ChangeMessageVisibility</code>.</td>
+      <td class="good">Visibility timeout up to 7 days. Extend it while working with <code>UpdateMessage</code> (returns a new pop receipt).</td></tr>
+  <tr><td>Heartbeat mechanism</td>
+      <td>Keep calling <code>poll()</code> with partitions paused while the job runs in another task</td>
+      <td>None per message. Raise <code>consumer_timeout</code>, or ack early and use the Postgres lease.</td>
+      <td><code>XCLAIM ... JUSTID</code> to yourself resets the idle time, or use the Postgres lease</td>
+      <td><code>ChangeMessageVisibility</code> every few minutes</td>
+      <td><code>UpdateMessage</code> every few minutes</td></tr>
+  <tr><td>Ordering</td>
+      <td>Strict per partition (which is also the head-of-line-blocking problem)</td>
+      <td>Per queue, until redeliveries or multiple consumers reorder it</td>
+      <td>Per stream or list</td>
+      <td>Standard: best effort. FIFO: strict per <code>MessageGroupId</code>.</td>
+      <td>None guaranteed</td></tr>
+  <tr><td>Priority</td>
+      <td>No. Use separate topics per tier.</td>
+      <td>Yes (priority queues)</td>
+      <td>No. Use a list or stream per tier, or a sorted set scored by priority.</td>
+      <td>No. Use separate queues per tier.</td>
+      <td>No. Use separate queues per tier.</td></tr>
+  <tr><td>Per-tenant fairness</td>
+      <td>Hard. Keying by tenant puts a busy tenant on one partition, which also blocks the other tenants that hash there.</td>
+      <td>Possible: a queue per tenant or tier, with workers consuming from many queues at <code>prefetch=1</code></td>
+      <td>Possible: a list or stream per tenant with round-robin consumers (cheap in Redis), but you write the scheduler</td>
+      <td>FIFO message groups with tenant as the group ID give one run at a time per tenant. "Fair queues" (2025) reduce noisy-neighbor delay on standard queues.</td>
+      <td>None built in. Enforce it in Postgres at claim time.</td></tr>
+  <tr><td>Dead-letter handling</td>
+      <td>Not built in. Use the retry-topic and DLQ-topic pattern.</td>
+      <td>Dead-letter exchanges. Quorum queues add a delivery limit.</td>
+      <td>Not built in. Check the delivery count from <code>XPENDING</code> and move the message to a dead stream.</td>
+      <td>Redrive policy with <code>maxReceiveCount</code>, plus redrive back to the source queue</td>
+      <td>Not built in. Check <code>dequeueCount</code> and move the message to a <code>-poison</code> queue yourself.</td></tr>
+  <tr><td>Delayed retry</td>
+      <td>Retry topics with consumer-side delay</td>
+      <td>TTL + dead-letter exchange trick, or the delayed-message plugin</td>
+      <td>Sorted set scored by due time, moved to the queue when due</td>
+      <td>Delay up to 15 minutes per message or queue</td>
+      <td>Initial visibility delay up to 7 days</td></tr>
+  <tr><td>Message size</td>
+      <td>1 MB by default (configurable)</td>
+      <td>Large allowed, but keep it small</td>
+      <td>Up to 512 MB per value, but keep it small (it all lives in RAM)</td>
+      <td>Small (KiB range). Send IDs, not payloads.</td>
+      <td>64 KiB</td></tr>
+  <tr><td>Replay / history</td>
+      <td class="good">Yes: retained by time or size, consumers can rewind</td>
+      <td>No (streams excepted). Gone once acked.</td>
+      <td>Streams: yes, until trimmed with <code>XTRIM</code> / <code>MAXLEN</code>. Lists: no.</td>
+      <td>No. Retention up to 14 days while unconsumed.</td>
+      <td>No. Gone once deleted.</td></tr>
+  <tr><td>Scaling consumers</td>
+      <td>Capped at the partition count per consumer group</td>
+      <td>Add consumers freely</td>
+      <td>Add consumers freely. One stream lives on one shard, so shard by tier or tenant for scale.</td>
+      <td>Effectively unlimited</td>
+      <td>Add consumers freely, within per-queue throughput targets</td></tr>
+  <tr><td>Consumer wake-up</td>
+      <td>Long poll (built in)</td>
+      <td>Push to consumers</td>
+      <td>Blocking reads (<code>XREADGROUP BLOCK</code>, <code>BLMOVE</code>)</td>
+      <td>Long polling up to 20 seconds</td>
+      <td>Short polling only, so back off when the queue is empty</td></tr>
+  <tr><td>KEDA scaler</td>
+      <td>Consumer lag</td>
+      <td>Queue length / message rate</td>
+      <td>List length / stream pending entries</td>
+      <td>Approximate visible messages</td>
+      <td>Queue length</td></tr>
+  <tr><td>Local development</td>
+      <td>Kafka or Redpanda container</td>
+      <td>RabbitMQ container</td>
+      <td>Redis or Valkey container</td>
+      <td>LocalStack or ElasticMQ</td>
+      <td>Azurite</td></tr>
+  <tr><td>Managed options</td>
+      <td>MSK, Confluent Cloud (any cloud), Event Hubs Kafka endpoint, GCP Managed Kafka</td>
+      <td>Amazon MQ, CloudAMQP (any cloud), or self-host on Kubernetes</td>
+      <td>ElastiCache, Memorystore, Azure Cache for Redis, Redis Cloud (any cloud)</td>
+      <td>AWS only</td>
+      <td>Azure only</td></tr>
+  <tr><td>Cloud-agnostic?</td>
+      <td class="good">Yes (open protocol, every cloud)</td>
+      <td class="good">Yes (AMQP, open source)</td>
+      <td><span class="good">Yes (Redis protocol, open-source Valkey)</span></td>
+      <td class="bad">No</td>
+      <td class="bad">No</td></tr>
+  <tr><td>Operational burden</td>
+      <td>High when self-hosted (brokers, KRaft, partitions, rebalances)</td>
+      <td>Medium (quorum queues, upgrades, memory alarms)</td>
+      <td>Low (but memory-bound, and persistence/failover must be configured)</td>
+      <td>None</td>
+      <td>None</td></tr>
+</table></div>
+
+<h3>Kafka</h3>
+<p><strong>How the architecture looks:</strong> the outbox relay publishes to a <code>runs.requested</code> topic. Workers
+in one consumer group read it, claim the run in Postgres, and run the agent. Workers also publish progress to a
+<code>runs.events</code> topic, which feeds SSE, webhooks, analytics and billing.</p>
+<p><strong>The problem:</strong> Kafka is a log, not a job queue. A consumer owns whole partitions, and its committed offset
+covers everything before it. With hour-long jobs:</p>
+<ul>
+  <li>One slow run blocks every message behind it in that partition (head-of-line blocking).</li>
+  <li>If processing takes longer than <code>max.poll.interval.ms</code>, the consumer is removed from the group. That triggers a
+    rebalance and redelivery, which means a duplicate run and a stalled group.</li>
+  <li>Parallelism is capped at the partition count. 12 partitions means at most 12 concurrent runs per consumer group,
+    unless each consumer processes many messages at once and tracks offsets itself.</li>
+</ul>
+<p><strong>Making it work:</strong> treat Kafka as a doorbell. The consumer reads <code>run_id</code>, claims it in Postgres (which
+gives you the lease), commits the offset straight away, and hands the run to a local pool of async workers. From then
+on the Postgres lease and the reaper handle crash recovery, not Kafka. At that point Kafka is doing very little that
+a Postgres queue couldn't. Kafka 4.x adds share groups (KIP-932, "queues for Kafka") with per-message acks; check how
+mature they are before relying on them.</p>
+<p><strong>Where Kafka does fit:</strong> the <em>event stream</em> side. Progress events, audit trails, usage metering and
+fan-out to many consumers (UI, billing, analytics) all benefit from durable, replayable streams.</p>
+
+<h3>RabbitMQ</h3>
+<p><strong>How the architecture looks:</strong> the outbox relay publishes to a direct exchange that routes by tier
+(<code>runs.free</code>, <code>runs.pro</code>, <code>runs.enterprise</code>, all quorum queues). Worker pools consume with
+<code>prefetch=1</code> each, so a worker never holds runs it can't start. Failed messages go to a dead-letter exchange.</p>
+<p><strong>The long-job decision:</strong> pick one of these:</p>
+<ul>
+  <li><strong>Ack at the end.</strong> The broker redelivers automatically if the worker dies. But you must raise
+    <code>consumer_timeout</code> above your longest run, and a crash on minute 59 means a full redelivery (cheap if you
+    checkpoint).</li>
+  <li><strong>Ack after claiming in Postgres</strong> (recommended). The message only says "go". The Postgres lease and
+    reaper handle crashes, so there's no timeout tuning and no surprise redelivery.</li>
+</ul>
+<p><strong>Strengths for this design:</strong> real priority queues, routing by tier or tenant, dead-letter exchanges, push
+delivery with low latency, and it's cloud-agnostic. Per-tenant queues are workable into the low thousands.</p>
+<p><strong>Costs:</strong> another stateful cluster to run (or a hosted service like CloudAMQP), plus the outbox.</p>
+
+<h3>Redis</h3>
+<p><strong>How the architecture looks:</strong> the outbox relay does <code>XADD runs:pro * run_id r_123</code> to a
+stream per tier. Workers in a consumer group read with <code>XREADGROUP BLOCK</code>, claim the run in Postgres, and
+<code>XACK</code> when done. A small reaper calls <code>XAUTOCLAIM</code> for messages that have been pending longer than the
+lease, and moves messages delivered too many times to a dead stream. (With Lists, the same idea is
+<code>BLMOVE runs:pro runs:pro:processing</code>, then <code>LREM</code> on completion, and a reaper that returns stale
+items.) Redis is already in the architecture for rate limits and pub/sub, so this adds no new component.</p>
+<p><strong>Strengths:</strong> very low latency, blocking reads, cheap per-tenant queues (a key per tenant, with
+round-robin across them for fairness), sorted sets for delayed retries, and every cloud offers a managed version.
+Streams also keep history until trimmed, so the same Redis can feed SSE progress events.</p>
+<p><strong>Durability is the catch:</strong> Redis keeps data in memory. With AOF <code>appendfsync everysec</code> a crash
+can lose about one second of writes, and replication is asynchronous, so a failover can lose messages the primary had
+accepted. That's acceptable here only because Postgres is the source of truth: the sweeper re-enqueues any run that
+stays <code>queued</code> too long, so a lost message means a delay, not a lost run. Don't make Redis the only record of a job.</p>
+<p><strong>Long jobs:</strong> Streams never redeliver on their own. A message stays pending until someone acks or
+reclaims it, so there's no 30-minute surprise like RabbitMQ's. The reaper's minimum idle time is your lease, and a
+worker heartbeats by re-claiming its own message (<code>XCLAIM ... JUSTID</code>). If you use Celery on Redis instead,
+set <code>visibility_timeout</code> above your longest run, or long runs get executed twice.</p>
+
+<h3>AWS SQS</h3>
+<p><strong>How the architecture looks:</strong> one queue per tier, each with a redrive policy to a DLQ
+(<code>maxReceiveCount = max_attempts</code>). Workers long-poll, claim in Postgres, and extend the message's visibility
+every few minutes as a heartbeat. They delete the message when the run finishes.</p>
+<p><strong>Why it fits well:</strong> its visibility-timeout model matches long jobs closely. The heartbeat
+(<code>ChangeMessageVisibility</code>) is the same thing as the Postgres lease, the DLQ is built in, and there's nothing to
+operate. Runs longer than 12 hours of total visibility need the ack-early pattern instead.</p>
+<p><strong>Multi-tenant options:</strong> FIFO queues with <code>MessageGroupId = tenant_id</code> process one run at a time
+per tenant, which is too strict if tenants are allowed several concurrent runs. Fair queues on standard queues reduce
+how long quiet tenants wait behind a busy one. Per-tenant concurrency caps still belong in Postgres.</p>
+<p><strong>The catch:</strong> AWS only. To keep the design portable, hide it behind the <code>Queue</code> interface
+(<code>enqueue / receive / extend / ack</code>) and use ElasticMQ or LocalStack locally.</p>
+
+<h3>Azure Storage Queue</h3>
+<p><strong>How the architecture looks:</strong> the same shape as SQS. A queue per tier, workers poll, call
+<code>UpdateMessage</code> to extend visibility (each call returns a new pop receipt to use next), and delete the message on
+completion.</p>
+<p><strong>Strengths:</strong> very cheap, nothing to operate, and the visibility timeout can be extended up to 7 days.</p>
+<p><strong>Gaps you fill yourself:</strong> no dead-letter queue (check <code>dequeueCount</code> and move poison messages to a
+<code>runs-poison</code> queue), no ordering, no long polling (back off when empty), 64 KiB messages, no sessions.
+<strong>Azure Service Bus</strong> is Azure's richer option: built-in DLQ, sessions (session ID = tenant ID gives
+per-tenant ordering), duplicate detection and scheduled messages. Its message locks are short (up to 5 minutes), so
+long runs need lock renewal or the ack-early pattern.</p>
+
+<h3>Verdict for this system</h3>
+<div class="table-wrap"><table>
+  <tr><th>Choose</th><th>When</th><th>Role in the architecture</th></tr>
+  <tr><td><strong>Postgres queue</strong> (stage 1)</td><td>Default. Long jobs, modest volume, cloud-agnostic, smallest team.</td><td>Queue and source of truth in one transaction, no outbox needed</td></tr>
+  <tr><td><strong>RabbitMQ</strong></td><td>You need priorities, routing by tier, push delivery or higher dispatch rates, and want to stay cloud-agnostic</td><td>Job dispatch, with ack after the Postgres claim</td></tr>
+  <tr><td><strong>Redis Streams</strong></td><td>You already run Redis, want low-latency dispatch and cheap per-tenant queues, and accept that Postgres must backstop lost messages</td><td>Job dispatch plus live progress stream, with a reaper using <code>XAUTOCLAIM</code></td></tr>
+  <tr><td><strong>SQS</strong></td><td>You're committed to AWS and want zero operations</td><td>Job dispatch, with visibility extension as the heartbeat</td></tr>
+  <tr><td><strong>Azure Storage Queue / Service Bus</strong></td><td>You're committed to Azure. Storage Queue for the simplest and cheapest option, Service Bus when you want DLQ and sessions.</td><td>Job dispatch, same pattern as SQS</td></tr>
+  <tr><td><strong>Kafka</strong></td><td>You already run it, or you need durable event streams for many downstream consumers</td><td>The progress, audit and metering stream. Not the job queue.</td></tr>
+</table></div>
+<div class="callout">
+  <p><strong>A common hybrid:</strong> a queue (Postgres, RabbitMQ, Redis or SQS) dispatches jobs, and Kafka carries
+  <code>run_events</code> to the UI, webhooks, billing and analytics. Each tool does what it was built for, and
+  Postgres stays the single place that answers "what is the status of run r_123?".</p>
+</div>
+
+<!-- ============================================================ -->
+<h2 id="durability">9. Making a long agent run survivable</h2>
+<p>Queuing gets the work off the request path. These practices stop an hour of work being lost.</p>
+
+<h3>Checkpoint every step</h3>
+<p>deepagents is built on LangGraph, so you can attach a <strong>Postgres checkpointer</strong>
+(<code>langgraph-checkpoint-postgres</code>) and use <code>run_id</code> as the <code>thread_id</code>. After each
+graph step, the state (messages, todos, virtual files) is saved. If a worker dies, the retry loads the latest checkpoint
+and continues from step 7, not step 1. This is the biggest cost and latency saving in the whole design.</p>
+
+<h3>Leases and heartbeats</h3>
+<p>The worker holds a lease (<code>lease_until = now() + 60s</code>) and renews it every ~20 seconds from a background
+task. If the pod is killed, the lease expires and a reaper (or the next claim query) returns the run to
+<code>queued</code> with <code>attempt + 1</code>. Before writing anything, the worker checks it still holds the lease, so a
+worker that was paused and came back late can't overwrite the new owner's progress.</p>
+
+<h3>Idempotent side effects</h3>
+<p>A retried step may repeat a tool call. Read-only tools are fine. For tools with side effects (sending email,
+creating a ticket, charging money), pass an idempotency key derived from <code>run_id + step + call index</code>, or
+require human approval for that step.</p>
+
+<h3>Budgets</h3>
+<p>Check at each step boundary: maximum wall time, maximum tokens, maximum cost, maximum steps. Deep agents can loop.
+A hard budget turns a runaway into a <code>failed</code> run with <code>error.code = "budget_exceeded"</code>
+instead of a large bill.</p>
+
+<h3>Cooperative cancellation</h3>
+<p>Cancel sets a flag (in Postgres, mirrored to Redis so it's cheap to check). The worker checks it between steps
+and before each LLM call, then stops cleanly and records partial results. Killing a worker mid-step is avoided
+because it leaves state inconsistent.</p>
+
+<h3>Graceful shutdown on deploy</h3>
+<p>On <code>SIGTERM</code> the worker stops claiming new runs and finishes or checkpoints the current step. Set
+<code>terminationGracePeriodSeconds</code> to longer than your longest single step, not your longest run. With
+checkpoints, a run interrupted by a deploy just resumes on a new pod.</p>
+
+<h3>Human in the loop</h3>
+<p>LangGraph's <code>interrupt()</code> saves state and stops. The run moves to <code>waiting_input</code> and holds
+no worker while it waits, which could be days. <code>POST /resume</code> re-enqueues it with the answer.</p>
+
+<!-- ============================================================ -->
+<h2 id="status">10. Option B: how clients learn the status</h2>
+<div class="table-wrap"><table>
+  <tr><th>Mechanism</th><th>How it works</th><th>Pros</th><th>Cons</th><th>Use for</th></tr>
+  <tr><td><strong>Short polling</strong></td><td><code>GET /runs/{id}</code> every few seconds</td><td>Simplest. Works through every proxy and firewall. Stateless on the server. Clients can disappear.</td><td>Latency equals the poll interval. Wasted requests (reduce them with <code>ETag</code>/<code>304</code>, <code>Retry-After</code>, and backoff).</td><td><span class="pill good">Always: the baseline</span></td></tr>
+  <tr><td><strong>Long polling</strong></td><td>Server holds the request up to ~25s until something changes</td><td>Near-real-time over plain HTTP</td><td>Holds API connections. Needs a change signal (Redis pub/sub or Postgres <code>LISTEN/NOTIFY</code>).</td><td>Rarely worth it now that SSE exists</td></tr>
+  <tr><td><strong>Server-Sent Events</strong></td><td><code>GET /runs/{id}/events</code> as <code>text/event-stream</code></td><td>Live token and step streaming. Browsers reconnect automatically and send <code>Last-Event-ID</code>, which maps directly to <code>run_events.seq</code>.</td><td>A long-lived connection while someone is watching, so the proxy needs buffering disabled and long idle timeouts. One-way only.</td><td><span class="pill good">Live UI progress</span></td></tr>
+  <tr><td><strong>WebSockets</strong></td><td>Two-way socket</td><td>Two-way: steer the agent mid-run</td><td>Sticky connections, harder to scale and load-balance, and more than "watch progress" needs</td><td>Only if you need mid-run chat</td></tr>
+  <tr><td><strong>Webhooks</strong></td><td>You POST to the tenant's URL on completion</td><td>Zero polling for tenant backends. Event-driven integrations.</td><td>You must retry with backoff, sign payloads (HMAC + timestamp to stop replays), guard against SSRF to internal addresses, and handle receivers that are down</td><td><span class="pill good">Server-to-server tenants</span></td></tr>
+</table></div>
+<div class="callout">
+  <p><strong>Key point:</strong> SSE here is <em>not</em> the persistent connection you wanted to avoid. The run
+  doesn't depend on it. Close the tab and the run continues. Reopen it and the stream resumes from
+  <code>Last-Event-ID</code>. The connection is only for watching.</p>
+</div>
+
+<!-- ============================================================ -->
+<h2 id="tenancy">11. Multi-tenancy</h2>
+
+<h3>Isolation models</h3>
+<div class="table-wrap"><table>
+  <tr><th>Model</th><th>What's shared</th><th>Pros</th><th>Cons</th></tr>
+  <tr><td><strong>Pooled</strong></td><td>Everything. Tenant ID on every row, RLS in Postgres.</td><td>Cheapest, simplest to operate, best utilization</td><td>Noisy neighbors and blast radius must be handled in software</td></tr>
+  <tr><td><strong>Bridge</strong></td><td>Shared control plane. Separate worker pools or queues per tier, or for large tenants.</td><td>Big or regulated tenants can't starve others. Per-tier SLAs.</td><td>More deployments to manage</td></tr>
+  <tr><td><strong>Silo</strong></td><td>Nothing: a separate namespace, database or cluster per tenant</td><td>Strongest isolation, per-tenant region and encryption keys, easy compliance story</td><td>Expensive, and upgrades fan out across N stacks</td></tr>
+</table></div>
+<p>Usual approach: <strong>pooled by default, bridge for premium or high-volume tenants, silo only when a contract
+requires it.</strong> Keep tenant routing in config so you can move a tenant between models without changing code.</p>
+
+<h3>Fair scheduling (the noisy neighbor problem)</h3>
+<p>With one first-in-first-out queue, a tenant who submits 500 runs makes everyone else wait hours. Options:</p>
+<div class="table-wrap"><table>
+  <tr><th>Technique</th><th>How</th><th>Trade-off</th></tr>
+  <tr><td>Per-tenant concurrency cap</td><td>Admission check: <code>running(tenant) &lt; limit(plan)</code>. Excess runs stay <code>queued</code>.</td><td>Simple and essential. Doesn't order runs by itself.</td></tr>
+  <tr><td>Fair claim query</td><td>Claim from the tenant with the fewest running runs (round-robin across tenants), then oldest first within the tenant</td><td>Fair in Postgres with no extra infrastructure. The claim query gets more complex.</td></tr>
+  <tr><td>Queue per tier</td><td><code>runs.free</code>, <code>runs.pro</code>, <code>runs.enterprise</code> with separate worker pools</td><td>Hard isolation between tiers, but still FIFO within a tier</td></tr>
+  <tr><td>Queue per tenant</td><td>A queue for each tenant, workers round-robin across them</td><td>Perfect fairness, but thousands of queues are hard to operate on most brokers</td></tr>
+  <tr><td>Engine-native keys</td><td>Hatchet concurrency keys / rate limits, Temporal task queues per tier</td><td>Built in and tested, but tied to that engine</td></tr>
+</table></div>
+
+<h3>Quotas and cost</h3>
+<ul>
+  <li><strong>Submit rate:</strong> token bucket per tenant in Redis (e.g. 60 submits per minute).</li>
+  <li><strong>Concurrency:</strong> per-plan cap on running runs (above).</li>
+  <li><strong>Spend:</strong> monthly token or cost budget per tenant, checked at submit and at each step. Record usage per run for billing.</li>
+  <li><strong>Shared provider limits:</strong> your LLM provider's rate limit is shared across all tenants. Divide it with a
+    global limiter in the LLM gateway so one tenant can't use it all.</li>
+</ul>
+
+<h3>Data and secrets</h3>
+<ul>
+  <li><strong>Tenant ID comes only from the verified token.</strong> Set it on the DB session
+    (<code>SET app.tenant_id</code>) so RLS applies even if a query forgets a <code>WHERE</code> clause.</li>
+  <li>The worker re-applies the run's tenant context before doing anything. Tools and retrievers must filter by tenant too (vector store namespaces, search indexes).</li>
+  <li>Object storage keys are prefixed by tenant (<code>tenants/{t}/runs/{id}/report.md</code>). Results are served as presigned URLs valid for a few minutes.</li>
+  <li>Bring-your-own LLM keys: keep them in a secrets manager (Vault, or the cloud's own) and resolve them in the worker at run time. Never store them in the run input.</li>
+  <li>Agent memory and checkpoints are tenant data. Include them in retention and deletion (GDPR erase).</li>
+</ul>
+
+<!-- ============================================================ -->
+<h2 id="agnostic">12. Staying cloud-agnostic</h2>
+<p>The rule is to <strong>depend on protocols, not products</strong>. Use components that are open source or speak a
+widely implemented protocol, and treat each cloud's managed version as an interchangeable host.</p>
+<div class="table-wrap"><table>
+  <tr><th>Building block</th><th>Open protocol / OSS</th><th>AWS</th><th>GCP</th><th>Azure</th></tr>
+  <tr><td>Compute</td><td>Kubernetes + containers (OCI)</td><td>EKS</td><td>GKE</td><td>AKS</td></tr>
+  <tr><td>Database + queue</td><td>PostgreSQL</td><td>RDS / Aurora PG</td><td>Cloud SQL / AlloyDB</td><td>Azure DB for PostgreSQL</td></tr>
+  <tr><td>Cache / limits</td><td>Redis protocol (Redis, Valkey)</td><td>ElastiCache</td><td>Memorystore</td><td>Azure Cache for Redis</td></tr>
+  <tr><td>Blobs</td><td>S3 API (MinIO, Ceph)</td><td>S3</td><td>GCS (S3-compatible XML API)</td><td>Blob Storage (not S3-compatible, so use an abstraction layer such as <code>fsspec</code> or <code>obstore</code>)</td></tr>
+  <tr><td>Workflow engine</td><td>Temporal / Hatchet (self-host)</td><td colspan="3">Self-host on Kubernetes, or the vendor's cloud (which runs on any cloud)</td></tr>
+  <tr><td>Autoscaling</td><td>KEDA</td><td colspan="3">Same on every cluster</td></tr>
+  <tr><td>Secrets</td><td>Vault / External Secrets Operator</td><td>Secrets Manager</td><td>Secret Manager</td><td>Key Vault</td></tr>
+  <tr><td>Telemetry</td><td>OpenTelemetry, Langfuse (self-hostable)</td><td colspan="3">Any backend that accepts OTLP</td></tr>
+  <tr><td>Auth</td><td>OIDC / JWT</td><td>Cognito</td><td>Identity Platform</td><td>Entra ID</td></tr>
+</table></div>
+<p><strong>Avoid in the core path:</strong> SQS, Pub/Sub, Service Bus, Step Functions, Lambda and Cloud Run Jobs as
+<em>required</em> pieces. They're good services, but each one ties the design to one cloud. If you do use one, put it
+behind a small interface (<code>Queue.enqueue / claim / ack</code>) so it's a swappable adapter.</p>
+<p class="meta">Being cloud-agnostic has a cost: you give up some managed convenience and take on Kubernetes. If you only
+ever deploy to one cloud, that may not be worth it. The protocol-based approach keeps the option open without paying
+for multi-cloud on day one.</p>
+
+<!-- ============================================================ -->
+<h2 id="ops">13. Scaling and observability</h2>
+<h3>Scaling</h3>
+<ul>
+  <li><strong>API:</strong> standard HPA on CPU or request rate. It's stateless and fast.</li>
+  <li><strong>Workers:</strong> KEDA on queue depth or age (it has scalers for PostgreSQL queries, Redis, RabbitMQ,
+    Kafka and NATS). Scaling to zero is possible for low-volume tiers.</li>
+  <li><strong>Concurrency per worker:</strong> agent runs mostly wait on LLM and tool I/O, so one async worker can run
+    many at once (e.g. 10 to 50). Cap it by memory, since each run holds its context in RAM.</li>
+  <li><strong>The real bottleneck</strong> is usually provider rate limits (tokens per minute), not CPU. Scale workers
+    to your token budget, not to queue depth alone.</li>
+</ul>
+<h3>Observability</h3>
+<ul>
+  <li>Propagate an OpenTelemetry trace context from <code>POST /runs</code> into the job payload, so a single trace
+    covers request, queue wait, and every agent step.</li>
+  <li>Tag every span, log line and Langfuse trace with <code>tenant_id</code> and <code>run_id</code>.</li>
+  <li>Key metrics: queue wait time (p50/p95, per tier), run duration, success, failure and retry rate, lease
+    expiries (crashed workers), cost per run, and per-tenant concurrency against its cap.</li>
+  <li>Alert on <em>oldest queued run age</em>, not queue length. It's the signal users actually feel.</li>
+  <li>Runs that keep failing after <code>max_attempts</code> go to <code>failed</code> with the error kept. That's
+    your dead-letter queue, and it's queryable in SQL.</li>
+</ul>
+
+<!-- ============================================================ -->
+<h2 id="failures">14. Failure walkthrough</h2>
+<div class="table-wrap"><table>
+  <tr><th>What happens</th><th>What the design does</th></tr>
+  <tr><td>Client retries the submit after a network blip</td><td>Same <code>Idempotency-Key</code>, so the unique constraint hits and the API returns the existing run. No duplicate.</td></tr>
+  <tr><td>API pod dies after inserting but before replying</td><td>The run is committed and queued. The client retries with the same key and gets that run back.</td></tr>
+  <tr><td>Worker pod is OOM-killed at step 6 of 9</td><td>The lease expires and the run is reclaimed with <code>attempt=2</code>. It resumes from the step-6 checkpoint.</td></tr>
+  <tr><td>Deploy rolls all workers</td><td>On SIGTERM each worker finishes its step, checkpoints, and releases the lease. New pods resume the runs.</td></tr>
+  <tr><td>Worker hangs (stuck HTTP call) but the process is alive</td><td>Per-call timeouts on LLM and tool calls, plus a run-level wall-clock budget. The heartbeat task can also check that progress is advancing.</td></tr>
+  <tr><td>LLM provider returns 429s or has an outage</td><td>Retry with backoff in the LLM gateway, fall back to another provider. The run stays <code>running</code> with a progress note rather than failing.</td></tr>
+  <tr><td>One tenant submits 1,000 runs</td><td>Submit rate limit, then the concurrency cap. Excess runs wait in that tenant's share only. Other tenants are unaffected.</td></tr>
+  <tr><td>Agent loops forever</td><td>Step, token or cost budget is exceeded, so the run moves to <code>failed: budget_exceeded</code> with its partial output saved.</td></tr>
+  <tr><td>Redis is lost</td><td>Rate limits reset briefly and live streams reconnect. No runs are lost because Postgres is the source of truth.</td></tr>
+  <tr><td>Postgres primary fails over</td><td>The API and workers retry their connections. In-flight steps may repeat once, which is safe because of checkpoints and idempotent tools.</td></tr>
+</table></div>
+
+<!-- ============================================================ -->
+<h2 id="recommendation">15. Recommendation by stage</h2>
+<div class="stages">
+  <div class="stage">
+    <h4>Stage 1: get it working <span class="pill good">start here</span></h4>
+    <ul>
+      <li>FastAPI API + separate worker deployment, same codebase</li>
+      <li>Postgres: <code>runs</code> + <code>run_events</code>, a <code>SKIP LOCKED</code> claim, leases</li>
+      <li>LangGraph Postgres checkpointer with <code>thread_id = run_id</code></li>
+      <li>Polling with <code>Retry-After</code>, idempotency keys, RLS</li>
+      <li>Per-tenant concurrency cap, budgets</li>
+    </ul>
+    <p class="meta">Infrastructure: Postgres only (plus object storage). Runs on docker-compose locally and on any Kubernetes cluster.</p>
+  </div>
+  <div class="stage">
+    <h4>Stage 2: product polish</h4>
+    <ul>
+      <li>SSE progress stream from <code>run_events</code></li>
+      <li>Redis for token buckets, cancel flags and pub/sub</li>
+      <li>Signed webhooks with retries</li>
+      <li>Fair claim query across tenants, tier-specific worker pools</li>
+      <li>KEDA autoscaling, OpenTelemetry + Langfuse with tenant tags</li>
+    </ul>
+    <p class="meta">Add these when real users need live progress, or when integrations need callbacks.</p>
+  </div>
+  <div class="stage">
+    <h4>Stage 3: scale and complexity</h4>
+    <ul>
+      <li>Move orchestration to Temporal or Hatchet when you need multi-step flows, long waits, approvals and per-step retries</li>
+      <li>Bridge or silo tenants on dedicated pools, or clusters</li>
+      <li>Per-run sandboxes if agents execute code</li>
+      <li>LLM gateway with a global token budget and failover</li>
+    </ul>
+    <p class="meta">Add these when hand-built retry and orchestration logic becomes the code you spend the most time maintaining.</p>
+  </div>
+</div>
+<p>The API contract and the <code>runs</code> table stay the same through all three stages. Only what sits behind
+<code>enqueue()</code> and the worker loop changes, so clients never notice the migration.</p>
+
+<!-- ============================================================ -->
+<h2 id="code">16. Code sketch: the stage-1 build</h2>
+<p class="meta">A sketch to show the shape, not production code. It leaves out auth, migrations and error handling.</p>
+
+<h3>API</h3>
+<pre><code>from fastapi import FastAPI, Depends, Header, Response, HTTPException
+from ulid import ULID
+
+app = FastAPI()
+
+@app.post("/v1/runs", status_code=202)
+async def submit_run(body: RunRequest, response: Response,
+                     idempotency_key: str = Header(...),
+                     tenant: Tenant = Depends(current_tenant),   # from the verified JWT
+                     db = Depends(tenant_db)):                    # session with SET app.tenant_id
+    await enforce_quotas(tenant)                                  # rate limit + concurrency cap
+    run = await db.fetchrow("""
+        INSERT INTO runs (id, tenant_id, idempotency_key, input, budget, priority)
+        VALUES ($1, $2, $3, $4, $5, $6)
+        ON CONFLICT (tenant_id, idempotency_key) DO UPDATE SET idempotency_key = EXCLUDED.idempotency_key
+        RETURNING id, status""",
+        f"r_{ULID()}", tenant.id, idempotency_key, body.model_dump_json(),
+        tenant.plan.budget_json, tenant.plan.priority)
+    response.headers["Location"] = f"/v1/runs/{run['id']}"
+    return {"id": run["id"], "status": run["status"]}
+
+@app.get("/v1/runs/{run_id}")
+async def get_run(run_id: str, response: Response, db = Depends(tenant_db)):
+    run = await db.fetchrow("SELECT * FROM runs WHERE id = $1", run_id)  # RLS hides other tenants
+    if not run:
+        raise HTTPException(404)
+    if run["status"] in ("queued", "running"):
+        response.headers["Retry-After"] = "5"
+    return to_public(run)   # includes a presigned result_url when succeeded</code></pre>
+
+<h3>Worker</h3>
+<pre><code>CLAIM_SQL = """
+UPDATE runs SET status = 'running', worker_id = $1, attempt = attempt + 1,
+                lease_until = now() + interval '60 seconds',
+                started_at = coalesce(started_at, now())
+WHERE id = (
+  SELECT id FROM runs
+  WHERE (status = 'queued' OR (status = 'running' AND lease_until &lt; now()))
+    AND attempt &lt; max_attempts
+    AND NOT cancel_requested
+  ORDER BY priority, created_at
+  FOR UPDATE SKIP LOCKED
+  LIMIT 1)
+RETURNING *;
+"""
+
+async def worker_loop(worker_id: str):
+    while not shutting_down.is_set():
+        run = await db.fetchrow(CLAIM_SQL, worker_id)
+        if not run:
+            await asyncio.sleep(1)          # or wait on LISTEN/NOTIFY
+            continue
+        heartbeat = asyncio.create_task(renew_lease_every(20, run["id"], worker_id))
+        try:
+            await execute_agent(run)
+        finally:
+            heartbeat.cancel()
+
+async def execute_agent(run):
+    agent = create_deep_agent(..., checkpointer=postgres_checkpointer)  # resumes if a checkpoint exists
+    config = {"configurable": {"thread_id": run["id"], "tenant_id": run["tenant_id"]},
+              "callbacks": [langfuse_handler(run)]}
+    async for step in agent.astream(initial_input_or_none(run), config, stream_mode="updates"):
+        await append_event(run, step)                  # run_events + Redis publish
+        if await cancel_requested(run["id"]):
+            return await finish(run, "cancelled")
+        if over_budget(run, step):
+            return await finish(run, "failed", error="budget_exceeded")
+    report = await agent.aget_state(config)
+    key = await put_object(f"tenants/{run['tenant_id']}/runs/{run['id']}/report.md", report)
+    await finish(run, "succeeded", result_ref=key)     # UPDATE ... WHERE worker_id = $me (fencing)</code></pre>
+<p class="meta">Two details matter here. First, <code>finish()</code> only updates if this worker still owns the run, which
+stops a stale worker from overwriting a newer attempt. Second, when a checkpoint exists, <code>initial_input_or_none</code>
+returns <code>None</code>, so LangGraph continues from the saved state instead of starting again.</p>
+
+<h3>Moving to Temporal later</h3>
+<p>The same flow becomes a workflow: <code>submit</code> calls <code>client.start_workflow(id=run_id)</code>, each agent
+step or subagent becomes an activity that sends heartbeats, cancellation becomes a workflow cancel, and human
+approval becomes a signal. The <code>runs</code> table stays as the tenant-facing view and is updated from the workflow.</p>
+
+</main>
+</body>
+</html>

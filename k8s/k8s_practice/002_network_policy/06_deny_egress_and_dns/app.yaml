@@ -1,0 +1,21 @@
+# A web server and a client in namespace np-06. This example limits what the CLIENT can send out.
+apiVersion: v1
+kind: Namespace
+metadata: {name: np-06}
+---
+apiVersion: v1
+kind: Pod
+metadata: {name: web, namespace: np-06, labels: {app: web}}
+spec:
+  containers: [{name: nginx, image: "nginx:1.27-alpine", ports: [{containerPort: 80}]}]
+---
+apiVersion: v1
+kind: Service
+metadata: {name: web, namespace: np-06}
+spec: {selector: {app: web}, ports: [{port: 80}]}
+---
+apiVersion: v1
+kind: Pod
+metadata: {name: client, namespace: np-06, labels: {app: client}}
+spec:
+  containers: [{name: shell, image: "busybox:1.36", command: ["sleep", "infinity"]}]

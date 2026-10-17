@@ -1,0 +1,674 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Postgres as a Queue</title>
+<style>
+  :root {
+    --bg: #fbfbf9; --surface: #ffffff; --surface-2: #f2f2ee; --text: #1d1d1b; --muted: #62625c;
+    --border: #dcdcd5; --accent: #2f5fb3; --accent-soft: #e6edf9; --good: #2e7d4f; --warn: #a86512; --bad: #b3372f;
+    --code-bg: #f2f2ee;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #161615; --surface: #1f1f1d; --surface-2: #262624; --text: #e9e9e4; --muted: #a3a39b;
+      --border: #3a3a36; --accent: #86a8ec; --accent-soft: #233150; --good: #6cc495; --warn: #e0a252; --bad: #ec8a82;
+      --code-bg: #262624;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #161615; --surface: #1f1f1d; --surface-2: #262624; --text: #e9e9e4; --muted: #a3a39b;
+    --border: #3a3a36; --accent: #86a8ec; --accent-soft: #233150; --good: #6cc495; --warn: #e0a252; --bad: #ec8a82;
+    --code-bg: #262624;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  main { max-width: 880px; margin: 0 auto; padding: 40px 16px 80px; }
+  h1 { font-size: 1.9rem; line-height: 1.25; margin: 0 0 8px; }
+  h2 { font-size: 1.35rem; margin: 56px 0 12px; padding-top: 8px; border-top: 1px solid var(--border); }
+  h3 { font-size: 1.05rem; margin: 28px 0 8px; }
+  .lede { color: var(--muted); font-size: 1.05rem; margin: 0 0 24px; }
+  a { color: var(--accent); }
+  code { font: 0.88em ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--code-bg); padding: 1px 5px; border-radius: 4px; }
+  pre { background: var(--code-bg); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; overflow-x: auto; font-size: 0.85rem; line-height: 1.5; }
+  pre code { background: none; padding: 0; font-size: inherit; }
+  nav.toc { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px 20px; }
+  nav.toc ol { margin: 6px 0 0; padding-left: 20px; columns: 2; column-gap: 32px; }
+  nav.toc li { margin: 2px 0; break-inside: avoid; }
+  @media (max-width: 640px) { nav.toc ol { columns: 1; } }
+  .table-wrap { overflow-x: auto; margin: 12px 0 20px; border: 1px solid var(--border); border-radius: 8px; }
+  table { border-collapse: collapse; width: 100%; font-size: 0.9rem; background: var(--surface); }
+  th, td { text-align: left; vertical-align: top; padding: 9px 12px; border-bottom: 1px solid var(--border); }
+  th { background: var(--surface-2); font-weight: 600; white-space: nowrap; }
+  tr:last-child td { border-bottom: none; }
+  .callout { background: var(--accent-soft); border-left: 3px solid var(--accent); border-radius: 6px; padding: 12px 16px; margin: 16px 0; }
+  .callout.warn { background: transparent; border: 1px solid var(--warn); border-left-width: 3px; }
+  .callout p { margin: 4px 0; }
+  .good { color: var(--good); } .bad { color: var(--bad); }
+  figure { margin: 20px 0; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px; }
+  figure svg { width: 100%; height: auto; display: block; }
+  figcaption { color: var(--muted); font-size: 0.85rem; margin-top: 8px; }
+  .meta { color: var(--muted); font-size: 0.85rem; }
+  .d-box { fill: var(--surface-2); stroke: var(--border); stroke-width: 1.5; }
+  .d-box.hl { fill: var(--accent-soft); stroke: var(--accent); }
+  .d-row { fill: var(--surface); stroke: var(--border); }
+  .d-row.locked { fill: var(--accent-soft); stroke: var(--accent); }
+  .d-title { fill: var(--text); font: 600 13px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+  .d-sub { fill: var(--muted); font: 11.5px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+  .d-mono { fill: var(--text); font: 12px ui-monospace, SFMono-Regular, Menlo, monospace; }
+  .d-edge { stroke: var(--accent); stroke-width: 1.5; fill: none; }
+  .d-skip { stroke: var(--muted); stroke-width: 1.2; fill: none; stroke-dasharray: 4 4; }
+  .d-head { fill: var(--accent); }
+  .d-head-m { fill: var(--muted); }
+</style>
+</head>
+<body>
+<main>
+
+<h1>Postgres as a queue</h1>
+<p class="lede">Postgres has no built-in "queue feature" to switch on. A Postgres queue is a pattern built from
+ordinary features every Postgres 9.5+ already has: a table, row locks, <code>SKIP LOCKED</code>, transactions, and
+optionally <code>LISTEN/NOTIFY</code>. This page shows how it works, step by step, and when to use it.</p>
+
+<nav class="toc" aria-label="Contents">
+  <strong>Contents</strong>
+  <ol>
+    <li><a href="#building-blocks">The building blocks</a></li>
+    <li><a href="#skip-locked">How SKIP LOCKED makes it a queue</a></li>
+    <li><a href="#steps">Building it step by step</a></li>
+    <li><a href="#styles">Two ways to hold a job</a></li>
+    <li><a href="#crash">Crash recovery and retries</a></li>
+    <li><a href="#no-duplicates">How 50 pods avoid processing the same job</a></li>
+    <li><a href="#notify">Waking workers: polling vs LISTEN/NOTIFY</a></li>
+    <li><a href="#polling-cost">Is polling the jobs table expensive?</a></li>
+    <li><a href="#worker">A complete Python worker</a></li>
+    <li><a href="#ready-made">Ready-made options (pgmq and libraries)</a></li>
+    <li><a href="#limits">Limits and maintenance</a></li>
+    <li><a href="#when">When to use it, and when to move on</a></li>
+  </ol>
+</nav>
+
+<!-- ============================================================ -->
+<h2 id="building-blocks">1. The building blocks</h2>
+<div class="table-wrap"><table>
+  <tr><th>Feature</th><th>What it is</th><th>Role in the queue</th></tr>
+  <tr><td>A normal <strong>table</strong></td><td>Rows and columns</td><td>Holds the jobs, one row per job</td></tr>
+  <tr><td><strong>Row locks</strong> (<code>SELECT ... FOR UPDATE</code>)</td><td>Locks the selected rows until the transaction ends</td><td>A worker locks the job it takes, so no one else can change it</td></tr>
+  <tr><td><strong><code>SKIP LOCKED</code></strong></td><td>Tells the query to ignore rows another transaction has locked, rather than wait for them</td><td><strong>This is what makes it a queue.</strong> Many workers can grab jobs at once without colliding or blocking.</td></tr>
+  <tr><td><strong>Transactions</strong></td><td>All-or-nothing groups of statements</td><td>Creating a job can be atomic with your business data. A crash mid-transaction releases the job.</td></tr>
+  <tr><td><strong>Partial index</strong></td><td>An index over only the rows matching a condition</td><td>Keeps "find the next queued job" fast even with millions of finished rows</td></tr>
+  <tr><td><strong><code>LISTEN</code> / <code>NOTIFY</code></strong></td><td>Lightweight pub/sub built into Postgres</td><td>Optional: wake workers the moment a job arrives instead of polling</td></tr>
+</table></div>
+
+<!-- ============================================================ -->
+<h2 id="skip-locked">2. How SKIP LOCKED makes it a queue</h2>
+<p>Three workers run the same "give me the next job" query at the same moment:</p>
+
+<figure>
+<svg viewBox="0 0 760 290" role="img" aria-label="Three workers claim different rows; each skips rows locked by the others">
+  <defs>
+    <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="d-head" d="M0,0 L10,5 L0,10 z"/></marker>
+    <marker id="ahm" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="d-head-m" d="M0,0 L10,5 L0,10 z"/></marker>
+  </defs>
+  <text class="d-title" x="330" y="22">jobs table (status = 'queued', oldest first)</text>
+  <rect class="d-row locked" x="330" y="34" width="400" height="40"/><text class="d-mono" x="345" y="59">job 1   locked by worker 1</text>
+  <rect class="d-row locked" x="330" y="74" width="400" height="40"/><text class="d-mono" x="345" y="99">job 2   locked by worker 2</text>
+  <rect class="d-row locked" x="330" y="114" width="400" height="40"/><text class="d-mono" x="345" y="139">job 3   locked by worker 3</text>
+  <rect class="d-row" x="330" y="154" width="400" height="40"/><text class="d-mono" x="345" y="179">job 4   free</text>
+  <rect class="d-row" x="330" y="194" width="400" height="40"/><text class="d-mono" x="345" y="219">job 5   free</text>
+
+  <rect class="d-box hl" x="20" y="34" width="150" height="40" rx="6"/><text class="d-title" x="95" y="59" text-anchor="middle">worker 1</text>
+  <rect class="d-box hl" x="20" y="94" width="150" height="40" rx="6"/><text class="d-title" x="95" y="119" text-anchor="middle">worker 2</text>
+  <rect class="d-box hl" x="20" y="154" width="150" height="40" rx="6"/><text class="d-title" x="95" y="179" text-anchor="middle">worker 3</text>
+
+  <line class="d-edge" x1="170" y1="54" x2="328" y2="54" marker-end="url(#ah)"/>
+  <path class="d-skip" d="M170,108 C230,108 260,60 326,62" marker-end="url(#ahm)"/>
+  <text class="d-sub" x="190" y="84">skip 1</text>
+  <line class="d-edge" x1="170" y1="118" x2="328" y2="96" marker-end="url(#ah)"/>
+  <path class="d-skip" d="M170,168 C240,168 270,70 326,70" marker-end="url(#ahm)"/>
+  <path class="d-skip" d="M170,172 C250,172 280,104 326,104" marker-end="url(#ahm)"/>
+  <text class="d-sub" x="200" y="200">skip 1, skip 2</text>
+  <line class="d-edge" x1="170" y1="176" x2="328" y2="136" marker-end="url(#ah)"/>
+
+  <text class="d-sub" x="20" y="262">Without SKIP LOCKED, workers 2 and 3 would wait on job 1's lock, then find it already taken.</text>
+  <text class="d-sub" x="20" y="280">With it, every worker gets a different job immediately. No duplicates, no waiting.</text>
+</svg>
+<figcaption>Locks are per row and last until the claiming transaction commits or rolls back.</figcaption>
+</figure>
+
+<!-- ============================================================ -->
+<h2 id="steps">3. Building it step by step</h2>
+
+<h3>Step 1: create the jobs table</h3>
+<p>Just SQL. No extension, nothing to enable.</p>
+<pre><code>CREATE TABLE jobs (
+  id            bigserial PRIMARY KEY,
+  payload       jsonb NOT NULL,
+  status        text NOT NULL DEFAULT 'queued',   -- queued | running | done | failed
+  attempts      int  NOT NULL DEFAULT 0,
+  max_attempts  int  NOT NULL DEFAULT 3,
+  locked_by     text,
+  locked_until  timestamptz,                      -- the lease
+  last_error    text,
+  run_after     timestamptz NOT NULL DEFAULT now(),  -- for delayed jobs and retry backoff
+  created_at    timestamptz NOT NULL DEFAULT now()
+);
+
+-- Only covers rows still waiting, so it stays small and fast
+CREATE INDEX jobs_ready ON jobs (run_after) WHERE status = 'queued';</code></pre>
+
+<h3>Step 2: enqueue a job</h3>
+<p>A normal insert. Because it's an ordinary write, it can share a transaction with your business data:</p>
+<pre><code>BEGIN;
+  INSERT INTO runs (id, tenant_id, ...) VALUES ('r_123', 't_1', ...);
+  INSERT INTO jobs (payload) VALUES ('{"run_id": "r_123"}');
+COMMIT;   -- both rows exist, or neither does</code></pre>
+<div class="callout">
+  <p>This is the biggest advantage over a separate broker. With RabbitMQ, Kafka or SQS, saving data and enqueueing
+  are two writes to two systems, which needs a "transactional outbox" to stay consistent. Here it's one transaction.</p>
+</div>
+
+<h3>Step 3: claim a job (the core query)</h3>
+<pre><code>UPDATE jobs
+SET status       = 'running',
+    attempts     = attempts + 1,
+    locked_by    = 'worker-7',
+    locked_until = now() + interval '60 seconds'
+WHERE id = (
+  SELECT id FROM jobs
+  WHERE status = 'queued' AND run_after &lt;= now()
+  ORDER BY run_after
+  FOR UPDATE SKIP LOCKED      -- lock one row, skip rows other workers hold
+  LIMIT 1
+)
+RETURNING *;</code></pre>
+<p>Reading it inside out: the subquery finds the oldest ready job that no one else has locked and locks it. The
+outer <code>UPDATE</code> marks it as taken by this worker. <code>RETURNING *</code> hands the job back. If no row comes
+back, the queue is empty.</p>
+
+<h3>Step 4: finish the job</h3>
+<pre><code>-- success
+UPDATE jobs SET status = 'done', locked_until = NULL
+WHERE id = $1 AND locked_by = 'worker-7';   -- only if we still own it
+
+-- failure: retry later with backoff, or give up
+UPDATE jobs
+SET status    = CASE WHEN attempts &gt;= max_attempts THEN 'failed' ELSE 'queued' END,
+    run_after = now() + (interval '30 seconds' * power(2, attempts)),
+    last_error = $2, locked_by = NULL, locked_until = NULL
+WHERE id = $1 AND locked_by = 'worker-7';</code></pre>
+<p class="meta">The <code>locked_by</code> check matters: if this worker was presumed dead and the job was re-claimed by
+someone else, the stale worker's update affects zero rows instead of overwriting the new owner's work.</p>
+
+<h3>Step 5: heartbeat (long jobs only)</h3>
+<p>While working, extend the lease every ~20 seconds so nobody thinks the worker died:</p>
+<pre><code>UPDATE jobs SET locked_until = now() + interval '60 seconds'
+WHERE id = $1 AND locked_by = 'worker-7';</code></pre>
+
+<!-- ============================================================ -->
+<h2 id="styles">4. Two ways to hold a job</h2>
+<div class="table-wrap"><table>
+  <tr><th>Style</th><th>How</th><th>Crash recovery</th><th>Good for</th></tr>
+  <tr>
+    <td><strong>Lock for the whole job</strong></td>
+    <td><code>BEGIN</code> → claim with <code>FOR UPDATE SKIP LOCKED</code> (no status change needed) → do the work → mark done → <code>COMMIT</code></td>
+    <td class="good">Automatic: if the worker dies, its connection drops, the transaction rolls back, and the row is unlocked.</td>
+    <td>Short jobs (seconds)</td>
+  </tr>
+  <tr>
+    <td><strong>Claim, commit, lease</strong> (step 3 above)</td>
+    <td>Claim and <code>COMMIT</code> straight away. Track liveness with <code>locked_until</code> and heartbeats.</td>
+    <td>You handle it: expired leases get picked up again (next section).</td>
+    <td>Long jobs (minutes to hours), like AI agent runs</td>
+  </tr>
+</table></div>
+<div class="callout warn">
+  <p><strong>Why not hold a transaction open for an hour?</strong> Each open transaction pins a database connection
+  for its whole duration, so 50 running jobs need 50 connections. Worse, Postgres can't clean up old row versions
+  (vacuum) that are newer than the oldest open transaction, so tables across the whole database bloat and slow down.</p>
+</div>
+
+<!-- ============================================================ -->
+<h2 id="crash">5. Crash recovery and retries</h2>
+<p>With the lease style, a crashed worker leaves its job in <code>running</code> with a <code>locked_until</code> in
+the past. Two ways to recover it:</p>
+<h3>Option A: let the claim query pick it up</h3>
+<pre><code>WHERE (status = 'queued' AND run_after &lt;= now())
+   OR (status = 'running' AND locked_until &lt; now())   -- lease expired: worker presumed dead</code></pre>
+<h3>Option B: a periodic reaper</h3>
+<pre><code>-- run every minute (cron, pg_cron, or a loop in one worker)
+UPDATE jobs
+SET status = CASE WHEN attempts &gt;= max_attempts THEN 'failed' ELSE 'queued' END,
+    locked_by = NULL, locked_until = NULL,
+    last_error = 'lease expired'
+WHERE status = 'running' AND locked_until &lt; now();</code></pre>
+<p>Either way, the job may run a second time. Make jobs <strong>idempotent</strong> (safe to repeat), or checkpoint
+progress so a retry continues where the last attempt stopped.</p>
+<p>Rows that end in <code>failed</code> are your <strong>dead-letter queue</strong>. Unlike a broker's DLQ, you can
+inspect, filter and re-queue them with plain SQL:</p>
+<pre><code>UPDATE jobs SET status = 'queued', attempts = 0, run_after = now()
+WHERE status = 'failed' AND last_error LIKE '%rate limit%';</code></pre>
+
+<!-- ============================================================ -->
+<h2 id="no-duplicates">6. How 50 pods avoid processing the same job</h2>
+<p>Picture 50 worker pods, all running the claim query against the same <code>jobs</code> table, many of them at the
+same instant. Why doesn't a job get picked up by two or three of them?</p>
+<div class="callout">
+  <p><strong>The guarantee:</strong> a <code>queued</code> job can be taken by <strong>exactly one</strong> claim query,
+  however many pods are polling. Duplicate processing can only come from two later situations: a lease that expires
+  while its pod is still working, or a pod that crashes after doing the work but before marking it done. Both are
+  handled with a fencing token and idempotent work (covered below).</p>
+</div>
+
+<h3>Tested: 50 workers, 5,000 jobs, four ways of claiming</h3>
+<p>Each strategy was run with 50 concurrent workers (one database connection each, like 50 pods) against a fresh
+table of 5,000 jobs. Every time a worker claimed a job it wrote a row to a <code>processed</code> log. Any job that
+appears in the log more than once was processed more than once.</p>
+<div class="table-wrap"><table>
+  <tr><th>Claim strategy</th><th>Times jobs were processed</th><th>Jobs processed more than once</th><th>Worst case for one job</th><th>Wasted attempts</th><th>Pods that got work</th><th>Time</th></tr>
+  <tr><td><strong>Naive:</strong> <code>SELECT</code> a queued id, then <code>UPDATE</code> it</td><td class="bad">44,447</td><td class="bad">4,987 of 5,000</td><td class="bad">24 times</td><td>0</td><td>50</td><td>13.8 s</td></tr>
+  <tr><td><strong>Optimistic:</strong> same, but the <code>UPDATE</code> re-checks <code>status = 'queued'</code></td><td class="good">5,000</td><td class="good">0</td><td>1</td><td class="bad">79,594 lost races</td><td>50</td><td>13.5 s</td></tr>
+  <tr><td><strong><code>FOR UPDATE</code></strong> without <code>SKIP LOCKED</code></td><td class="good">5,000</td><td class="good">0</td><td>1</td><td>0 (but workers wait in line)</td><td>25</td><td>2.2 s</td></tr>
+  <tr><td><strong><code>FOR UPDATE SKIP LOCKED</code></strong> (this page's claim query)</td><td class="good">5,000</td><td class="good">0</td><td>1</td><td>0</td><td>50</td><td class="good">1.4 s</td></tr>
+</table></div>
+<p class="meta">Laptop timings with near-instant "work". The pattern is what matters: the naive version processed one
+job 24 times. The optimistic version is correct but burns 16 failed attempts per job. Plain <code>FOR UPDATE</code> is
+correct but makes workers queue behind each other's locks, so only half of them ever got a job. <code>SKIP LOCKED</code>
+is correct, uses every pod, and is fastest.</p>
+
+<h3>Layer 1: claiming must be one atomic step</h3>
+<p>The naive version splits "find a job" and "take the job" into two statements. Between them, other pods see the
+same job as free:</p>
+<div class="table-wrap"><table>
+  <tr><th>Time</th><th>Pod A</th><th>Pod B</th></tr>
+  <tr><td>t1</td><td><code>SELECT id ... WHERE status='queued' LIMIT 1</code> → job 7</td><td></td></tr>
+  <tr><td>t2</td><td></td><td><code>SELECT id ... WHERE status='queued' LIMIT 1</code> → job 7 (still queued)</td></tr>
+  <tr><td>t3</td><td><code>UPDATE jobs SET status='running' WHERE id=7</code></td><td></td></tr>
+  <tr><td>t4</td><td></td><td><code>UPDATE jobs SET status='running' WHERE id=7</code> (succeeds too)</td></tr>
+  <tr><td>t5</td><td class="bad">runs job 7</td><td class="bad">runs job 7</td></tr>
+</table></div>
+<p>With 50 pods all reading "the oldest queued job" at once, they mostly read the <em>same</em> row, which is why the
+test saw up to 24 copies of one job. The fix is to find and take the job in one statement that locks the row.</p>
+
+<h3>Layer 2: the row lock, and SKIP LOCKED</h3>
+<p>In <code>SELECT ... FOR UPDATE SKIP LOCKED LIMIT 1</code>, each pod scans the queued jobs in order and tries to
+lock each row:</p>
+<ul>
+  <li>Locking a row is atomic inside Postgres. If 50 pods reach job 7 in the same microsecond, <strong>exactly one</strong>
+    gets the lock.</li>
+  <li>The other 49 see the row is locked. With <code>SKIP LOCKED</code> they move straight on to job 8, 9, 10 and so
+    on, and each takes the first row it can lock. 50 pods end up with 50 different jobs.</li>
+  <li>The outer <code>UPDATE</code> sets <code>status = 'running'</code> in the same statement, and with autocommit
+    the change commits as soon as the statement finishes. The lock is held only for that instant, not for the whole job.</li>
+</ul>
+<p>Without <code>SKIP LOCKED</code>, the 49 losing pods <em>wait</em> for the winner's lock to be released. That's
+still correct, but they form a queue behind one row, which is the "only 25 pods got work" result above.</p>
+
+<h3>Layer 3: Postgres re-checks the row after locking it</h3>
+<p>There's one subtler race. Pod B's query may have started reading <em>just before</em> pod A committed. B's
+snapshot still shows job 7 as <code>queued</code>, and by the time B reaches the row, A's lock is already gone, so
+<code>SKIP LOCKED</code> doesn't apply. Why doesn't B take job 7?</p>
+<div class="table-wrap"><table>
+  <tr><th>Time</th><th>Pod A</th><th>Pod B</th></tr>
+  <tr><td>t1</td><td>locks job 7, sets <code>status='running'</code></td><td>query starts; its snapshot shows job 7 as <code>queued</code></td></tr>
+  <tr><td>t2</td><td>commits (lock released)</td><td></td></tr>
+  <tr><td>t3</td><td></td><td>reaches job 7, locks it (no longer locked), then <strong>re-reads the newest version</strong>: <code>status='running'</code></td></tr>
+  <tr><td>t4</td><td></td><td>the <code>WHERE status = 'queued'</code> check now fails, so B drops job 7 and continues to job 8</td></tr>
+</table></div>
+<p>Under the default <code>READ COMMITTED</code> isolation level, when <code>FOR UPDATE</code> (or an
+<code>UPDATE</code>) locks a row that changed after the query's snapshot, Postgres re-evaluates the <code>WHERE</code>
+clause against the newest committed version of that row. This is why the claim query must <strong>filter on
+<code>status</code></strong> and must <strong>change <code>status</code> in the same statement</strong>: the status
+change is what the re-check sees.</p>
+
+<h3>Layer 4: one clock for all pods</h3>
+<p>Lease checks use <code>now()</code>, which is the <em>database server's</em> clock. Fifty pods with slightly different
+system clocks can't disagree about whether a lease has expired, because none of them use their own clock for it.
+Don't compute <code>locked_until</code> in application code.</p>
+
+<h3>Where duplicates can still happen</h3>
+<p>The claim itself never hands one job to two pods. But a job can still be <em>executed</em> twice in these cases:</p>
+<div class="table-wrap"><table>
+  <tr><th>Situation</th><th>What happens</th><th>Defence</th></tr>
+  <tr><td><strong>Lease expires while the pod is still alive</strong> (long GC pause, network blip, missed heartbeats, slow step)</td><td>The job looks abandoned, so another pod reclaims it. Now two pods run it at once.</td><td>Heartbeats well inside the lease (e.g. every 20 s for a 60 s lease), plus a <strong>fencing token</strong> so the stale pod's writes are rejected</td></tr>
+  <tr><td><strong>Pod crashes after the work, before marking done</strong></td><td>The lease expires and the job runs again.</td><td>Idempotent work, or do the work's database writes and "mark done" in one transaction</td></tr>
+  <tr><td><strong>The "done" update is lost</strong> (connection drops at commit)</td><td>The pod can't tell if it committed, so the job may be retried.</td><td>Same as above: idempotency</td></tr>
+  <tr><td><strong>The same job is enqueued twice</strong> (client retries a submit)</td><td>Two different rows, both valid, so both run.</td><td>A unique idempotency key: <code>UNIQUE (tenant_id, idempotency_key)</code> plus <code>ON CONFLICT DO NOTHING</code></td></tr>
+</table></div>
+
+<h3>Fencing token: rejecting a stale pod's writes</h3>
+<p>Use the <code>attempts</code> counter as a token. The claim increments it and returns it. Every later write for
+that job includes <code>AND attempts = &lt;my token&gt;</code>, so only the newest owner's writes take effect:</p>
+<pre><code>-- claim returns (id, attempts); keep attempts as the fencing token
+UPDATE jobs SET status = 'done', result = $3
+WHERE id = $1 AND attempts = $2;     -- 0 rows = someone newer owns this job: stop, don't overwrite</code></pre>
+<p>Tested with a 2-second lease (<code>postgres_queue_lab/lease_test.py</code>):</p>
+<pre><code>pod-A claims job 1 attempt 1
+pod-B tries immediately: None (nothing: A holds the lease)
+pod-A stalls 3s with no heartbeat (GC pause / network blip)...
+pod-B reclaims job 1 attempt 2  &lt;- job now running on TWO pods
+pod-B finishes, fenced update rows: 1
+pod-A wakes, fenced update rows: 0 (rejected: stale attempt)
+final row: ('done', 2, 'pod-B', 'B')</code></pre>
+<p class="meta">Fencing protects the <em>jobs table</em>. It can't undo what pod A already did outside it, such as
+sending an email or calling an API. That's what idempotency is for.</p>
+
+<h3>Making the work itself idempotent</h3>
+<div class="table-wrap"><table>
+  <tr><th>Kind of side effect</th><th>Pattern</th></tr>
+  <tr><td>Writes to the same Postgres database</td><td>Do the writes and <code>UPDATE jobs SET status='done' ... AND attempts = $token</code> in <strong>one transaction</strong>. If the fenced update hits 0 rows, roll back. This gives an exactly-once <em>effect</em>.</td></tr>
+  <tr><td>Rows the job produces</td><td>A unique constraint on the output (e.g. <code>UNIQUE (job_id)</code>) plus <code>INSERT ... ON CONFLICT DO NOTHING</code></td></tr>
+  <tr><td>External APIs (payments, email, tickets)</td><td>Send an idempotency key derived from the job, e.g. <code>job_id</code> + step number. Most payment and messaging APIs support this.</td></tr>
+  <tr><td>Long multi-step work (agent runs)</td><td>Checkpoint after each step, so a retry resumes rather than repeating finished steps</td></tr>
+</table></div>
+
+<h3>Checklist for running 50 pods</h3>
+<ul>
+  <li><strong>Claim in one statement</strong> with <code>FOR UPDATE SKIP LOCKED</code>, filtering on <code>status</code> and
+    changing <code>status</code> in the same statement.</li>
+  <li><strong>Keep the claim in a shape that runs the locking subquery once:</strong> <code>WHERE id = (SELECT ... LIMIT 1)</code>
+    as on this page, or a CTE. <code>EXPLAIN</code> should show it as an <code>InitPlan</code>. Rewrites such as
+    <code>IN (...)</code> or joins give the planner more freedom in how it runs the subquery, so check their plans carefully.</li>
+  <li><strong>Lease and heartbeat:</strong> heartbeat at most a third of the lease length. Use <code>now()</code> from the
+    database, not the pod's clock.</li>
+  <li><strong>Fence every write</strong> after the claim with <code>AND attempts = $token</code>.</li>
+  <li><strong>Make side effects idempotent</strong>, and put a unique idempotency key on enqueue.</li>
+  <li><strong>Connections:</strong> 50 pods × pool size must stay under <code>max_connections</code>. Use PgBouncer in
+    transaction mode if needed: the claim is a single statement, so it works there. <code>LISTEN</code> does not
+    work through transaction pooling, so give listeners a direct or session-pooled connection.</li>
+  <li><strong>Batch claims</strong> (<code>LIMIT 5</code>) if pods process many short jobs, to cut round trips.</li>
+</ul>
+
+<h3>Reproduce</h3>
+<p>The scripts are in <code>postgres_queue_lab/</code> next to this page. Its README has the Docker and
+<code>uv</code> commands. <code>race_test.py</code> runs all four claim strategies with 50 workers.
+<code>lease_test.py</code> runs the fencing scenario.</p>
+
+<!-- ============================================================ -->
+<h2 id="notify">7. Waking workers: polling vs LISTEN/NOTIFY</h2>
+<div class="table-wrap"><table>
+  <tr><th>Approach</th><th>How</th><th>Trade-off</th></tr>
+  <tr><td><strong>Polling</strong></td><td>Run the claim query; if empty, sleep 1 second and try again</td><td>Dead simple and robust. Adds up to 1 second of delay and a small constant query load. Cheaper than it sounds: see <a href="#polling-cost">section 8</a>.</td></tr>
+  <tr><td><strong>LISTEN/NOTIFY</strong></td><td>The producer runs <code>NOTIFY jobs_channel</code>; idle workers <code>LISTEN</code> and wake immediately</td><td>Near-instant pickup. Notifications aren't stored: a worker that's disconnected misses them. So always keep a slow poll as a fallback.</td></tr>
+</table></div>
+<pre><code>-- producer: in the same transaction as the insert (delivered on COMMIT)
+INSERT INTO jobs (payload) VALUES ('{"run_id": "r_123"}');
+NOTIFY jobs_channel;
+
+-- or automatically with a trigger
+CREATE FUNCTION notify_new_job() RETURNS trigger AS $$
+BEGIN
+  PERFORM pg_notify('jobs_channel', NEW.id::text);
+  RETURN NEW;
+END $$ LANGUAGE plpgsql;
+
+CREATE TRIGGER jobs_notify AFTER INSERT ON jobs
+FOR EACH ROW EXECUTE FUNCTION notify_new_job();</code></pre>
+<p class="meta">A notification is only a doorbell. The worker still runs the claim query with <code>SKIP LOCKED</code>,
+so if five workers wake up for one job, one gets it and four find nothing.</p>
+
+<!-- ============================================================ -->
+<h2 id="polling-cost">8. Is polling the jobs table expensive?</h2>
+<p>Short answer: <strong>no, an empty poll is very cheap if you have the right index.</strong> The cost to watch is dead
+rows, not the polling itself. These numbers come from a throwaway Postgres 17 container on a laptop, with
+<strong>1 million finished jobs</strong> in the table and nothing queued. The script to reproduce them is at the end of
+this section.</p>
+
+<h3>What was measured</h3>
+<div class="table-wrap"><table>
+  <tr><th>Measurement</th><th>Result</th></tr>
+  <tr><td>One empty-queue claim query (<code>EXPLAIN ANALYZE</code>)</td><td><strong>0.057 ms</strong>, reading <strong>1 page</strong> (8 KB) from memory</td></tr>
+  <tr><td>10 clients running the claim non-stop for 10 seconds (<code>pgbench</code>)</td><td><strong>~106,000 polls/second</strong>, 0.09 ms average latency</td></tr>
+  <tr><td>Data written to disk (WAL) by 5 seconds of non-stop empty polls</td><td><strong>0 bytes</strong></td></tr>
+  <tr><td>Same empty poll after 50,000 jobs were queued and finished, with autovacuum off</td><td><strong>450 pages</strong> read instead of 1</td></tr>
+  <tr><td>Same poll after running <code>VACUUM</code></td><td>Back to <strong>1 page</strong></td></tr>
+</table></div>
+<p class="meta">Absolute numbers depend on hardware. The ratios are the point: an empty poll is a tiny index lookup,
+and dead rows are what make it grow.</p>
+
+<h3>Why an empty poll is cheap</h3>
+<ul>
+  <li><strong>The partial index only holds waiting jobs.</strong> <code>CREATE INDEX ... WHERE status = 'queued'</code>
+    leaves the million finished rows out, so with an empty queue Postgres checks one small index page and stops.
+    The size of the table doesn't matter.</li>
+  <li><strong>An <code>UPDATE</code> that matches no row writes nothing.</strong> No new row versions, no WAL, no work
+    for vacuum. An empty poll is effectively a read.</li>
+  <li><strong>The page is already in memory.</strong> The hot index page stays in Postgres's shared buffers, so there's
+    no disk I/O.</li>
+</ul>
+<p>For scale: 10 workers polling once a second is <strong>10 queries per second</strong>, roughly 1/10,000 of what this
+laptop handled.</p>
+
+<h3>Where it does get expensive</h3>
+<div class="table-wrap"><table>
+  <tr><th>Cause</th><th>What happens</th></tr>
+  <tr><td><strong>Dead rows not yet vacuumed</strong></td><td>When a job is claimed or finished, its old row version stays in the index until vacuum removes it. Each poll must visit and skip those entries: 450 pages instead of 1 in the test above. On a busy queue where vacuum falls behind, every poll gets slower.</td></tr>
+  <tr><td><strong>Too many pollers, too often</strong></td><td>500 workers polling every 100 ms is 5,000 queries per second and 500 open connections. Connections usually run out before CPU does.</td></tr>
+  <tr><td><strong>Everyone rushing the same row</strong></td><td>When a job arrives, every idle worker races for it. <code>SKIP LOCKED</code> keeps this correct (one winner, no waiting), but at large scale it's wasted round trips.</td></tr>
+  <tr><td><strong>A missing or wrong index</strong></td><td>Without the partial index, each poll scans far more of the table, and the cost grows with the number of finished jobs.</td></tr>
+</table></div>
+
+<h3>How to keep it cheap</h3>
+<div class="table-wrap"><table>
+  <tr><th>Technique</th><th>Effect</th></tr>
+  <tr><td><strong>Partial index</strong> on queued jobs</td><td>Empty polls stay at about 1 page however big the table gets</td></tr>
+  <tr><td><strong>Aggressive autovacuum</strong> on the jobs table</td><td>Dead entries are cleaned up quickly, so polls don't slow down</td></tr>
+  <tr><td><strong>Archive or delete finished jobs</strong></td><td>Smaller table and indexes. Partition by time and drop old partitions at high volume.</td></tr>
+  <tr><td><strong>Back off when idle</strong></td><td>An idle queue costs almost nothing</td></tr>
+  <tr><td><strong><code>LISTEN/NOTIFY</code></strong> plus a slow fallback poll (e.g. every 30 s)</td><td>Instant pickup with almost no polling (see <a href="#notify">section 7</a>)</td></tr>
+  <tr><td><strong>One dispatcher per process</strong> claiming a few jobs at once (<code>LIMIT 5</code>) and handing them to async tasks</td><td>One poller per process instead of one per task</td></tr>
+</table></div>
+
+<pre><code>-- vacuum the jobs table after ~1% of rows change, with no throttling
+ALTER TABLE jobs SET (
+  autovacuum_vacuum_scale_factor = 0.01,
+  autovacuum_vacuum_cost_delay   = 0
+);</code></pre>
+
+<pre><code># idle backoff in the worker loop: 1s, 2s, 4s ... capped at 30s; reset after finding a job
+delay = 1
+while True:
+    row = conn.execute(CLAIM, params).fetchone()
+    if row is None:
+        time.sleep(delay)
+        delay = min(delay * 2, 30)
+        continue
+    delay = 1
+    process(row)</code></pre>
+
+<div class="callout">
+  <p><strong>For long-running, low-volume jobs</strong> such as AI agent runs, plain polling every 1 to 2 seconds with
+  backoff is effectively free. Add <code>LISTEN/NOTIFY</code> only if you need pickup in under a second.</p>
+</div>
+
+<h3>Reproduce the measurements</h3>
+<p class="meta">Needs Docker. Uses a container named <code>pgq-bench</code> that is removed when stopped.</p>
+<pre><code>docker run -d --rm --name pgq-bench -e POSTGRES_PASSWORD=app -e POSTGRES_USER=app postgres:17
+sleep 5
+
+# 1M finished jobs, partial index, nothing queued
+docker exec -i pgq-bench psql -U app &lt;&lt;'SQL'
+CREATE TABLE jobs (id bigserial PRIMARY KEY, payload jsonb NOT NULL,
+  status text NOT NULL DEFAULT 'queued', attempts int NOT NULL DEFAULT 0,
+  locked_by text, locked_until timestamptz, run_after timestamptz NOT NULL DEFAULT now());
+CREATE INDEX jobs_ready ON jobs (run_after) WHERE status = 'queued';
+INSERT INTO jobs (payload, status) SELECT '{}', 'done' FROM generate_series(1, 1000000);
+VACUUM ANALYZE jobs;
+SQL
+
+# the claim query, saved for pgbench
+docker exec -i pgq-bench sh -c 'cat &gt; /claim.sql' &lt;&lt;'SQL'
+UPDATE jobs SET status = 'running', attempts = attempts + 1, locked_by = 'w',
+       locked_until = now() + interval '60 seconds'
+WHERE id = (SELECT id FROM jobs WHERE status = 'queued' AND run_after &lt;= now()
+            ORDER BY run_after FOR UPDATE SKIP LOCKED LIMIT 1)
+RETURNING id;
+SQL
+
+# 1. cost of one empty poll: look at "Buffers" and "Execution Time"
+docker exec -i pgq-bench psql -U app -c "EXPLAIN (ANALYZE, BUFFERS) $(docker exec pgq-bench cat /claim.sql)"
+
+# 2. throughput: 10 clients polling non-stop for 10 seconds
+docker exec pgq-bench pgbench -U app -n -c 10 -j 2 -T 10 -f /claim.sql app
+
+# 3. WAL written by 5 seconds of empty polls
+B=$(docker exec pgq-bench psql -U app -At -c "SELECT pg_current_wal_lsn()")
+docker exec pgq-bench pgbench -U app -n -c 10 -j 2 -T 5 -f /claim.sql app &gt; /dev/null
+docker exec pgq-bench psql -U app -At -c "SELECT pg_size_pretty(pg_wal_lsn_diff(pg_current_wal_lsn(), '$B'))"
+
+# 4. dead rows: churn 50k jobs with autovacuum off, poll, vacuum, poll again
+docker exec pgq-bench psql -U app -c "ALTER TABLE jobs SET (autovacuum_enabled = false)" \
+  -c "INSERT INTO jobs (payload) SELECT '{}' FROM generate_series(1, 50000)" \
+  -c "UPDATE jobs SET status = 'done' WHERE status = 'queued'"
+docker exec -i pgq-bench psql -U app -c "EXPLAIN (ANALYZE, BUFFERS) $(docker exec pgq-bench cat /claim.sql)"
+docker exec pgq-bench psql -U app -c "VACUUM jobs"
+docker exec -i pgq-bench psql -U app -c "EXPLAIN (ANALYZE, BUFFERS) $(docker exec pgq-bench cat /claim.sql)"
+
+docker stop pgq-bench</code></pre>
+
+<!-- ============================================================ -->
+<h2 id="worker">9. A complete Python worker</h2>
+<p class="meta">Uses <code>psycopg</code> 3. Polling with a short sleep, lease and heartbeat, retries with backoff. A
+learning sketch: add logging, metrics and graceful shutdown for production.</p>
+<pre><code>import json, socket, threading, time
+import psycopg
+
+DSN = "postgresql://app:app@localhost:5432/app"
+WORKER_ID = f"{socket.gethostname()}-{threading.get_ident()}"
+LEASE = 60          # seconds
+HEARTBEAT = 20      # seconds
+
+CLAIM = """
+UPDATE jobs SET status = 'running', attempts = attempts + 1,
+                locked_by = %(me)s, locked_until = now() + make_interval(secs => %(lease)s)
+WHERE id = (
+  SELECT id FROM jobs
+  WHERE (status = 'queued' AND run_after &lt;= now())
+     OR (status = 'running' AND locked_until &lt; now())
+  ORDER BY run_after
+  FOR UPDATE SKIP LOCKED
+  LIMIT 1)
+RETURNING id, payload, attempts, max_attempts;
+"""
+
+def heartbeat(job_id, stop):
+    with psycopg.connect(DSN, autocommit=True) as conn:
+        while not stop.wait(HEARTBEAT):
+            conn.execute("UPDATE jobs SET locked_until = now() + make_interval(secs => %s) "
+                         "WHERE id = %s AND locked_by = %s", (LEASE, job_id, WORKER_ID))
+
+def handle(payload):
+    print("working on", payload)
+    time.sleep(5)                      # your real work: run the agent, etc.
+
+def main():
+    with psycopg.connect(DSN, autocommit=True) as conn:
+        while True:
+            row = conn.execute(CLAIM, {"me": WORKER_ID, "lease": LEASE}).fetchone()
+            if row is None:
+                time.sleep(1)          # queue empty
+                continue
+            job_id, payload, attempts, max_attempts = row
+            stop = threading.Event()
+            threading.Thread(target=heartbeat, args=(job_id, stop), daemon=True).start()
+            try:
+                handle(payload)
+                conn.execute("UPDATE jobs SET status = 'done', locked_until = NULL "
+                             "WHERE id = %s AND locked_by = %s", (job_id, WORKER_ID))
+            except Exception as e:
+                conn.execute("""
+                    UPDATE jobs SET
+                      status = CASE WHEN attempts &gt;= max_attempts THEN 'failed' ELSE 'queued' END,
+                      run_after = now() + make_interval(secs => 30 * power(2, attempts)),
+                      last_error = %s, locked_by = NULL, locked_until = NULL
+                    WHERE id = %s AND locked_by = %s""", (str(e), job_id, WORKER_ID))
+            finally:
+                stop.set()
+
+if __name__ == "__main__":
+    main()</code></pre>
+<p>Try it: start Postgres (<code>docker run -e POSTGRES_PASSWORD=app -e POSTGRES_USER=app -p 5432:5432 postgres:17</code>),
+create the table, insert 10 jobs, then run the worker in two terminals. Each job is printed by exactly one of them.
+Kill one worker with Ctrl+C mid-job: about 60 seconds later the other one picks that job up.</p>
+
+<!-- ============================================================ -->
+<h2 id="ready-made">10. Ready-made options</h2>
+<h3>pgmq: an extension with an SQS-style API</h3>
+<p>This one <em>is</em> enabled, with <code>CREATE EXTENSION</code>. It must be installed on the server first (it's in
+some Docker images and some managed providers; check yours).</p>
+<pre><code>CREATE EXTENSION pgmq;
+
+SELECT pgmq.create('runs');                              -- creates the queue's tables
+SELECT pgmq.send('runs', '{"run_id": "r_123"}');         -- returns msg_id
+SELECT * FROM pgmq.read('runs', 30, 1);                  -- hide for 30s, read 1 message
+SELECT pgmq.set_vt('runs', 1, 60);                       -- extend visibility (heartbeat)
+SELECT pgmq.delete('runs', 1);                           -- done: remove msg_id 1
+SELECT pgmq.archive('runs', 1);                          -- or move it to an archive table</code></pre>
+<p>Same model as AWS SQS: a read message becomes invisible for the visibility timeout, and reappears if you don't
+delete it in time.</p>
+
+<h3>Libraries built on SKIP LOCKED</h3>
+<div class="table-wrap"><table>
+  <tr><th>Library</th><th>Language</th><th>Notes</th></tr>
+  <tr><td>Procrastinate</td><td>Python</td><td>Async-friendly, retries, scheduled jobs, uses LISTEN/NOTIFY</td></tr>
+  <tr><td>River</td><td>Go</td><td>Transactional enqueue, unique jobs, web UI</td></tr>
+  <tr><td>Oban</td><td>Elixir</td><td>Mature, widely used, rich features</td></tr>
+  <tr><td>Solid Queue</td><td>Ruby (Rails)</td><td>The Rails default background job backend</td></tr>
+  <tr><td>Graphile Worker</td><td>Node.js</td><td>Fast, uses LISTEN/NOTIFY</td></tr>
+  <tr><td>Hatchet, DBOS</td><td>Several</td><td>Workflow engines that store their state in Postgres</td></tr>
+</table></div>
+<p class="meta">Using a library saves you from writing retries, scheduling and recovery yourself. Writing it by hand
+once (<a href="#worker">section 9</a>) is still the best way to understand what those libraries do.</p>
+
+<!-- ============================================================ -->
+<h2 id="limits">11. Limits and maintenance</h2>
+<div class="table-wrap"><table>
+  <tr><th>Concern</th><th>What happens</th><th>What to do</th></tr>
+  <tr><td>Table bloat</td><td>Every <code>UPDATE</code> writes a new row version; old versions are dead rows until vacuum removes them. A busy queue creates many.</td><td>Delete or archive finished jobs regularly. Tune autovacuum to run more often on the jobs table. For very busy queues, partition by time and drop old partitions.</td></tr>
+  <tr><td>Throughput</td><td>Comfortable at hundreds of jobs per second. Beyond that, lock contention and vacuum become the bottleneck.</td><td>Batch claims (<code>LIMIT 10</code>), keep the hot index small with a partial index, or move to a dedicated broker.</td></tr>
+  <tr><td>Load on the main database</td><td>Polling and job writes compete with your application's queries.</td><td>Use LISTEN/NOTIFY to cut polling. Put the queue in a separate database if the app database is busy.</td></tr>
+  <tr><td>Connections</td><td>Each worker holds a connection.</td><td>Use a pool. Many async jobs can share one worker process and a few connections.</td></tr>
+  <tr><td>No fan-out</td><td>A job goes to one worker. There's no built-in "send this to every subscriber".</td><td>Use a pub/sub system or a log (Kafka) for events that many services consume.</td></tr>
+</table></div>
+
+<!-- ============================================================ -->
+<h2 id="when">12. When to use it, and when to move on</h2>
+<div class="table-wrap"><table>
+  <tr><th class="good">Good fit</th><th class="bad">Move to something else</th></tr>
+  <tr>
+    <td>
+      <ul>
+        <li>You already run Postgres and want no extra infrastructure</li>
+        <li>Jobs must be created atomically with your data</li>
+        <li>Long-running jobs where correctness matters more than speed</li>
+        <li>Up to hundreds of jobs per second</li>
+        <li>You want to query, inspect and fix jobs with SQL</li>
+      </ul>
+    </td>
+    <td>
+      <ul>
+        <li>Thousands of jobs per second or more → RabbitMQ, SQS, Redis</li>
+        <li>Many services need the same events, or replay → Kafka</li>
+        <li>Complex multi-step flows with timers and approvals → Temporal or Hatchet</li>
+        <li>The queue is measurably hurting the main database</li>
+      </ul>
+    </td>
+  </tr>
+</table></div>
+
+<div class="callout">
+  <p><strong>Summary:</strong> a table + <code>FOR UPDATE SKIP LOCKED</code> gives you a safe multi-worker queue. Add
+  a lease with heartbeats for long jobs, a reaper for crashed workers, retries with backoff, and optionally
+  <code>LISTEN/NOTIFY</code> for instant pickup. Start here; move to a broker when you've measured a reason to.</p>
+</div>
+
+<p class="meta">Related: <a href="messaging_tools_compared.html">Messaging tools compared</a> ·
+<a href="long_running_agent_jobs.html">Long-running agent jobs in a multi-tenant system</a></p>
+
+</main>
+</body>
+</html>

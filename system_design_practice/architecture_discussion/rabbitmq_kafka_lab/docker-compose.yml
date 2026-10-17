@@ -1,0 +1,55 @@
+# RabbitMQ + Kafka (+ a web UI for each) for the lessons in this folder.
+#   docker compose up -d        start everything
+#   docker compose ps           wait until rabbitmq and kafka show "healthy"
+#   docker compose down -v      stop and delete all data
+
+services:
+  rabbitmq:
+    image: rabbitmq:4.1-management        # "-management" adds the web UI
+    container_name: lab-rabbitmq
+    ports:
+      - "5672:5672"                       # AMQP: what the Python scripts connect to
+      - "15672:15672"                     # web UI: http://localhost:15672 (guest / guest)
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 10s
+      retries: 20
+
+  kafka:
+    image: apache/kafka:4.0.0             # single node in KRaft mode: no ZooKeeper needed
+    container_name: lab-kafka
+    ports:
+      - "9092:9092"                       # what the Python scripts connect to
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller        # one process plays both roles
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      # Two client listeners: one for your Mac (localhost:9092), one for containers (kafka:19092)
+      KAFKA_LISTENERS: CONTROLLER://:9093,HOST://:9092,DOCKER://:19092
+      KAFKA_ADVERTISED_LISTENERS: HOST://localhost:9092,DOCKER://kafka:19092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,HOST:PLAINTEXT,DOCKER:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: DOCKER
+      # A single broker can only keep one copy of everything
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0     # rebalance immediately (nicer for demos)
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list"]
+      interval: 5s
+      timeout: 10s
+      retries: 20
+
+  kafka-ui:
+    image: kafbat/kafka-ui:latest         # web UI: http://localhost:8080
+    container_name: lab-kafka-ui
+    ports:
+      - "8080:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: lab
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:19092
+    depends_on:
+      kafka:
+        condition: service_healthy

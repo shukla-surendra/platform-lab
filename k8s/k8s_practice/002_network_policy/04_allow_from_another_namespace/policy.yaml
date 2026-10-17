@@ -1,0 +1,16 @@
+# web accepts traffic only from pods in namespace np-04-trusted.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: web-allow-trusted-namespace
+  namespace: np-04-app
+spec:
+  podSelector:
+    matchLabels: {app: web}
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              # Kubernetes adds this label to every namespace automatically
+              kubernetes.io/metadata.name: np-04-trusted

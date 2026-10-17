@@ -1,0 +1,438 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Messaging Tools Compared</title>
+<style>
+  :root {
+    --bg: #fbfbf9; --surface: #ffffff; --surface-2: #f2f2ee; --text: #1d1d1b; --muted: #62625c;
+    --border: #dcdcd5; --accent: #2f5fb3; --accent-soft: #e6edf9; --good: #2e7d4f; --warn: #a86512; --bad: #b3372f;
+    --code-bg: #f2f2ee;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #161615; --surface: #1f1f1d; --surface-2: #262624; --text: #e9e9e4; --muted: #a3a39b;
+      --border: #3a3a36; --accent: #86a8ec; --accent-soft: #233150; --good: #6cc495; --warn: #e0a252; --bad: #ec8a82;
+      --code-bg: #262624;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #161615; --surface: #1f1f1d; --surface-2: #262624; --text: #e9e9e4; --muted: #a3a39b;
+    --border: #3a3a36; --accent: #86a8ec; --accent-soft: #233150; --good: #6cc495; --warn: #e0a252; --bad: #ec8a82;
+    --code-bg: #262624;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  main { max-width: 960px; margin: 0 auto; padding: 40px 16px 80px; }
+  h1 { font-size: 1.9rem; line-height: 1.25; margin: 0 0 8px; }
+  h2 { font-size: 1.35rem; margin: 56px 0 12px; padding-top: 8px; border-top: 1px solid var(--border); }
+  h3 { font-size: 1.05rem; margin: 28px 0 8px; }
+  .lede { color: var(--muted); font-size: 1.05rem; margin: 0 0 24px; }
+  a { color: var(--accent); }
+  code { font: 0.88em ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--code-bg); padding: 1px 5px; border-radius: 4px; }
+  nav.toc { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px 20px; }
+  nav.toc ol { margin: 6px 0 0; padding-left: 20px; columns: 2; column-gap: 32px; }
+  nav.toc li { margin: 2px 0; break-inside: avoid; }
+  @media (max-width: 640px) { nav.toc ol { columns: 1; } }
+  .table-wrap { overflow-x: auto; margin: 12px 0 20px; border: 1px solid var(--border); border-radius: 8px; }
+  table { border-collapse: collapse; width: 100%; font-size: 0.88rem; background: var(--surface); }
+  th, td { text-align: left; vertical-align: top; padding: 9px 12px; border-bottom: 1px solid var(--border); }
+  th { background: var(--surface-2); font-weight: 600; white-space: nowrap; }
+  tr:last-child td { border-bottom: none; }
+  table.wide td { min-width: 130px; }
+  table.wide td:first-child { min-width: 110px; font-weight: 600; }
+  .callout { background: var(--accent-soft); border-left: 3px solid var(--accent); border-radius: 6px; padding: 12px 16px; margin: 16px 0; }
+  .callout p { margin: 4px 0; }
+  .pill { display: inline-block; font-size: 0.72rem; font-weight: 600; padding: 1px 8px; border-radius: 999px; border: 1px solid var(--border); color: var(--muted); white-space: nowrap; margin-right: 4px; }
+  .good { color: var(--good); } .warn-t { color: var(--warn); } .bad { color: var(--bad); }
+  figure { margin: 20px 0; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px; }
+  figure svg { width: 100%; height: auto; display: block; }
+  figcaption { color: var(--muted); font-size: 0.85rem; margin-top: 8px; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; margin: 16px 0; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; }
+  .card h3 { margin: 0 0 4px; font-size: 1.05rem; }
+  .card .what { color: var(--muted); font-size: 0.88rem; margin: 0 0 8px; }
+  .card dl { margin: 0; font-size: 0.88rem; }
+  .card dt { font-weight: 600; margin-top: 8px; }
+  .card dd { margin: 2px 0 0; }
+  .meta { color: var(--muted); font-size: 0.85rem; }
+  .d-box { fill: var(--surface-2); stroke: var(--border); stroke-width: 1.5; }
+  .d-box.hl { fill: var(--accent-soft); stroke: var(--accent); }
+  .d-title { fill: var(--text); font: 600 13px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+  .d-sub { fill: var(--muted); font: 11px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+  .d-edge { stroke: var(--muted); stroke-width: 1.5; fill: none; }
+  .d-head { fill: var(--muted); }
+  .d-cell { fill: var(--surface); stroke: var(--border); }
+  .d-cell.done { fill: var(--accent-soft); }
+</style>
+</head>
+<body>
+<main>
+
+<h1>Redis, Kafka, RabbitMQ and friends: what each one is and when to use it</h1>
+<p class="lede">These tools all "move messages", which makes them sound interchangeable. They aren't. Each is built
+around one of a few different models, and the model decides what it's good at. Learn the models first, then the
+tools become easy to place.</p>
+
+<nav class="toc" aria-label="Contents">
+  <strong>Contents</strong>
+  <ol>
+    <li><a href="#models">The four models</a></li>
+    <li><a href="#kafka-queue">Is Kafka a queue?</a></li>
+    <li><a href="#vocab">Vocabulary you need</a></li>
+    <li><a href="#tools">The tools, one by one</a></li>
+    <li><a href="#compare">Side-by-side comparison</a></li>
+    <li><a href="#decide">When to use what</a></li>
+    <li><a href="#combos">Common combinations</a></li>
+    <li><a href="#mistakes">Common mistakes</a></li>
+  </ol>
+</nav>
+
+<!-- ============================================================ -->
+<h2 id="models">1. The four models</h2>
+
+<figure>
+<svg viewBox="0 0 900 320" role="img" aria-label="Three messaging models: queue with competing consumers, pub/sub fan-out, and log with consumers at different offsets">
+  <defs>
+    <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="d-head" d="M0,0 L10,5 L0,10 z"/></marker>
+  </defs>
+  <!-- Queue -->
+  <text class="d-title" x="20" y="24">Queue: each message to ONE worker</text>
+  <rect class="d-box" x="20" y="66" width="70" height="40" rx="6"/><text class="d-sub" x="55" y="90" text-anchor="middle">producer</text>
+  <rect class="d-box hl" x="120" y="66" width="80" height="40" rx="6"/><text class="d-sub" x="160" y="84" text-anchor="middle">queue</text><text class="d-sub" x="160" y="98" text-anchor="middle">A B C D</text>
+  <rect class="d-box" x="230" y="36" width="64" height="30" rx="6"/><text class="d-sub" x="262" y="55" text-anchor="middle">w1: A</text>
+  <rect class="d-box" x="230" y="71" width="64" height="30" rx="6"/><text class="d-sub" x="262" y="90" text-anchor="middle">w2: B</text>
+  <rect class="d-box" x="230" y="106" width="64" height="30" rx="6"/><text class="d-sub" x="262" y="125" text-anchor="middle">w3: C</text>
+  <line class="d-edge" x1="90" y1="86" x2="118" y2="86" marker-end="url(#ah)"/>
+  <line class="d-edge" x1="200" y1="81" x2="228" y2="54" marker-end="url(#ah)"/>
+  <line class="d-edge" x1="200" y1="86" x2="228" y2="86" marker-end="url(#ah)"/>
+  <line class="d-edge" x1="200" y1="91" x2="228" y2="120" marker-end="url(#ah)"/>
+  <text class="d-sub" x="20" y="158">Acked messages are deleted. Add workers to go faster.</text>
+
+  <!-- Pub/sub -->
+  <text class="d-title" x="340" y="24">Pub/sub: each message to EVERY subscriber</text>
+  <rect class="d-box" x="340" y="66" width="70" height="40" rx="6"/><text class="d-sub" x="375" y="90" text-anchor="middle">publisher</text>
+  <rect class="d-box hl" x="440" y="66" width="80" height="40" rx="6"/><text class="d-sub" x="480" y="90" text-anchor="middle">topic</text>
+  <rect class="d-box" x="550" y="36" width="80" height="30" rx="6"/><text class="d-sub" x="590" y="55" text-anchor="middle">email: A</text>
+  <rect class="d-box" x="550" y="71" width="80" height="30" rx="6"/><text class="d-sub" x="590" y="90" text-anchor="middle">billing: A</text>
+  <rect class="d-box" x="550" y="106" width="80" height="30" rx="6"/><text class="d-sub" x="590" y="125" text-anchor="middle">search: A</text>
+  <line class="d-edge" x1="410" y1="86" x2="438" y2="86" marker-end="url(#ah)"/>
+  <line class="d-edge" x1="520" y1="81" x2="548" y2="54" marker-end="url(#ah)"/>
+  <line class="d-edge" x1="520" y1="86" x2="548" y2="86" marker-end="url(#ah)"/>
+  <line class="d-edge" x1="520" y1="91" x2="548" y2="120" marker-end="url(#ah)"/>
+  <text class="d-sub" x="340" y="158">Fan-out. Plain pub/sub forgets messages nobody was listening for.</text>
+
+  <!-- Log -->
+  <text class="d-title" x="20" y="200">Log: messages are kept; each reader remembers its own position (offset)</text>
+  <g>
+    <rect class="d-cell done" x="20" y="216" width="50" height="34"/><text class="d-sub" x="45" y="237" text-anchor="middle">0</text>
+    <rect class="d-cell done" x="70" y="216" width="50" height="34"/><text class="d-sub" x="95" y="237" text-anchor="middle">1</text>
+    <rect class="d-cell done" x="120" y="216" width="50" height="34"/><text class="d-sub" x="145" y="237" text-anchor="middle">2</text>
+    <rect class="d-cell" x="170" y="216" width="50" height="34"/><text class="d-sub" x="195" y="237" text-anchor="middle">3</text>
+    <rect class="d-cell" x="220" y="216" width="50" height="34"/><text class="d-sub" x="245" y="237" text-anchor="middle">4</text>
+    <rect class="d-cell" x="270" y="216" width="50" height="34"/><text class="d-sub" x="295" y="237" text-anchor="middle">5</text>
+    <rect class="d-cell" x="320" y="216" width="50" height="34"/><text class="d-sub" x="345" y="237" text-anchor="middle">6</text>
+    <text class="d-sub" x="380" y="237">← producer appends here</text>
+  </g>
+  <line class="d-edge" x1="195" y1="290" x2="195" y2="254" marker-end="url(#ah)"/>
+  <text class="d-sub" x="150" y="306">billing at offset 3</text>
+  <line class="d-edge" x1="345" y1="290" x2="345" y2="254" marker-end="url(#ah)"/>
+  <text class="d-sub" x="300" y="306">search at offset 6</text>
+  <line class="d-edge" x1="45" y1="290" x2="45" y2="254" marker-end="url(#ah)"/>
+  <text class="d-sub" x="10" y="306">new service replays from 0</text>
+
+  <!-- Workflow -->
+  <text class="d-title" x="560" y="200">Workflow engine: runs multi-step processes</text>
+  <rect class="d-box hl" x="560" y="216" width="70" height="34" rx="6"/><text class="d-sub" x="595" y="237" text-anchor="middle">step 1 ✓</text>
+  <rect class="d-box hl" x="660" y="216" width="70" height="34" rx="6"/><text class="d-sub" x="695" y="237" text-anchor="middle">step 2 ✓</text>
+  <rect class="d-box" x="760" y="216" width="80" height="34" rx="6"/><text class="d-sub" x="800" y="237" text-anchor="middle">step 3 …</text>
+  <line class="d-edge" x1="630" y1="233" x2="658" y2="233" marker-end="url(#ah)"/>
+  <line class="d-edge" x1="730" y1="233" x2="758" y2="233" marker-end="url(#ah)"/>
+  <text class="d-sub" x="560" y="276">Records every step. After a crash it resumes</text>
+  <text class="d-sub" x="560" y="292">at step 3, with retries, timers and waits.</text>
+</svg>
+<figcaption>Most confusion comes from mixing these up. A tool built on one model can sometimes imitate another, but
+it's usually weaker at it.</figcaption>
+</figure>
+
+<div class="table-wrap"><table>
+  <tr><th>Model</th><th>Question it answers</th><th>After a message is processed</th><th>Typical tools</th></tr>
+  <tr><td><strong>Queue</strong> (task / work queue)</td><td>"Someone please do this job, once."</td><td>Deleted</td><td>RabbitMQ, SQS, Azure Storage Queue, Service Bus queues, Redis Lists, Postgres <code>SKIP LOCKED</code>, NATS JetStream (work-queue mode)</td></tr>
+  <tr><td><strong>Pub/sub</strong></td><td>"Tell everyone who cares that this happened."</td><td>Delivered to each subscriber, then forgotten (unless backed by a queue or log)</td><td>Redis Pub/Sub, NATS core, SNS, Google Pub/Sub, RabbitMQ fanout exchanges, Service Bus topics</td></tr>
+  <tr><td><strong>Log</strong> (event stream)</td><td>"Here is the full, ordered history. Read it at your own pace, replay it if you need to."</td><td>Kept until retention expires</td><td>Kafka, Redpanda, Pulsar, Kinesis, Event Hubs, Redis Streams, NATS JetStream</td></tr>
+  <tr><td><strong>Workflow engine</strong></td><td>"Run this multi-step process to completion, even across crashes, retries and days of waiting."</td><td>The workflow's history is kept</td><td>Temporal, Hatchet, Restate, DBOS, AWS Step Functions, Airflow (for batch)</td></tr>
+</table></div>
+
+<!-- ============================================================ -->
+<h2 id="kafka-queue">2. Is Kafka a queue?</h2>
+<p><strong>No: Kafka is a log.</strong> You can use it like a queue, but it behaves differently, and the difference
+shows up as soon as jobs are slow or uneven. The key difference is what happens after a message is read:</p>
+<ul>
+  <li><strong>Queue (RabbitMQ, SQS):</strong> a worker takes a message, finishes it, and acks it. The message is
+    <strong>deleted</strong>. It's like a to-do list where you cross items off.</li>
+  <li><strong>Kafka:</strong> a reader reads a message and the message <strong>stays</strong>. Kafka only remembers how far
+    each reader has got ("billing has read up to #42"). It's like a book where each reader keeps their own bookmark.</li>
+</ul>
+
+<h3>Example: 3 jobs, where job A takes 1 hour and B and C take 1 second each</h3>
+<div class="table-wrap"><table>
+  <tr><th></th><th>Queue</th><th>Kafka (A, B, C in the same partition)</th></tr>
+  <tr><td>Who works on what</td><td>Worker 1 takes A. Workers 2 and 3 take B and C at once.</td><td>One consumer reads that partition, in order.</td></tr>
+  <tr><td>When B and C finish</td><td class="good">After about 1 second</td><td class="bad">After about 1 hour, because they wait behind A</td></tr>
+  <tr><td>If A's worker crashes</td><td>Only A is retried</td><td>The bookmark hasn't moved, so A, B and C are all read again</td></tr>
+</table></div>
+
+<h3>Why Kafka isn't a job queue</h3>
+<div class="table-wrap"><table>
+  <tr><th>You need</th><th>Queue</th><th>Kafka</th></tr>
+  <tr><td>Free workers pick up the next job</td><td>Yes</td><td>No. Work is tied to partitions, so a slow message blocks the ones behind it.</td></tr>
+  <tr><td>Mark one job done, retry another</td><td>Per-message ack or nack</td><td>Only "read up to here" (the committed offset)</td></tr>
+  <tr><td>A job that runs for an hour</td><td>Extend the visibility timeout or lease</td><td>The consumer must call <code>poll()</code> within <code>max.poll.interval.ms</code> (5 minutes by default) or it's removed from the group and its partitions are rebalanced</td></tr>
+  <tr><td>More parallelism</td><td>Add workers</td><td>Capped at the number of partitions</td></tr>
+  <tr><td>Retry and dead-letter queue</td><td>Built in (mostly)</td><td>Build it yourself with retry topics</td></tr>
+</table></div>
+
+<h3>Why people still call it a queue</h3>
+<p>For fast, uniform messages (milliseconds each, like click events or log lines), a log works perfectly well as a
+queue, and Kafka does that at huge scale. Its real strengths are things a queue can't do: <strong>keeping history,
+replaying it, and letting many different services each read the same messages</strong> at their own pace.</p>
+<p>Kafka 4.x is adding <strong>share groups</strong> (KIP-932, "queues for Kafka") with per-message acks and
+queue-style consumers, which narrows the gap. It's new and not what most Kafka setups use today, so check how mature
+it is before relying on it.</p>
+
+<div class="callout">
+  <p><strong>Rule of thumb:</strong> "Someone please <em>do this job</em>" → a queue (RabbitMQ, SQS, Postgres, Redis).
+  "<em>This happened</em>, anyone who cares can read it, now or later" → Kafka.</p>
+</div>
+
+<!-- ============================================================ -->
+<h2 id="vocab">3. Vocabulary you need</h2>
+<div class="table-wrap"><table>
+  <tr><th>Term</th><th>Meaning</th><th>Why it matters</th></tr>
+  <tr><td><strong>Ack</strong></td><td>The consumer tells the broker "I've finished this message".</td><td>No ack before a timeout means the broker assumes you crashed and redelivers.</td></tr>
+  <tr><td><strong>At-most-once</strong></td><td>Delivered zero or one times. Fire and forget.</td><td>Fine for metrics or live presence. Never for payments or jobs.</td></tr>
+  <tr><td><strong>At-least-once</strong></td><td>Delivered one or more times. Retried until acked.</td><td>The normal choice. Consumers must tolerate duplicates (be idempotent).</td></tr>
+  <tr><td><strong>Exactly-once</strong></td><td>The effect happens once.</td><td>Only within a closed system (e.g. Kafka transactions, SQS FIFO deduplication window). End to end you get it with at-least-once + idempotent consumers.</td></tr>
+  <tr><td><strong>Visibility timeout / lease</strong></td><td>How long a received message is hidden from other consumers.</td><td>Must be longer than your processing time, or be extended while you work.</td></tr>
+  <tr><td><strong>Consumer group</strong></td><td>A set of consumers sharing the work of one subscription.</td><td>In Kafka, parallelism is limited to the number of partitions.</td></tr>
+  <tr><td><strong>Partition</strong></td><td>A slice of a topic. Ordering is guaranteed only within a partition.</td><td>Pick a partition key (e.g. user ID) for per-key ordering.</td></tr>
+  <tr><td><strong>Offset</strong></td><td>A consumer's position in a log.</td><td>Rewind it to replay history.</td></tr>
+  <tr><td><strong>Dead-letter queue (DLQ)</strong></td><td>Where messages go after failing too many times.</td><td>Stops one bad message ("poison pill") from blocking or looping forever.</td></tr>
+  <tr><td><strong>Backpressure</strong></td><td>Slowing producers or buffering when consumers can't keep up.</td><td>The main reason to put a broker between services at all.</td></tr>
+  <tr><td><strong>Prefetch</strong></td><td>How many unacked messages a consumer may hold.</td><td>Set it to 1 for long jobs, so one worker doesn't hoard work.</td></tr>
+</table></div>
+
+<!-- ============================================================ -->
+<h2 id="tools">4. The tools, one by one</h2>
+
+<h3>Self-hosted / open source (run anywhere)</h3>
+<div class="cards">
+  <div class="card">
+    <h3>Redis</h3>
+    <p class="what"><span class="pill">in-memory</span><span class="pill">queue + pub/sub + log</span></p>
+    <p>An in-memory data store that has three messaging features: <strong>Lists</strong> (simple queue),
+    <strong>Pub/Sub</strong> (fire-and-forget fan-out), and <strong>Streams</strong> (a log with consumer groups and acks).</p>
+    <dl>
+      <dt>Great at</dt><dd>Very low latency. Simple. You probably already run it for caching. Backs Celery, RQ, arq and Sidekiq.</dd>
+      <dt>Weak at</dt><dd>Durability (memory first, async replication: a crash or failover can lose recent messages). Data must fit in RAM. Pub/Sub drops messages for offline subscribers.</dd>
+      <dt>Use when</dt><dd>Background jobs for a web app, rate limiting, live notifications, small-to-medium task queues where a rare lost message can be recovered from a database.</dd>
+      <dt>Avoid when</dt><dd>It would be the only record of something that must never be lost (orders, payments).</dd>
+    </dl>
+  </div>
+
+  <div class="card">
+    <h3>RabbitMQ</h3>
+    <p class="what"><span class="pill">broker</span><span class="pill">queue + routing</span><span class="pill">AMQP</span></p>
+    <p>The classic message broker. Producers publish to <strong>exchanges</strong>, which route to <strong>queues</strong>
+    by rules (direct, topic pattern, fanout, headers). Consumers get messages pushed and ack each one.</p>
+    <dl>
+      <dt>Great at</dt><dd>Task queues, flexible routing, priorities, per-message ack/retry, dead-letter exchanges, low latency. Quorum queues replicate for durability.</dd>
+      <dt>Weak at</dt><dd>Replay (acked messages are gone, though Streams add a log). Very large backlogs. Throughput is high, but lower than Kafka at the extreme end.</dd>
+      <dt>Use when</dt><dd>Background jobs, microservice commands ("resize this image"), routing work by type or priority, RPC-style request/reply.</dd>
+      <dt>Avoid when</dt><dd>You need an event history to replay, or millions of events per second.</dd>
+    </dl>
+  </div>
+
+  <div class="card">
+    <h3>Apache Kafka</h3>
+    <p class="what"><span class="pill">distributed log</span><span class="pill">event streaming</span></p>
+    <p>A replicated, partitioned, append-only log. Messages are retained by time or size. Consumers track their own
+    offsets, so many independent groups can read the same data, and anyone can replay it.</p>
+    <dl>
+      <dt>Great at</dt><dd>Very high throughput, ordering per key, replay, fan-out to many consumer groups, event sourcing, change-data-capture (Debezium), stream processing (Kafka Streams, Flink). Huge ecosystem (Connect, Schema Registry).</dd>
+      <dt>Weak at</dt><dd>Job-queue behaviour: no per-message ack (share groups in Kafka 4.x are changing this), a slow message blocks its partition, and parallelism is capped by partition count. Heavy to operate yourself.</dd>
+      <dt>Use when</dt><dd>Activity and clickstreams, logs and metrics pipelines, CDC, the "central nervous system" connecting many services, anything you'll want to replay.</dd>
+      <dt>Avoid when</dt><dd>You just need a background job queue, or your volume is small. It's a lot of infrastructure for little benefit.</dd>
+    </dl>
+  </div>
+
+  <div class="card">
+    <h3>Redpanda</h3>
+    <p class="what"><span class="pill">Kafka-compatible log</span></p>
+    <p>A reimplementation of Kafka in C++ that speaks the Kafka protocol. A single binary with no JVM and no separate coordination service.</p>
+    <dl>
+      <dt>Great at</dt><dd>Kafka semantics with simpler operations and lower latency. Kafka client libraries work unchanged.</dd>
+      <dt>Weak at</dt><dd>Smaller community than Kafka. Source-available licence; check the terms.</dd>
+      <dt>Use when</dt><dd>You want Kafka's model without running Kafka.</dd>
+    </dl>
+  </div>
+
+  <div class="card">
+    <h3>NATS (+ JetStream)</h3>
+    <p class="what"><span class="pill">lightweight</span><span class="pill">pub/sub + queue + log</span></p>
+    <p><strong>Core NATS</strong> is very fast at-most-once pub/sub and request/reply. <strong>JetStream</strong> adds
+    persistence: streams, durable consumers with acks, redelivery, and a work-queue mode.</p>
+    <dl>
+      <dt>Great at</dt><dd>Tiny single binary, very low latency, request/reply between services, edge and IoT, multi-cloud clustering. Consumers can signal "still working" on long jobs.</dd>
+      <dt>Weak at</dt><dd>Smaller ecosystem than Kafka or RabbitMQ. Fewer managed offerings.</dd>
+      <dt>Use when</dt><dd>Service-to-service messaging, edge or IoT, or one simple tool that covers pub/sub, queues and streams.</dd>
+    </dl>
+  </div>
+
+  <div class="card">
+    <h3>Apache Pulsar</h3>
+    <p class="what"><span class="pill">log + queue</span><span class="pill">multi-tenant</span></p>
+    <p>Stateless brokers in front of a separate storage layer (BookKeeper). Supports both streaming and
+    queue-style "shared" subscriptions with per-message acks.</p>
+    <dl>
+      <dt>Great at</dt><dd>Built-in multi-tenancy (tenants and namespaces), geo-replication, tiered storage to object stores, queue and stream in one system.</dd>
+      <dt>Weak at</dt><dd>The most moving parts of any tool here. Smaller community than Kafka.</dd>
+      <dt>Use when</dt><dd>A large platform team serving many internal tenants, with geo-replication needs.</dd>
+    </dl>
+  </div>
+
+  <div class="card">
+    <h3>Postgres as a queue</h3>
+    <p class="what"><span class="pill">database</span><span class="pill">queue</span></p>
+    <p>A jobs table claimed with <code>SELECT ... FOR UPDATE SKIP LOCKED</code>, optionally woken by
+    <code>LISTEN/NOTIFY</code>. Libraries: Procrastinate, pgmq, Oban (Elixir), River (Go), Solid Queue (Rails).</p>
+    <dl>
+      <dt>Great at</dt><dd>No extra infrastructure. Enqueueing is in the <em>same transaction</em> as your data, so a job and its data can't get out of sync. Easy to inspect with SQL.</dd>
+      <dt>Weak at</dt><dd>Very high throughput. Fan-out. It adds load to your main database.</dd>
+      <dt>Use when</dt><dd>Small to medium job volumes, or long-running jobs where correctness matters more than speed. This is often the right first choice.</dd>
+      <dt>Deep dive</dt><dd><a href="postgres_as_a_queue.html">Postgres as a queue</a></dd>
+    </dl>
+  </div>
+
+  <div class="card">
+    <h3>Temporal / Hatchet / Restate / DBOS</h3>
+    <p class="what"><span class="pill">workflow engine</span><span class="pill">durable execution</span></p>
+    <p>Not brokers. You write a workflow as ordinary code, and the engine records each step so it can resume after
+    crashes, with retries, timers, and waits lasting days.</p>
+    <dl>
+      <dt>Great at</dt><dd>Long multi-step processes: orders, onboarding, AI agent runs, sagas across services, human approvals.</dd>
+      <dt>Weak at</dt><dd>A new programming model to learn (Temporal workflows must be deterministic). Not meant for high-volume event streaming.</dd>
+      <dt>Use when</dt><dd>You notice you're hand-building retries, state machines and timeouts on top of a queue.</dd>
+    </dl>
+  </div>
+</div>
+
+<h3>Managed cloud services (no servers, tied to one cloud)</h3>
+<div class="table-wrap"><table>
+  <tr><th>Service</th><th>Model</th><th>What it's like</th><th>Use when</th></tr>
+  <tr><td><strong>AWS SQS</strong></td><td>Queue</td><td>Serverless queue with visibility timeout, DLQ and long polling. Standard (huge scale, best-effort order) or FIFO (ordered per group, deduplication).</td><td>Background jobs on AWS. The default AWS choice.</td></tr>
+  <tr><td><strong>AWS SNS</strong></td><td>Pub/sub</td><td>Push fan-out to SQS, Lambda, HTTP, email and SMS.</td><td>Fan-out. Usually paired with SQS (one queue per subscriber).</td></tr>
+  <tr><td><strong>AWS Kinesis Data Streams</strong></td><td>Log</td><td>Kafka-like shards with retention and replay. Or use Amazon MSK for real Kafka.</td><td>Streaming on AWS without running Kafka.</td></tr>
+  <tr><td><strong>AWS EventBridge</strong></td><td>Event bus</td><td>Rule-based routing of events between AWS services and SaaS.</td><td>Glue between AWS services, scheduled events.</td></tr>
+  <tr><td><strong>Google Pub/Sub</strong></td><td>Pub/sub + queue</td><td>Topics with subscriptions, each acting as a queue with per-message acks. Ordering keys, DLQ, push or pull, an exactly-once option.</td><td>Most messaging on GCP: covers both fan-out and work queues.</td></tr>
+  <tr><td><strong>Azure Storage Queue</strong></td><td>Queue</td><td>Very simple and cheap. 64 KiB messages, no DLQ, no ordering.</td><td>Simple background jobs on Azure.</td></tr>
+  <tr><td><strong>Azure Service Bus</strong></td><td>Queue + pub/sub</td><td>Enterprise broker: queues and topics, sessions (ordered groups), DLQ, duplicate detection, transactions.</td><td>Business messaging on Azure where ordering and reliability matter.</td></tr>
+  <tr><td><strong>Azure Event Hubs</strong></td><td>Log</td><td>Partitioned streaming with a Kafka-compatible endpoint.</td><td>Telemetry and streaming on Azure.</td></tr>
+</table></div>
+<p class="meta">Also seen: ActiveMQ / Artemis (older Java JMS brokers, common in enterprise systems), ZeroMQ (a networking
+library, not a broker), and Celery / Sidekiq / BullMQ (job frameworks that run <em>on top of</em> a broker such as
+Redis, RabbitMQ or SQS, so they aren't alternatives to one).</p>
+
+<!-- ============================================================ -->
+<h2 id="compare">5. Side-by-side comparison</h2>
+<p class="meta">Rough, relative ratings. Real numbers depend heavily on hardware, message size and configuration.</p>
+<div class="table-wrap"><table class="wide">
+  <tr><th></th><th>Redis</th><th>RabbitMQ</th><th>Kafka</th><th>NATS JetStream</th><th>Postgres queue</th><th>SQS</th><th>Google Pub/Sub</th></tr>
+  <tr><td>Core model</td><td>Queue / pub/sub / log</td><td>Queue + routing</td><td>Log</td><td>Pub/sub + log + queue</td><td>Queue</td><td>Queue</td><td>Pub/sub with queue-like subscriptions</td></tr>
+  <tr><td>Throughput</td><td>Very high</td><td>High</td><td class="good">Highest</td><td>Very high</td><td>Moderate</td><td>Very high (scales automatically)</td><td>Very high (scales automatically)</td></tr>
+  <tr><td>Latency</td><td class="good">Sub-millisecond</td><td>Low</td><td>Low to moderate (batching)</td><td class="good">Very low</td><td>Moderate (polling)</td><td>Tens of ms</td><td>Tens of ms</td></tr>
+  <tr><td>Durability</td><td class="warn-t">Configurable; can lose recent writes</td><td class="good">Strong (quorum queues)</td><td class="good">Strong (replicated log)</td><td class="good">Strong (replicated)</td><td class="good">As strong as your DB</td><td class="good">Strong</td><td class="good">Strong</td></tr>
+  <tr><td>Per-message ack</td><td>Streams: yes. Lists: by pattern.</td><td class="good">Yes</td><td class="warn-t">No: offsets (share groups are new)</td><td class="good">Yes</td><td class="good">Yes</td><td class="good">Yes</td><td class="good">Yes</td></tr>
+  <tr><td>Replay history</td><td>Streams, until trimmed</td><td>Only with Streams</td><td class="good">Yes, core feature</td><td class="good">Yes</td><td>If you keep the rows</td><td class="bad">No</td><td>Seek within retention</td></tr>
+  <tr><td>Ordering</td><td>Per stream / list</td><td>Per queue (single consumer)</td><td>Per partition</td><td>Per stream / subject</td><td>Whatever you <code>ORDER BY</code></td><td>FIFO queues: per group</td><td>Per ordering key</td></tr>
+  <tr><td>Fan-out to many consumers</td><td>Pub/Sub or Streams groups</td><td>Fanout exchange</td><td class="good">Natural (many groups)</td><td class="good">Natural</td><td class="bad">Awkward</td><td>Via SNS</td><td class="good">Natural</td></tr>
+  <tr><td>Long-running jobs</td><td>OK with reclaim logic</td><td>OK (watch <code>consumer_timeout</code>)</td><td class="bad">Poor</td><td class="good">Good (progress acks)</td><td class="good">Good (leases)</td><td class="good">Good (extend visibility, up to 12h)</td><td>OK (deadline extension)</td></tr>
+  <tr><td>Priorities</td><td>Separate keys / sorted set</td><td class="good">Yes</td><td>Separate topics</td><td>Separate streams</td><td class="good"><code>ORDER BY priority</code></td><td>Separate queues</td><td>Separate subscriptions</td></tr>
+  <tr><td>Dead-letter queue</td><td>Build it</td><td class="good">Built in</td><td>Build it (retry topics)</td><td>Max deliveries + advisories</td><td>Status column</td><td class="good">Built in</td><td class="good">Built in</td></tr>
+  <tr><td>Operating effort</td><td class="good">Low</td><td>Medium</td><td class="bad">High (self-hosted)</td><td class="good">Low</td><td class="good">None extra</td><td class="good">None</td><td class="good">None</td></tr>
+  <tr><td>Portable across clouds</td><td class="good">Yes</td><td class="good">Yes</td><td class="good">Yes</td><td class="good">Yes</td><td class="good">Yes</td><td class="bad">AWS only</td><td class="bad">GCP only</td></tr>
+</table></div>
+
+<!-- ============================================================ -->
+<h2 id="decide">6. When to use what</h2>
+<p>Answer these in order and stop at the first "yes".</p>
+<div class="table-wrap"><table>
+  <tr><th>#</th><th>Question</th><th>If yes</th></tr>
+  <tr><td>1</td><td>Is it a multi-step process that must survive crashes, wait for people or timers, or run for hours?</td><td><strong>Workflow engine</strong> (Temporal, Hatchet). Or a Postgres queue with checkpoints if it's simple.</td></tr>
+  <tr><td>2</td><td>Do several different systems need the <em>same</em> events, or will you want to replay history?</td><td><strong>Log:</strong> Kafka / Redpanda (or Kinesis, Event Hubs, Pub/Sub on that cloud).</td></tr>
+  <tr><td>3</td><td>Is it "do this job once, by any worker"?</td><td><strong>Queue.</strong> Already have Postgres and modest volume: Postgres queue. Need routing, priorities or high rates: RabbitMQ. All-in on one cloud: SQS / Service Bus / Pub/Sub. Already running Redis and a lost job is recoverable: Redis.</td></tr>
+  <tr><td>4</td><td>Is it a live notification where missing one is fine (presence, "new message" ping, cache invalidation)?</td><td><strong>Lightweight pub/sub:</strong> Redis Pub/Sub or core NATS.</td></tr>
+  <tr><td>5</td><td>Is it service-to-service request/reply with low latency?</td><td>Plain HTTP or gRPC first. NATS if you want a messaging layer for it.</td></tr>
+</table></div>
+
+<h3>By scenario</h3>
+<div class="table-wrap"><table>
+  <tr><th>Scenario</th><th>Good pick</th><th>Why</th></tr>
+  <tr><td>Send welcome emails after signup</td><td>Redis (via Celery/RQ), or a Postgres queue</td><td>Short jobs, low stakes, simple</td></tr>
+  <tr><td>Long AI agent runs, minutes to hours</td><td>Postgres queue with leases → Temporal / Hatchet at scale</td><td>Needs leases, checkpoints and retries more than throughput</td></tr>
+  <tr><td>Image or video processing jobs</td><td>RabbitMQ or SQS</td><td>Per-message acks, retries, DLQ, autoscaled workers</td></tr>
+  <tr><td>Order placed → email, billing, inventory and analytics all react</td><td>Kafka, or SNS + SQS / Pub/Sub</td><td>Fan-out to independent consumers, replayable</td></tr>
+  <tr><td>Clickstream / logs / metrics at high volume</td><td>Kafka / Redpanda / Kinesis</td><td>Throughput, retention, stream processing</td></tr>
+  <tr><td>Keep a search index or cache in sync with the DB</td><td>Kafka + Debezium (CDC)</td><td>Reads the DB's change log, ordered per key</td></tr>
+  <tr><td>Chat "user is typing", live dashboard pings</td><td>Redis Pub/Sub or NATS</td><td>Ephemeral, low latency, loss is fine</td></tr>
+  <tr><td>Payment saga across services</td><td>Workflow engine, or a queue + outbox</td><td>Compensation, exactly-once effect, auditability</td></tr>
+  <tr><td>IoT devices or edge sites</td><td>NATS (or MQTT brokers)</td><td>Lightweight, works over flaky links</td></tr>
+  <tr><td>Rate limiting, leaderboards (not messaging)</td><td>Redis</td><td>Here Redis is a data structure server, not a broker</td></tr>
+</table></div>
+
+<!-- ============================================================ -->
+<h2 id="combos">7. Common combinations</h2>
+<ul>
+  <li><strong>Postgres + transactional outbox → Kafka.</strong> Write business data and an event in one transaction. A relay
+    (or Debezium) publishes the event, so the database and the stream never disagree.</li>
+  <li><strong>SNS → several SQS queues</strong> (AWS) or <strong>Kafka topic → several consumer groups.</strong> Each
+    downstream service gets its own queue or position and fails independently.</li>
+  <li><strong>Queue for jobs, Kafka for events.</strong> RabbitMQ, SQS or Postgres dispatches the work; Kafka records what
+    happened, for analytics, audit and other services.</li>
+  <li><strong>Redis next to a durable store.</strong> Redis for speed (rate limits, live updates, caches). Postgres or
+    Kafka holds the truth.</li>
+  <li><strong>Workflow engine with a queue at the edge.</strong> A queue absorbs incoming bursts, and the workflow engine
+    runs each long process.</li>
+</ul>
+
+<!-- ============================================================ -->
+<h2 id="mistakes">8. Common mistakes</h2>
+<div class="table-wrap"><table>
+  <tr><th>Mistake</th><th>What goes wrong</th><th>Instead</th></tr>
+  <tr><td>Using Kafka as a job queue for slow jobs</td><td>A slow message blocks its partition. The consumer is removed from the group after <code>max.poll.interval.ms</code>, which causes duplicates and rebalance storms.</td><td>Use a queue for jobs, Kafka for events.</td></tr>
+  <tr><td>Using Redis Pub/Sub for something important</td><td>Subscribers that are offline or reconnecting silently miss messages.</td><td>Redis Streams, or a real queue.</td></tr>
+  <tr><td>Making Redis the only copy of critical jobs</td><td>A crash or failover loses recently accepted messages.</td><td>Keep the truth in a database, and re-enqueue from it.</td></tr>
+  <tr><td>Processing time longer than the visibility timeout or ack deadline</td><td>The broker redelivers mid-job and two workers do the same work.</td><td>Extend the timeout while working (heartbeat), or ack early and track the job with a lease.</td></tr>
+  <tr><td>Assuming "exactly-once delivery"</td><td>Duplicates still happen at the edges (retries, redeliveries).</td><td>At-least-once delivery + idempotent consumers (deduplicate by message or job ID).</td></tr>
+  <tr><td>Writing to the DB and the broker separately</td><td>A crash between the two leaves them inconsistent.</td><td>Transactional outbox.</td></tr>
+  <tr><td>No dead-letter queue</td><td>One poison message retries forever or blocks the queue.</td><td>Cap attempts and move failures to a DLQ you monitor.</td></tr>
+  <tr><td>Adding Kafka on day one "for scale"</td><td>Lots of operations and complexity for a few hundred messages a minute.</td><td>Start with Postgres or Redis. Move when there's a measured need.</td></tr>
+</table></div>
+
+<div class="callout">
+  <p><strong>One-line summary:</strong> <strong>queues</strong> hand out work (RabbitMQ, SQS, Postgres, Redis),
+  <strong>logs</strong> keep a replayable history (Kafka, Kinesis, Pulsar), <strong>pub/sub</strong> broadcasts
+  (SNS, Redis Pub/Sub, NATS), and <strong>workflow engines</strong> run long processes to completion (Temporal, Hatchet).
+  Pick the model first, then the tool that fits your cloud and your team's capacity to operate it.</p>
+</div>
+
+<p class="meta">Related: <a href="long_running_agent_jobs.html">Long-running agent jobs in a multi-tenant system</a>,
+which applies these trade-offs to one concrete design (section 8 compares the brokers for that use case).</p>
+
+</main>
+</body>
+</html>

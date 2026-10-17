@@ -1,0 +1,11 @@
+# The client may not open ANY outgoing connection, not even a DNS lookup.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: client-deny-egress
+  namespace: np-06
+spec:
+  podSelector:
+    matchLabels: {app: client}
+  policyTypes:
+    - Egress             # controlling OUTGOING traffic, with no "egress:" list = nothing allowed out
