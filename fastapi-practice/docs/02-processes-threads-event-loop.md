@@ -1,5 +1,8 @@
 # How a FastAPI app actually runs
 
+Previous: [01 — request lifecycle and concurrency](01-request-lifecycle-and-concurrency.md).
+The observations below come from [client_disconnect_lab](../client_disconnect_lab/README.md) (`app.py` there).
+
 Short answer: **FastAPI doesn't run anything by itself.** It's an *ASGI application*, a Python
 object with an `async def app(scope, receive, send)` interface. A **server** (uvicorn) owns the
 sockets, processes and threads and calls your app for each request.
@@ -110,4 +113,4 @@ Common sizing: `N ≈ number of CPU cores` (the old `2×cores+1` rule was for sy
 
 Disconnect handling is **per worker** and works the same under every option. The worker's event
 loop sees the socket close and marks the request disconnected. Your handler still keeps running
-(see [README](README.md)). Multiple workers only change *which* process wastes the work.
+(see [client_disconnect_lab](../client_disconnect_lab/README.md)). Multiple workers only change *which* process wastes the work.

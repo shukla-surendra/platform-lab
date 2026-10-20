@@ -78,7 +78,7 @@ Interview-prep notebooks: markdown explanations paired with runnable code.
 
 | Folder | What's in it |
 |---|---|
-| [`python_fundamental/`](./python_fundamental) | Core Python (async fundamentals, numbered examples). |
+| [`python_fundamental/`](./python_fundamental) | Core Python (numbered examples) + [`async/`](./python-fundamental/async): async in 10 tiny story-style scripts (event loop, await, tasks, gather, timeouts, blocking). |
 | [`pandas_practice/`](./pandas_practice) | Series/DataFrame, I/O, indexing/merging, groupby/window ops, performance. |
 | [`spark_practice/`](./spark_practice) | Spark core/SQL + `pyspark.ml`, architecture through structured streaming. |
 | [`databricks-lab/`](./databricks-lab) | Databricks + data-engineering concepts (Delta Lake, Spark performance, streaming, Unity Catalog, pipelines/CI-CD), 8 small runnable local lessons on open-source Spark + Delta, and 50 hard interview questions. |

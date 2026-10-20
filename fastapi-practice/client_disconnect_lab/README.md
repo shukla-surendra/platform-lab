@@ -14,7 +14,7 @@ Try each of: `/async`, `/sync`, `/async-check`, `/stream`. Each does 6 × 1s of 
 `thread=` so you can see where the work ran.
 
 Also in `app.py`: `/blocking` (blocking call inside `async def`) and `/ping`, used in
-[HOW_FASTAPI_RUNS.md](HOW_FASTAPI_RUNS.md), which explains processes vs threads vs event loop
+[docs/02-processes-threads-event-loop.md](../docs/02-processes-threads-event-loop.md), which explains processes vs threads vs event loop
 and uvicorn vs gunicorn.
 
 ## What actually happens (observed: fastapi 0.141, starlette 1.6, uvicorn 0.52)

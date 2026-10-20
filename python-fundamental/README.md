@@ -9,6 +9,8 @@ currently focused on async/concurrency. `uv`-managed (Python 3.12+).
 | [`001_async.py`](./001_async.py) | A coroutine that actually suspends/resumes via `asyncio.sleep`, run with `asyncio.run(...)`. |
 | [`002_async.py`](./002_async.py) | The event loop itself — why it's not a thread, and how it switches between tasks on one thread instead of spawning one per task. |
 
+**Next:** [`async/`](async/README.md): 10 tiny scripts that build on these (what the event loop is, `await`, tasks, gather, timeouts, the blocking mistake, semaphores, queues).
+
 Run any of them directly:
 
 ```bash

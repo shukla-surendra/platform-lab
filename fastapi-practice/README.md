@@ -28,6 +28,18 @@ jupyter notebook notebooks/
 jupyter nbconvert --to notebook --execute --inplace notebooks/*.ipynb
 ```
 
+## Docs (concepts — read these first)
+
+| Doc | What it explains |
+|---|---|
+| [`docs/01-request-lifecycle-and-concurrency.md`](docs/01-request-lifecycle-and-concurrency.md) | How one request flows through uvicorn → Starlette → FastAPI, `async def` vs `def`, the 40-thread pool, gotchas |
+| [`docs/02-processes-threads-event-loop.md`](docs/02-processes-threads-event-loop.md) | Workers, uvicorn vs gunicorn, what was observed in the labs |
+
+Questions asked while learning, answered in plain language: [`doubt.md`](doubt.md).
+
+Hands-on labs: [`http_connection/`](http_connection/README.md) (CORS) and
+[`client_disconnect_lab/`](client_disconnect_lab/README.md) (what happens when the client leaves).
+
 ## Layout
 
 ```

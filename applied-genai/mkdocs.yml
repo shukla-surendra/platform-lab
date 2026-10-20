@@ -76,6 +76,9 @@ nav:
       - "Appendix: Autonomy Levels and Approval Patterns": Agentic_Concepts/14-autonomy-and-approval-patterns.md
       - "Appendix: JSON-RPC 2.0, Plain English": Agentic_Concepts/15-jsonrpc-explained.md
       - "Appendix: MCP Protocol Recommendations, Plain English": Agentic_Concepts/16-mcp-protocol-recommendations.md
+      - "Appendix: Simple Agent Loop vs. Deep Agent": Agentic_Concepts/17-simple-loop-vs-deep-agent.md
+      - "Appendix: Why Do We Need a Graph in Agents?": Agentic_Concepts/18-why-graphs-in-agents.md
+      - "Appendix: invoke, ainvoke, stream, astream, batch": Agentic_Concepts/19-invoke-stream-batch.md
   - RAG Knowledge Base:
       - Overview: RAG_Knowledge_Base_Starter/index.md
       - "0. Mathematics Foundations": RAG_Knowledge_Base_Starter/Mathematics_Foundations_for_Similarity_Search.md
