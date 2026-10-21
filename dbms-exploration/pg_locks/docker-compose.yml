@@ -1,0 +1,29 @@
+# Port 5434 -- 5432 is often a local Postgres, 5433 is sql_postgres_practice.
+# The extra `command:` flags turn on the logging used in lesson 11
+# (slow queries + lock waits show up in `docker compose logs`).
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      - POSTGRES_USER=lab
+      - POSTGRES_PASSWORD=lab
+      - POSTGRES_DB=shop
+    ports:
+      - "5434:5432"
+    command:
+      - postgres
+      - -c
+      - log_lock_waits=on
+      - -c
+      - deadlock_timeout=1s
+      - -c
+      - log_min_duration_statement=2000
+      - -c
+      - shared_preload_libraries=pg_stat_statements
+    volumes:
+      - ./setup.sql:/docker-entrypoint-initdb.d/setup.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lab -d shop"]
+      interval: 2s
+      timeout: 5s
+      retries: 10
