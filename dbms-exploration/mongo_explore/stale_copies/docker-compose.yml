@@ -1,0 +1,13 @@
+# Port 27019 -- the parent lab (mongo_explore) uses 27018, so both can run at once.
+# Mongo is a 1-node replica set: needed for transactions (02) and change streams (04).
+services:
+  mongo:
+    image: mongo:7
+    command: ["mongod", "--replSet", "rs0", "--bind_ip_all"]
+    ports:
+      - "27019:27017"
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "try { rs.status().ok } catch (e) { rs.initiate({_id: 'rs0', members: [{_id: 0, host: 'localhost:27017'}]}).ok }"]
+      interval: 3s
+      timeout: 10s
+      retries: 20

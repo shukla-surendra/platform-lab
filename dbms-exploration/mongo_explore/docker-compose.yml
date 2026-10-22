@@ -1,0 +1,16 @@
+# Port 27018 (not 27017) -- avoids colliding with a local MongoDB.
+# Single-node replica set: needed for multi-document transactions (lesson 09).
+services:
+  mongo:
+    image: mongo:7
+    command: ["mongod", "--replSet", "rs0", "--bind_ip_all"]
+    volumes:
+      - ./:/lab:ro        # lets `mongosh /lab/03_x.js` run lesson files
+    ports:
+      - "27018:27017"
+    healthcheck:
+      # initiates the replica set on first start, then just reports health
+      test: ["CMD", "mongosh", "--quiet", "--eval", "try { rs.status().ok } catch (e) { rs.initiate({_id: 'rs0', members: [{_id: 0, host: 'localhost:27017'}]}).ok }"]
+      interval: 3s
+      timeout: 10s
+      retries: 20
