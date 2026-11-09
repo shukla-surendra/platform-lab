@@ -12,7 +12,11 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 DOCS = ROOT / "docs"
-EXCLUDE_DIRS = {".venv", ".git", "docs_html", "docs", "__pycache__", "source", "experiments"}
+EXCLUDE_DIRS = {".venv", ".git", "docs_html", "docs", "site", "__pycache__", "source", "experiments", "mkdocs-site"}
+# Site-only files (landing page, flashcards page, CSS/JS) live here and are linked into the
+# docs/ root rather than under their own folder name.
+SITE_EXTRAS = ROOT / "mkdocs-site"
+SITE_EXTRA_DIRS = ("pages", "assets")
 
 
 def find_markdown_files():
@@ -41,11 +45,27 @@ def main():
         rel = src.relative_to(ROOT)
         dest = DOCS / rel
         if src.name == "README.md" and rel.parent == Path("."):
-            dest = DOCS / "index.md"
+            # mkdocs-site/pages/index.md is the landing page; the repo README becomes an "About" page.
+            dest = DOCS / "overview.md"
         dest.parent.mkdir(parents=True, exist_ok=True)
         target = Path("../" * (len(dest.relative_to(DOCS).parts))) / rel
         dest.symlink_to(target)
         count += 1
+
+    # mkdocs-site/pages/** and mkdocs-site/assets/** -> docs/** (pages/ prefix dropped)
+    for sub in SITE_EXTRA_DIRS:
+        base = SITE_EXTRAS / sub
+        if not base.exists():
+            continue
+        for src in sorted(base.rglob("*")):
+            if src.is_dir() or "__pycache__" in src.parts:
+                continue
+            rel_in = src.relative_to(base) if sub == "pages" else Path(sub) / src.relative_to(base)
+            dest = DOCS / rel_in
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            target = Path("../" * (len(rel_in.parts) - 1)) / ".." / src.relative_to(ROOT)
+            dest.symlink_to(target)
+            count += 1
 
     print(f"Linked {count} Markdown files into {DOCS.relative_to(ROOT)}/ (symlinks only, no copies).")
 

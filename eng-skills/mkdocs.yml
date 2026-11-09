@@ -1,33 +1,69 @@
-site_name: English Learning & Communication Toolkit
-site_description: Vocabulary, phrasal verbs, idioms, and communication guides — rendered with instant search.
+site_name: English & Communication Toolkit
+site_description: Vocabulary, phrasal verbs, idioms, communication frameworks, and PM literacy — with flashcards and instant search.
 docs_dir: docs
 
 theme:
   name: material
+  custom_dir: mkdocs-site/overrides
   font: false
+  icon:
+    logo: material/book-open-page-variant
+    repo: material/git
+  favicon: assets/images/favicon.svg
   palette:
+    - media: "(prefers-color-scheme)"
+      toggle:
+        icon: material/brightness-auto
+        name: Switch to light mode
     - media: "(prefers-color-scheme: light)"
       scheme: default
-      primary: indigo
+      primary: custom
+      accent: custom
       toggle:
-        icon: material/brightness-7
+        icon: material/weather-sunny
         name: Switch to dark mode
     - media: "(prefers-color-scheme: dark)"
       scheme: slate
-      primary: indigo
+      primary: custom
+      accent: custom
       toggle:
-        icon: material/brightness-4
-        name: Switch to light mode
+        icon: material/weather-night
+        name: Switch to system preference
   features:
-    - navigation.instant
-    - navigation.tracking
-    - navigation.top
-    - navigation.indexes
+    - announce.dismiss
+    - navigation.tabs
+    - navigation.tabs.sticky
     - navigation.sections
+    - navigation.indexes
+    - navigation.path
+    - navigation.top
+    - navigation.footer
+    - navigation.tracking
+    - navigation.instant
+    - navigation.instant.progress
     - search.suggest
     - search.highlight
+    - search.share
     - toc.follow
+    - content.tooltips
     - content.code.copy
+
+hooks:
+  - mkdocs-site/hooks/site_hooks.py
+
+watch:
+  - mkdocs-site
+
+extra_css:
+  - assets/stylesheets/extra.css
+extra_javascript:
+  - assets/javascripts/extra.js
+
+validation:
+  nav:
+    omitted_files: info
+  links:
+    anchors: info
 
 markdown_extensions:
   - toc:
@@ -37,3 +73,157 @@ markdown_extensions:
           case: lower
   - tables
   - admonition
+  - attr_list
+  - md_in_html
+  - def_list
+  - abbr
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.mark
+  - pymdownx.keys
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+
+nav:
+  - Home:
+      - index.md
+      - About this toolkit: overview.md
+  - Practice:
+      - Flashcards: practice/flashcards.md
+      - Daily Rehearsal Script: Vocabulary-Collections/architect-influence-rehearsal-script.md
+      - Active Rotation Set: Vocabulary-Collections/architect-influence-active-rotation.md
+  - Vocabulary:
+      - Start Here:
+          - Surface vs. Deep Lexicon: Vocabulary-Collections/surface-vs-deep-lexicon.md
+      - Word Banks:
+          - Vocabulary: Vocabulary-Collections/vocab.md
+          - Phrasal Verbs: Vocabulary-Collections/phrasal-verbs.md
+          - Idioms: Vocabulary-Collections/idioms.md
+          - Technical & Architectural: Vocabulary-Collections/technical-english.md
+          - Business Communication: Vocabulary-Collections/business-communication.md
+      - Architect & Influence Register:
+          - Lexicon (Deep Reservoir): Vocabulary-Collections/architect-influence-lexicon.md
+          - Flat Word Table: Vocabulary-Collections/architect-influence-word-table.md
+      - Grammar & Speaking:
+          - Grammar Notes: Vocabulary-Collections/grammar-notes.md
+          - Speaking Toolkit: Vocabulary-Collections/speaking-toolkit.md
+          - Assertiveness & Vocal Presence: Vocabulary-Collections/assertiveness-vocal-presence.md
+          - Hindi-Speaker's Fluency Playbook: Vocabulary-Collections/hindi-speaker-fluency-playbook.md
+      - Read & Review:
+          - Stories in Context: Vocabulary-Collections/stories.md
+          - Reference Tables: Vocabulary-Collections/reference-tables.md
+  - Communication:
+      - Communication-Mastery/README.md
+      - Foundations:
+          - Why Engineers Struggle to Explain: Communication-Mastery/01_Foundations/01_why_engineers_struggle_to_explain.md
+          - Cognitive Science of Explanation: Communication-Mastery/01_Foundations/02_cognitive_science_of_explanation.md
+          - Anatomy of a Great Explanation: Communication-Mastery/01_Foundations/03_anatomy_of_great_explanations.md
+      - Thinking Frameworks:
+          - Answer-First Thinking: Communication-Mastery/02_Thinking_Frameworks/01_answer_first_thinking.md
+          - Structured Thinking: Communication-Mastery/02_Thinking_Frameworks/02_mental_models_and_structured_thinking.md
+          - Debugging & Architecture Decisions: Communication-Mastery/02_Thinking_Frameworks/03_debugging_and_architectural_decision_making.md
+          - Mental Models OS: Communication-Mastery/02_Thinking_Frameworks/04_mental_models_operating_system.md
+          - Removing Hurry: Communication-Mastery/02_Thinking_Frameworks/05_removing_hurry_pause_before_acting.md
+          - Prerequisite Stacking: Communication-Mastery/02_Thinking_Frameworks/06_prerequisite_stacking_and_the_elsewhere_effect.md
+          - Strategic Thinking Practice: Communication-Mastery/02_Thinking_Frameworks/06_strategic_thinking_practice_system.md
+          - Staff-Level Writing: Communication-Mastery/02_Thinking_Frameworks/07_making_thinking_visible_staff_level_writing.md
+          - Probabilistic Thinking: Communication-Mastery/02_Thinking_Frameworks/08_probabilistic_thinking_and_calibration.md
+          - Reasoning Failure Modes: Communication-Mastery/02_Thinking_Frameworks/09_reasoning_failure_modes_a_field_guide.md
+          - Second-Order & Systems Thinking: Communication-Mastery/02_Thinking_Frameworks/10_second_order_and_systems_thinking.md
+          - Role Clarity & Expectations: Communication-Mastery/02_Thinking_Frameworks/11_role_clarity_and_expectation_contracts.md
+          - PM Literacy for Engineers: Communication-Mastery/02_Thinking_Frameworks/12_project_management_literacy_for_engineers.md
+          - Conflict Management: Communication-Mastery/02_Thinking_Frameworks/13_conflict_management_in_projects.md
+          - Reasoning Aloud & Persuasion: Communication-Mastery/02_Thinking_Frameworks/14_reasoning_aloud_teaching_and_persuasion_in_live_discussion.md
+          - DS Team Boundaries: Communication-Mastery/02_Thinking_Frameworks/15_data_science_team_boundaries_and_the_ml_delivery_chain.md
+          - Contractor-Architect Judgment: Communication-Mastery/02_Thinking_Frameworks/16_engineering_judgment_as_a_contractor_architect.md
+      - Explanation Frameworks:
+          - PREP, STAR, SCQA: Communication-Mastery/03_Explanation_Frameworks/01_core_frameworks_PREP_STAR_SCQA.md
+          - Feynman & Pyramid Principle: Communication-Mastery/03_Explanation_Frameworks/02_feynman_and_pyramid_principle.md
+          - Framework Selection Guide: Communication-Mastery/03_Explanation_Frameworks/03_framework_selection_guide.md
+          - Golden Circle: Communication-Mastery/03_Explanation_Frameworks/04_golden_circle_why_how_what.md
+      - Storytelling:
+          - Storytelling Fundamentals: Communication-Mastery/04_Technical_Storytelling/01_storytelling_fundamentals.md
+          - Incident & Project Narratives: Communication-Mastery/04_Technical_Storytelling/02_incident_and_project_narratives.md
+      - Phrase Library:
+          - Openings & Transitions: Communication-Mastery/05_Phrase_Library/01_openings_transitions_structure.md
+          - Comparisons & Trade-offs: Communication-Mastery/05_Phrase_Library/02_comparisons_tradeoffs_architecture.md
+          - Disagreement & Feedback: Communication-Mastery/05_Phrase_Library/03_recommendations_disagreement_feedback.md
+          - Incidents & RCA: Communication-Mastery/05_Phrase_Library/04_incidents_rca_performance_risk.md
+          - Stakeholders & Leadership: Communication-Mastery/05_Phrase_Library/05_stakeholder_leadership_interview.md
+          - Being Grilled: Communication-Mastery/05_Phrase_Library/06_grilling_challenge_questions.md
+          - Bug & System Walkthroughs: Communication-Mastery/05_Phrase_Library/07_bug_and_system_walkthroughs.md
+          - Assertive Communication: Communication-Mastery/05_Phrase_Library/08_assertive_communication_conflict.md
+      - Presenting & Meetings:
+          - Status Updates & Exec Summaries: Communication-Mastery/06_Project_Presentation/01_status_updates_walkthroughs_summaries.md
+          - Architecture Walkthroughs: Communication-Mastery/07_Architecture_Communication/01_architecture_walkthrough_and_design_review.md
+          - Describing Diagrams: Communication-Mastery/07_Architecture_Communication/02_describing_diagrams_and_tradeoffs_in_words.md
+          - Meetings, Incidents & Execs: Communication-Mastery/09_Meeting_Communication/01_standups_reviews_incidents_execs.md
+      - Interviews:
+          - Behavioral & System Design: Communication-Mastery/08_Interview_Communication/01_behavioral_and_system_design_frameworks.md
+          - Common Questions & Answers: Communication-Mastery/08_Interview_Communication/02_common_questions_with_excellent_answers.md
+          - The Collector's Fallacy: Communication-Mastery/08_Interview_Communication/03_the_collectors_fallacy_fixing_prep_without_progress.md
+          - Evidence-Based Self-Affirmation: Communication-Mastery/08_Interview_Communication/04_last_project_learning_affirmation.md
+      - Practice & Review:
+          - Daily Practice System: Communication-Mastery/10_Daily_Practice/01_daily_and_weekly_practice_system.md
+          - Exercise Bank: Communication-Mastery/11_Exercises/01_exercise_bank.md
+          - Record & Review Yourself: Communication-Mastery/12_Recording_Analysis/01_how_to_record_and_review.md
+          - Self-Review Checklist: Communication-Mastery/12_Recording_Analysis/02_self_review_checklist.md
+      - Mistakes & Case Studies:
+          - Mistakes, Causes & Fixes: Communication-Mastery/13_Common_Mistakes/01_mistakes_causes_fixes.md
+          - Perceived Isolation: Communication-Mastery/13_Common_Mistakes/02_case_study_perceived_isolation_and_visibility_breakdown.md
+          - Silent Over-Commitment: Communication-Mastery/13_Common_Mistakes/03_case_study_silent_overcommitment_spiral.md
+          - Unnamed Single Point of Failure: Communication-Mastery/13_Common_Mistakes/04_case_study_single_point_of_failure.md
+          - Optimistic Status Updates: Communication-Mastery/13_Common_Mistakes/05_case_study_optimistic_status_update_trap.md
+          - Decision Laundering: Communication-Mastery/13_Common_Mistakes/06_case_study_decision_laundering.md
+          - The Managed Exit: Communication-Mastery/13_Common_Mistakes/07_case_study_managed_exit.md
+          - Credit Hijacking: Communication-Mastery/13_Common_Mistakes/08_case_study_credit_hijacking_exec_readout.md
+          - Scapegoating in Postmortems: Communication-Mastery/13_Common_Mistakes/09_case_study_scapegoating_blameless_postmortem.md
+          - Information Withholding: Communication-Mastery/13_Common_Mistakes/10_case_study_selective_information_withholding.md
+          - The Alliance Tax: Communication-Mastery/13_Common_Mistakes/11_case_study_the_alliance_tax.md
+          - The Whisper Campaign: Communication-Mastery/13_Common_Mistakes/12_case_study_whisper_campaign.md
+          - Political Targeting of Contractors: Communication-Mastery/13_Common_Mistakes/13_case_study_onshore_political_targeting_of_offshore_contractors.md
+          - Linguistic Downgrading: Communication-Mastery/13_Common_Mistakes/14_linguistic_downgrading_in_technical_discussions.md
+      - Advanced:
+          - Engineering Case Studies: Communication-Mastery/14_Advanced/01_case_studies.md
+          - 30/60/90-Day Challenges: Communication-Mastery/14_Advanced/02_challenges_30_60_90.md
+          - 12-Week Assignments: Communication-Mastery/14_Advanced/03_assignments_12_weeks.md
+          - Recommended Resources: Communication-Mastery/14_Advanced/04_recommended_resources.md
+          - Dev → Architect Growth Track: Communication-Mastery/14_Advanced/05_dev_to_architect_growth_track.md
+          - Staying Valuable When Code Is Cheap: Communication-Mastery/14_Advanced/06_staying_valuable_when_code_is_cheap.md
+  - Project Mgmt:
+      - Project_Management/README.md
+      - Foundations:
+          - What Project Management Is: Project_Management/01_Foundations/01_what_is_project_management.md
+          - Process Groups & Knowledge Areas: Project_Management/01_Foundations/02_process_groups_and_knowledge_areas.md
+      - Knowledge Areas:
+          - Integration, Scope & Schedule: Project_Management/02_Knowledge_Areas/01_integration_scope_schedule_management.md
+          - Cost, Quality & Resources: Project_Management/02_Knowledge_Areas/02_cost_quality_resource_management.md
+          - Communications: Project_Management/02_Knowledge_Areas/03_communications_management.md
+          - Risk: Project_Management/02_Knowledge_Areas/04_risk_management.md
+          - Procurement & Stakeholders: Project_Management/02_Knowledge_Areas/05_procurement_and_stakeholder_management.md
+      - Methods & Reference:
+          - Predictive, Agile & Hybrid: Project_Management/03_Methodologies/01_predictive_agile_and_hybrid_delivery.md
+          - PMI Glossary A–Z: Project_Management/04_Glossary_Formulas_Conversions/01_pmi_glossary_az.md
+          - Formulas & Conversions: Project_Management/04_Glossary_Formulas_Conversions/02_formulas_and_conversions.md
+          - Certifications Map: Project_Management/08_Certifications_and_Further_Study/01_pmp_capm_acp_prince2_map.md
+      - Applying It:
+          - Best Practices & Anti-Patterns: Project_Management/05_Best_Practices_and_Templates/01_best_practices_and_anti_patterns.md
+          - Ready-to-Use Templates: Project_Management/05_Best_Practices_and_Templates/02_ready_to_use_templates.md
+          - MLOps, GenAI & Cloud Playbook: Project_Management/06_MLOps_GenAI_Cloud_Playbook/01_applying_pm_to_mlops_genai_projects.md
+          - PM Phrase Bank & Scripts: Project_Management/07_Communication_Toolkit/01_pm_phrase_bank_and_scripts.md
+      - Case Studies:
+          - Risk Failures: Project_Management/09_Case_Studies/01_risk_management_case_studies.md
+          - Conflict & Coordination: Project_Management/09_Case_Studies/02_conflict_and_coordination_case_studies.md
+          - Heathrow T5 (Success): Project_Management/09_Case_Studies/03_risk_management_success_heathrow_t5.md
+  - Books:
+      - Book-Summaries/README.md
+      - A Sense of Urgency: Book-Summaries/a_sense_of_urgency.md
+      - Silos, Politics & Turf Wars: Book-Summaries/silos_politics_and_turf_wars.md
+      - The No Asshole Rule: Book-Summaries/the_no_asshole_rule.md
+      - Ultralearning: Book-Summaries/ultralearning.md
+      - What I Didn't Learn in Business School: Book-Summaries/what_i_didnt_learn_in_business_school.md

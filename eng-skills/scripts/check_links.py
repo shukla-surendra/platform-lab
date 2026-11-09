@@ -17,7 +17,7 @@ import re
 import sys
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-EXCLUDE_DIRS = {".venv", ".git", "docs_html", "docs", "site", "__pycache__", "source"}
+EXCLUDE_DIRS = {".venv", ".git", "docs_html", "docs", "site", "__pycache__", "source", "mkdocs-site"}
 
 # [text](target) - capture the target, non-greedy, no nested parens.
 LINK_RE = re.compile(r"\[[^\]]*\]\(([^)]+)\)")
